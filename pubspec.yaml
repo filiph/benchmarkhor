@@ -10,7 +10,9 @@ environment:
   sdk: '>=2.12.0 <3.0.0'
 
 dependencies:
-   lzma: ^1.0.1
+  args: ^2.1.1
+  logging: ^1.0.1
+  lzma: ^1.0.1
 
 dev_dependencies:
   pedantic: ^1.10.0
