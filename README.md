@@ -4,7 +4,8 @@
 It provides ways to compare benchmark data as a whole, as opposed to just
 as a handful of summary numbers.
 
-(Markhor is a [mountain goat](https://www.google.com/search?q=markhor).)
+(Markhor is a species of 
+[mountain goats](https://www.google.com/search?q=markhor).)
 
 ## Install
 
@@ -49,7 +50,7 @@ After you've made your performance optimization work, create a new `.benchmark` 
 
 ### Comparing two benchmarks
 
-Simply run the `benchcompare` tool on two benchmark files:
+Simply run the `benchcompare` tool on any two benchmark files:
 
 ```text
 $ benchcompare baseline.benchmark new.benchmark
@@ -122,8 +123,8 @@ Raster thread:
 
 In the above example, we can see a massive improvement on the raster thread. The histogram tells us this improvement is consistent: most of the graph is to the left of center, which means that most of the measurements in `new.benchmark` were shorter (faster) than in `baseline.benchmark`.
 
-We can also see some deterioration on the UI thread, but only in total execution time (which roughly translates to CPU usage). We can now decide whether this deterioration on the UI thread is a fair price for the improvement on the raster thread. (For what it's worth: _it definitely is in this case._)
+We can also see some deterioration on the UI thread, but only in total execution time (which roughly translates to battery usage). We can now decide whether this deterioration on the UI thread is a fair price for the improvement on the raster thread. (For what it's worth: _it definitely is, in this case._)
 
 ## Contributing
 
-Please file an issue first, or feel free to fork this project if you need quick or major changes. This is a personal project, so there are no guarantees.
+Please file an issue first, or feel free to fork this project if you can't wait. This is a personal project, so there are no guarantees.
