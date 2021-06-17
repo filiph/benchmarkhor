@@ -7,7 +7,7 @@ It provides ways to compare benchmark data as a whole, as opposed to just
 as a handful of summary numbers.
 
 (Markhor is a species of 
-[mountain goats](https://www.google.com/search?q=markhor).)
+[mountain goat](https://www.google.com/search?q=markhor).)
 
 ### Features
 
