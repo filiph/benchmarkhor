@@ -9,20 +9,21 @@ as a handful of summary numbers.
 (Markhor is a species of 
 [mountain goats](https://www.google.com/search?q=markhor).)
 
-Features:
+**Features**
 
-* Visualizes performance changes with a diff histogram.
+* **Visualizes performance changes with a diff histogram**.  
   This allows for a much more insightful comparison.
-* Creates tiny `.benchmark` files that summarize each run without
-  losing detail.
-  These takes only a few kilobytes 
+* **Saves each run in a tiny file without
+  losing detail.**  
+  Each `.benchmark` file takes only a few kilobytes 
   (about the size of this `README.md` text file).
   Compared to the 
   [timeline JSON files](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview),
   which can easily take hundreds of megabytes,
   this format takes about 0.003% on disk.
-* Summarizes performance improvements with a carefully selected
-  set of metrics. This makes it easier to see if a particular performance
+* **Summarizes performance improvements with a carefully selected
+  set of metrics.**  
+  This makes it easier to see if a particular performance
   optimization makes a significant difference, 
   and it makes it harder to be fooled by false indications of progress.
 
