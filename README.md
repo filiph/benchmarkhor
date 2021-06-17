@@ -1,5 +1,7 @@
 <img src="https://github.com/filiph/benchmarkhor/raw/main/doc/images/markhor.jpg" alt="An illustration of a markhor, a mountain goat" align="right">
 
+![Build status](https://github.com/filiph/benchmarkhor/actions/workflows/test.yml/badge.svg)
+
 **Benchmarkhor** is a benchmark comparison tool. 
 It provides ways to compare benchmark data as a whole, as opposed to just
 as a handful of summary numbers.
