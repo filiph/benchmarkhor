@@ -1,7 +1,6 @@
 import 'dart:math';
 
 import 'package:benchmarkhor/benchmark_result.dart';
-import 'package:t_stats/t_stats.dart';
 
 class FlutterComparison {
   static const _120fpsBudgetInMicroseconds = 1000000 / 120;
@@ -25,10 +24,6 @@ class FlutterComparison {
   /// long (in microseconds).
   final int runtimeThreshold;
 
-  late Statistic uiDifferences = Statistic.from(_uiTimes, name: 'UI diffs');
-
-  late Statistic rasterDifferences =
-      Statistic.from(_rasterTimes, name: 'Raster diffs');
   factory FlutterComparison(
       BenchmarkResult original, BenchmarkResult improved) {
     return FlutterComparison._(
@@ -261,9 +256,6 @@ class Histogram {
 class _FlutterProfileBenchmarkResult {
   final List<int> uiTimes;
   final List<int> rasterTimes;
-
-  late Statistic uiStats = Statistic.from(uiTimes, name: 'UI');
-  late Statistic rasterStats = Statistic.from(rasterTimes, name: 'Raster');
 
   _FlutterProfileBenchmarkResult(BenchmarkResult result)
       : assert(result.type == 'flutter-profile '),
