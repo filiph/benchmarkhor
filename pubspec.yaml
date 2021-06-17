@@ -4,7 +4,11 @@ description: >
   benchmark results as a whole, as opposed to just
   a few summary numbers.
 version: 0.1.0
-# homepage: https://www.example.com
+repository: https://github.com/filiph/benchmarkhor
+
+executables:
+  benchextract:
+  benchcompare:
 
 environment:
   sdk: '>=2.12.0 <3.0.0'
@@ -13,6 +17,7 @@ dependencies:
   args: ^2.1.1
   logging: ^1.0.1
   lzma: ^1.0.1
+  t_stats: ^3.0.0
 
 dev_dependencies:
   pedantic: ^1.10.0

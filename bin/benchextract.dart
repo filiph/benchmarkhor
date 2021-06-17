@@ -116,4 +116,4 @@ Future<int> main(List<String> args) async {
   return 0;
 }
 
-Logger log = Logger('benchextractor');
+Logger log = Logger('benchextract');
