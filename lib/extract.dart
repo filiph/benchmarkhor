@@ -63,17 +63,18 @@ Iterable<int> measureTimes(
     if (event.phase == 'B') {
       if (latestStart != null) {
         log.warning('New event beginning but last one (ts=$latestStart) '
-            "hasn't ended yet: ${event.json}");
-        continue;
+            "hasn't ended yet: ${event.json}. "
+            'Ignoring the previous beginning.');
       }
       latestStart = event.timestampMicros;
     } else if (event.phase == 'E') {
       if (latestStart == null) {
-        log.warning("Event ended but we didn't see it begin: ${event.json}");
+        log.warning("Event ended but we didn't see it begin: ${event.json}. "
+            'Ignoring.');
         continue;
       }
       if (event.timestampMicros == null) {
-        log.warning("Event doesn't have a timestamp: ${event.json}");
+        log.warning("Event doesn't have a timestamp: ${event.json}. Ignoring.");
         continue;
       }
       yield event.timestampMicros! - latestStart;

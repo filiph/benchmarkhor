@@ -9,7 +9,7 @@ class BenchmarkResult {
   static const int currentFormatVersion = 1;
   static final _currentFormatVersionBytes =
       Uint16List.fromList([currentFormatVersion]);
-  static const _flutterProfileType = 'flutter-profile ';
+  static const flutterProfileType = 'flutter-profile ';
   static const _typeStringLength = 16;
 
   /// User-provided label for the benchmark result. Can be empty.
@@ -36,7 +36,7 @@ class BenchmarkResult {
   /// type. They should be gathered with the same methodology, and have
   /// the same [series].
   ///
-  /// Currently, the only type is [_flutterProfileType], and the value
+  /// Currently, the only type is [flutterProfileType], and the value
   /// is ignored.
   ///
   /// Type *must* be 16 ASCII characters long. Feel free to pad by spaces.
@@ -46,7 +46,7 @@ class BenchmarkResult {
     required this.label,
     required this.timestamp,
     required this.series,
-    this.type = _flutterProfileType,
+    this.type = flutterProfileType,
   })  : assert(timestamp.isUtc, 'Timestamp must be in UTC'),
         assert(
             type.length == _typeStringLength,

@@ -5,6 +5,8 @@ import 'package:benchmarkhor/benchmark_result.dart';
 import 'package:benchmarkhor/comparison.dart';
 import 'package:logging/logging.dart';
 
+import 'src/read_benchmark_file.dart';
+
 Future<int> main(List<String> args) async {
   final parser = ArgParser();
   parser.addFlag('help', abbr: 'h', help: 'Show help.', defaultsTo: false);
@@ -34,8 +36,8 @@ Future<int> main(List<String> args) async {
 
   BenchmarkResult original, improved;
   try {
-    original = await _readFromFile(argResults.rest.first);
-    improved = await _readFromFile(argResults.rest.last);
+    original = await readFromFile(argResults.rest.first);
+    improved = await readFromFile(argResults.rest.last);
   } on FileSystemException catch (e) {
     stderr.writeln('ERROR: Could not read one of the files');
     stderr.writeln('$e');
@@ -57,20 +59,6 @@ Future<int> main(List<String> args) async {
   print(comparison.report);
 
   return 0;
-}
-
-Future<BenchmarkResult> _readFromFile(String filename) async {
-  log.fine('Extracting $filename');
-
-  final file = File(filename);
-  final data = await file.readAsBytes();
-  log.fine('Finished reading $file');
-
-  log.fine('Loading');
-  final result = BenchmarkResult.fromBytes(data);
-  log.finer('Finished loading');
-
-  return result;
 }
 
 Logger log = Logger('benchcompare');

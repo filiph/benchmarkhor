@@ -7,8 +7,9 @@ version: 0.2.0
 repository: https://github.com/filiph/benchmarkhor
 
 executables:
-  benchextract:
   benchcompare:
+  benchextract:
+  benchmerge:
 
 environment:
   sdk: '>=2.12.0 <3.0.0'
