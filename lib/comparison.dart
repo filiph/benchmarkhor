@@ -60,7 +60,7 @@ class FlutterComparison {
   String get asciiVisualizations {
     return '<-- (improvement)                  UI thread                (deterioration) -->\n'
         '${createAsciiVisualization(_uiTimes)}\n\n'
-           '<-- (improvement)                Raster thread              (deterioration) -->\n'
+        '<-- (improvement)                Raster thread              (deterioration) -->\n'
         '${createAsciiVisualization(_rasterTimes)}';
   }
 
