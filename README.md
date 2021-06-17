@@ -125,6 +125,6 @@ In the above example, we can see a massive improvement on the raster thread. The
 
 We can also see some deterioration on the UI thread, but only in total execution time (which roughly translates to battery usage). We can now decide whether this deterioration on the UI thread is a fair price for the improvement on the raster thread. (For what it's worth: _it definitely is, in this case._)
 
-## Contributing
+## Contribute
 
 Please file an issue first, or feel free to fork this project if you can't wait. This is a personal project, so there are no guarantees.
