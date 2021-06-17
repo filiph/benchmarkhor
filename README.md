@@ -9,7 +9,7 @@ as a handful of summary numbers.
 (Markhor is a species of 
 [mountain goats](https://www.google.com/search?q=markhor).)
 
-**Features**
+### Features
 
 * **Visualizes performance changes with a diff histogram**.  
   This allows for a much more insightful comparison.
