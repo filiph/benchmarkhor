@@ -1,12 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:args/args.dart';
 import 'package:benchmarkhor/benchmark_result.dart';
 import 'package:benchmarkhor/comparison.dart';
-import 'package:benchmarkhor/extract.dart';
 import 'package:logging/logging.dart';
-import 'package:path/path.dart' as path;
 
 Future<int> main(List<String> args) async {
   final parser = ArgParser();
