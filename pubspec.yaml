@@ -17,6 +17,7 @@ dependencies:
   args: ^2.1.1
   logging: ^1.0.1
   lzma: ^1.0.1
+  path: ^1.8.0
   t_stats: ^3.0.0
 
 dev_dependencies:
