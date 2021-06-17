@@ -54,6 +54,9 @@ Iterable<int> measureTimes(
 
   int? latestStart;
 
+  // See the following document to understand what all these phases
+  // and ids mean:
+  // https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
   for (final event in events) {
     if (event.threadId != threadId) continue;
     if (!(event.name ?? '').contains(eventName)) continue;
