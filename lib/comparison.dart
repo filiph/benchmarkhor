@@ -110,13 +110,10 @@ class FlutterComparison {
 
     final histogram = Histogram(measurements, forceRange: _histogramRange);
 
-    // Number of characters on each side of the center line.
+    // We want a bucket for the exact middle of the range.
     assert(Histogram.bucketCount.isOdd);
+    // Number of characters on each side of the center line.
     const sideSize = (Histogram.bucketCount - 1) ~/ 2;
-
-    // buf.writeln('${'<-- (improvement)'.padRight(sideSize)}'
-    //     ' '
-    //     '${'(deterioration) -->'.padLeft(sideSize)}');
 
     // How many characters should the largest bucket be high?
     const height = 20;
@@ -127,7 +124,7 @@ class FlutterComparison {
         if (value > (height - row + 0.5) / height) {
           // Definitely above the line.
           buf.write('█');
-        } else if (value > (height - row + 0.1) / height) {
+        } else if (value > (height - row + 0.05) / height) {
           // Meaningfully above the line.
           buf.write('▄');
         } else if (value > (height - row) / height && row == height) {
