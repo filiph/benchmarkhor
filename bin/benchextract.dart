@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:args/args.dart';
 import 'package:benchmarkhor/benchmark_result.dart';
@@ -93,6 +94,19 @@ Future<int> main(List<String> args) async {
       return 1;
     }
     log.finer('Finished extraction');
+
+    for (final serie in result.series) {
+      final n = serie.measurements.length;
+      final minimum = serie.measurements.fold<int>(0xFFFFFFF, min);
+      final maximum = serie.measurements.fold<int>(-0xFFFFFFF, max);
+      int? median;
+      if (shouldSortMeasurements) {
+        median = serie.measurements[serie.measurements.length ~/ 2];
+      }
+
+      log.info('* ${serie.label}: '
+          'N=$n, median=$median, min=$minimum, max=$maximum');
+    }
 
     log.fine('Starting toBytes()');
     final benchmarkContents = result.toBytes();

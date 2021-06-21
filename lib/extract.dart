@@ -52,7 +52,10 @@ Iterable<int> measureTimes(
     List<_TimelineEvent> events, int threadId, Pattern eventName) sync* {
   final log = Logger('measureTime');
 
-  int? latestStart;
+  /// Started event is null when there hasn't yet been a "B" event, or when
+  /// it has already been closed by an "E" event. Otherwise, it's the
+  /// latest "B" event.
+  _TimelineEvent? startedEvent;
 
   // See the following document to understand what all these phases
   // and ids mean:
@@ -60,25 +63,41 @@ Iterable<int> measureTimes(
   for (final event in events) {
     if (event.threadId != threadId) continue;
     if (!(event.name ?? '').contains(eventName)) continue;
+    if (event.timestampMicros == null) {
+      log.warning("Event doesn't include a timestamp. Ignoring. "
+          'Event: ${event.json}');
+      continue;
+    }
     if (event.phase == 'B') {
-      if (latestStart != null) {
-        log.warning('New event beginning but last one (ts=$latestStart) '
-            "hasn't ended yet: ${event.json}. "
-            'Ignoring the previous beginning.');
+      if (startedEvent != null) {
+        log.warning('New event beginning but last one '
+            "hasn't ended yet. Ignoring the previous beginning. "
+            'Existing: ${startedEvent.json}. New: ${event.json}. ');
       }
-      latestStart = event.timestampMicros;
+      startedEvent = event;
     } else if (event.phase == 'E') {
-      if (latestStart == null) {
-        log.warning("Event ended but we didn't see it begin: ${event.json}. "
-            'Ignoring.');
+      if (startedEvent == null) {
+        log.warning("Event ended but we didn't see it begin. Ignoring. "
+            'End event: ${event.json}');
         continue;
       }
       if (event.timestampMicros == null) {
         log.warning("Event doesn't have a timestamp: ${event.json}. Ignoring.");
         continue;
       }
-      yield event.timestampMicros! - latestStart;
-      latestStart = null;
+
+      // We can assert non-null because we're skipping all events
+      // without timestamps.
+      final elapsedTime =
+          event.timestampMicros! - startedEvent.timestampMicros!;
+      if (elapsedTime > 10000000) {
+        log.warning('Event seems to be way too long, over 10 seconds. '
+            'It will be added as is, but check the timeline. '
+            'Start: ${startedEvent.json}. End: ${event.json}');
+      }
+
+      yield elapsedTime;
+      startedEvent = null;
     }
   }
 }
