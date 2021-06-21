@@ -6,6 +6,12 @@ class FlutterComparison {
   static const _120fpsBudgetInMicroseconds = 1000000 / 120;
   static const _120fpsBudget = _120fpsBudgetInMicroseconds / 1000;
 
+  /// Histogram always shows this range: ±8.0ms.
+  ///
+  /// That's a huge number, since an improvement by that much can easily
+  /// erase all jank.
+  static const _histogramRange = 8000;
+
   final List<int> _uiTimes;
   final List<int> _rasterTimes;
   final int _originalUiFullRuntime;
@@ -53,9 +59,9 @@ class FlutterComparison {
             _countSkipped(improved.rasterTimes, frameBudget);
 
   String get asciiVisualizations {
-    return '<-- (improvement)                  UI thread                (deterioration) -->\n'
+    return '<-- (improvement)                  UI thread                (deterioration) -->\n\n'
         '${createAsciiVisualization(_uiTimes)}\n\n'
-        '<-- (improvement)                Raster thread              (deterioration) -->\n'
+        '<-- (improvement)                Raster thread              (deterioration) -->\n\n'
         '${createAsciiVisualization(_rasterTimes)}';
   }
 
@@ -102,7 +108,7 @@ class FlutterComparison {
   static String createAsciiVisualization(List<int> measurements) {
     final buf = StringBuffer();
 
-    final histogram = Histogram(measurements);
+    final histogram = Histogram(measurements, forceRange: _histogramRange);
 
     // Number of characters on each side of the center line.
     assert(Histogram.bucketCount.isOdd);
@@ -220,14 +226,16 @@ class Histogram {
   // Number of characters on each side of the center line.
   late final double bucketWidth;
 
-  Histogram(List<int> measurements, {int? trim}) {
+  /// Creates a histogram from a list of [measurements].
+  ///
+  /// If [forceRange] is specified, the histogram will only span from `-x`
+  /// to `+x`, exactly. The measurements that fall outside this range will be
+  /// added to the outermost buckets.
+  Histogram(List<int> measurements, {int? forceRange}) {
     // Maximum distance from 0.
-    var distance = measurements.fold<int>(
-        0, (previousValue, element) => max(previousValue, element.abs()));
-
-    if (trim != null) {
-      distance = min(distance, trim);
-    }
+    var distance = forceRange ??
+        measurements.fold<int>(
+            0, (previousValue, element) => max(previousValue, element.abs()));
 
     lowestBound = (-distance - 1);
     highestBound = (distance + 1);
@@ -237,11 +245,11 @@ class Histogram {
     for (final m in measurements) {
       var bucketIndex = ((m - lowestBound) / bucketWidth).floor();
       if (bucketIndex < 0) {
-        assert(trim != null);
+        assert(forceRange != null);
         bucketIndex = 0;
       }
       if (bucketIndex >= bucketCount) {
-        assert(trim != null);
+        assert(forceRange != null);
         bucketIndex = bucketCount - 1;
       }
       bucketMemberCounts[bucketIndex] += 1;

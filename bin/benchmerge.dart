@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:benchmarkhor/benchmark_result.dart';
-import 'package:benchmarkhor/extract.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 
