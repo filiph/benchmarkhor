@@ -1,3 +1,7 @@
+## 0.4.0
+
+- Show risk ratio for jank
+
 ## 0.3.0
 
 - Force range of histogram to ±8ms

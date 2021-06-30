@@ -82,64 +82,77 @@ This will give a result like this:
 
 ```text
 <-- (improvement)                  UI thread                (deterioration) -->
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-.          .                         ..█..                                     
+
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       █
+                                       ██
+                                       ██
+                                .......███................ ..
 ───────────────────────────────────────────────────────────────────────────────
--115.4ms                               ^                                115.4ms
+-8.0ms                                 ^                                  8.0ms
 
 
 <-- (improvement)                Raster thread              (deterioration) -->
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                       █                                       
-                                    ▄▄ █                                       
-                                    ██ █                                       
-                                    ██ █                                       
-                                    ██ █                                       
-                                    ██ █                                       
-                                    ██ █                                       
-                                   ▄██ █                                       
-                                 █████ █                                       
-                                 █████ █                                       
-     ▄                          ▄███████                                       
-     █                          ████████                                       
-     █                     ▄  ▄█████████                                       
-▄▄▄▄▄█▄██▄▄▄..▄.▄▄▄▄████████████████████  .                       .            
+
+                                  █
+                                  █
+                                  █
+                                  █
+                                  █
+                                  █
+                                  █
+                                  █
+                                  █
+                                  █    █
+                                  █    █
+                                  █    █
+                                  █    █
+                                  █    █
+                                  █    █
+                                  █    █
+                                 ▄█    █
+                                 ██    █
+  ▄                          ██████    █
+▄.█▄▄▄▄▄▄▄▄▄▄▄.▄▄▄▄▄▄▄▄▄▄██████████....█  .  .  .  ..                         .
 ───────────────────────────────────────────────────────────────────────────────
--10.2ms                                ^                                 10.2ms
+-8.0ms                                 ^                                  8.0ms
+
+UI       Median  Average
+Before:     215    904.8
+After:      216    953.5
+         * statistically significant difference (95% confidence)
+Raster   Median  Average
+Before:    6542   6240.2
+After:     5506   4807.3
+         * statistically significant difference (95% confidence)
 
 UI thread:
-* 8.1% (1394ms) worsening of total execution time
-* 0 ppt decrease in potential jank (185 -> 175)
-* 0.2% of individual measurements improved by 1ms+
-* 0.2% of individual measurements worsened by 1ms+
+* 2.3% (10785ms) worsening of total execution time
+* No significant change in jank risk (5946 -> 5894)
+  (That's a 0 ppt decrease in ratio of jank-to-normal frames.)
+* 0.0% of individual measurements improved by 1ms+
+* 0.1% of individual measurements worsened by 1ms+
 
 Raster thread:
-* 23.4% (-7886ms) improvement of total execution time
-* 17 ppt decrease in potential jank (1111 -> 206)
-* 43.9% of individual measurements improved by 1ms+
+* 23.0% (-165496ms) improvement of total execution time
+* -66% to -67% less potential jank (25507 -> 8567)
+  (That's a 15 ppt decrease in ratio of jank-to-normal frames.)
+* 77.8% of individual measurements improved by 1ms+
 * 0.0% of individual measurements worsened by 1ms+
 ```
 
