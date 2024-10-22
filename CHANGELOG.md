@@ -1,3 +1,7 @@
+## 0.4.1
+
+- Fix extractor to work with modern timeline JSON files.
+
 ## 0.4.0
 
 - Show risk ratio for jank
