@@ -1,3 +1,7 @@
+## 0.4.2
+
+- Measure full frames (and not `Dart_InvokeClosure`)
+
 ## 0.4.1
 
 - Fix extractor to work with modern timeline JSON files.
