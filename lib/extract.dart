@@ -26,8 +26,8 @@ Future<BenchmarkResult> extractStatsFromFlutterTimeline(
   assert(uiThreadId != -1);
   assert(rasterThreadId != -1);
 
-  final uiTimes = measureTimes(events, uiThreadId, 'Dart_InvokeClosure')
-      .toList(growable: false);
+  final uiTimes =
+      measureTimes(events, uiThreadId, 'Frame').toList(growable: false);
   final rasterTimes =
       measureTimes(events, rasterThreadId, 'GPURasterizer::Draw')
           .toList(growable: false);
@@ -63,20 +63,20 @@ Iterable<int> measureTimes(
   // https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
   for (final event in events) {
     if (event.threadId != threadId) continue;
-    if (!(event.name ?? '').contains(eventName)) continue;
+    if ((event.name ?? '') != eventName) continue;
     if (event.timestampMicros == null) {
       log.warning("Event doesn't include a timestamp. Ignoring. "
           'Event: ${event.json}');
       continue;
     }
-    if (event.phase == 'B') {
+    if (event.phase?.toUpperCase() == 'B') {
       if (startedEvent != null) {
         log.warning('New event beginning but last one '
             "hasn't ended yet. Ignoring the previous beginning. "
             'Existing: ${startedEvent.json}. New: ${event.json}. ');
       }
       startedEvent = event;
-    } else if (event.phase == 'E') {
+    } else if (event.phase?.toUpperCase() == 'E') {
       if (startedEvent == null) {
         log.warning("Event ended but we didn't see it begin. Ignoring. "
             'End event: ${event.json}');
