@@ -7,8 +7,8 @@ import 'package:t_stats/t_stats.dart';
 Logger _log = Logger('comparison');
 
 class FlutterComparison {
-  static const _120fpsBudgetInMicroseconds = 1000000 / 120;
-  static const _120fpsBudget = _120fpsBudgetInMicroseconds / 1000;
+  static const _fps120BudgetInMicroseconds = 1000000 / 120;
+  static const _fps120Budget = _fps120BudgetInMicroseconds / 1000;
 
   /// Histogram always shows this range: ±8.0ms.
   ///
@@ -59,8 +59,8 @@ class FlutterComparison {
     this.improved,
     _FlutterProfileBenchmarkResult originalData,
     _FlutterProfileBenchmarkResult improvedData, {
-    @deprecated this.runtimeThreshold = 0,
-    this.frameBudget = _120fpsBudget,
+    @Deprecated('do not use') this.runtimeThreshold = 0,
+    this.frameBudget = _fps120Budget,
   })  : _uiDiffs = computeDiffs(
             originalData.uiTimes, improvedData.uiTimes, runtimeThreshold),
         _rasterDiffs = computeDiffs(originalData.rasterTimes,

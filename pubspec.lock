@@ -142,6 +142,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.1"
+  lints:
+    dependency: "direct dev"
+    description:
+      name: lints
+      sha256: "3315600f3fb3b135be672bf4a178c55f274bebe368325ae18462c89ac1e3b413"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.0"
   logging:
     dependency: "direct main"
     description:
@@ -175,7 +183,7 @@ packages:
     source: hosted
     version: "0.12.16+1"
   meta:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: meta
       sha256: e3641ec5d63ebf0d9b41bd43201a66e3fc79a65db5f61fc181f04cd27aab950c
@@ -214,14 +222,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.1"
-  pedantic:
-    dependency: "direct dev"
-    description:
-      name: pedantic
-      sha256: "67fc27ed9639506c856c840ccce7594d0bdcd91bc8d53d6e52359449a1d50602"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.11.1"
   pool:
     dependency: transitive
     description:

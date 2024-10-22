@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:benchmarkhor/benchmark_result.dart';
+import 'package:benchmarkhor/src/timeline_event.dart';
 import 'package:logging/logging.dart';
 
 /// May throw [FormatException] if [fileContents] aren't valid JSON.
@@ -49,13 +50,13 @@ Future<BenchmarkResult> extractStatsFromFlutterTimeline(
 /// Measures events taken by events that are named [eventName]
 /// in thread [threadId].
 Iterable<int> measureTimes(
-    List<_TimelineEvent> events, int threadId, Pattern eventName) sync* {
+    List<TimelineEvent> events, int threadId, Pattern eventName) sync* {
   final log = Logger('measureTime');
 
   /// Started event is null when there hasn't yet been a "B" event, or when
   /// it has already been closed by an "E" event. Otherwise, it's the
   /// latest "B" event.
-  _TimelineEvent? startedEvent;
+  TimelineEvent? startedEvent;
 
   // See the following document to understand what all these phases
   // and ids mean:
@@ -102,7 +103,7 @@ Iterable<int> measureTimes(
   }
 }
 
-List<_TimelineEvent>? _parseEvents(Map<String, dynamic> json) {
+List<TimelineEvent>? _parseEvents(Map<String, dynamic> json) {
   final jsonEvents = json['traceEvents'] as List<dynamic>?;
 
   if (jsonEvents == null) {
@@ -111,11 +112,11 @@ List<_TimelineEvent>? _parseEvents(Map<String, dynamic> json) {
 
   final timelineEvents =
       Iterable.castFrom<dynamic, Map<String, dynamic>>(jsonEvents)
-          .map<_TimelineEvent>(
-              (Map<String, dynamic> eventJson) => _TimelineEvent(eventJson))
+          .map<TimelineEvent>(
+              (Map<String, dynamic> eventJson) => TimelineEvent(eventJson))
           .toList();
 
-  timelineEvents.sort((_TimelineEvent e1, _TimelineEvent e2) {
+  timelineEvents.sort((TimelineEvent e1, TimelineEvent e2) {
     final ts1 = e1.timestampMicros;
     final ts2 = e2.timestampMicros;
     if (ts1 == null) {
@@ -132,86 +133,4 @@ List<_TimelineEvent>? _parseEvents(Map<String, dynamic> json) {
   });
 
   return timelineEvents;
-}
-
-/// A single timeline event.
-///
-/// Copy-pasted from `flutter_driver:driver`.
-class _TimelineEvent {
-  /// The original event JSON.
-  final Map<String, dynamic> json;
-
-  /// The name of the event.
-  ///
-  /// Corresponds to the "name" field in the JSON event.
-  final String? name;
-
-  /// Event category. Events with different names may share the same category.
-  ///
-  /// Corresponds to the "cat" field in the JSON event.
-  final String? category;
-
-  /// For a given long lasting event, denotes the phase of the event, such as
-  /// "B" for "event began", and "E" for "event ended".
-  ///
-  /// Corresponds to the "ph" field in the JSON event.
-  final String? phase;
-
-  /// ID of process that emitted the event.
-  ///
-  /// Corresponds to the "pid" field in the JSON event.
-  final int? processId;
-
-  /// ID of thread that issues the event.
-  ///
-  /// Corresponds to the "tid" field in the JSON event.
-  final int? threadId;
-
-  /// The duration of the event.
-  ///
-  /// Note, some events are reported with duration. Others are reported as a
-  /// pair of begin/end events.
-  ///
-  /// Corresponds to the "dur" field in the JSON event.
-  final Duration? duration;
-
-  /// The thread duration of the event.
-  ///
-  /// Note, some events are reported with duration. Others are reported as a
-  /// pair of begin/end events.
-  ///
-  /// Corresponds to the "tdur" field in the JSON event.
-  final Duration? threadDuration;
-
-  /// Time passed since tracing was enabled, in microseconds.
-  ///
-  /// Corresponds to the "ts" field in the JSON event.
-  final int? timestampMicros;
-
-  /// Thread clock time, in microseconds.
-  ///
-  /// Corresponds to the "tts" field in the JSON event.
-  final int? threadTimestampMicros;
-
-  /// Arbitrary data attached to the event.
-  ///
-  /// Corresponds to the "args" field in the JSON event.
-  final Map<String, dynamic>? arguments;
-
-  /// Creates a timeline event given JSON-encoded event data.
-  _TimelineEvent(this.json)
-      : name = json['name'] as String?,
-        category = json['cat'] as String?,
-        phase = json['ph'] as String?,
-        processId = json['pid'] as int?,
-        threadId = json['tid'] as int?,
-        duration = json['dur'] != null
-            ? Duration(microseconds: json['dur'] as int)
-            : null,
-        threadDuration = json['tdur'] != null
-            ? Duration(microseconds: json['tdur'] as int)
-            : null,
-        timestampMicros = json['ts'] as int?,
-        threadTimestampMicros = json['tts'] as int?,
-        arguments = json['args'] as Map<String, dynamic>?;
 }

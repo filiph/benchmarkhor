@@ -3,7 +3,7 @@ description: >
   Benchmark comparison tool. Provides ways to compare
   benchmark results as a whole, as opposed to just
   a few summary numbers.
-version: 0.4.0
+version: 0.4.1
 repository: https://github.com/filiph/benchmarkhor
 
 executables:
@@ -12,15 +12,16 @@ executables:
   benchmerge:
 
 environment:
-  sdk: '>=2.12.0 <3.0.0'
+  sdk: '>=3.3.0 <4.0.0'
 
 dependencies:
   args: ^2.1.1
   logging: ^1.0.1
   lzma: ^1.0.1
+  meta: ^1.16.0
   path: ^1.8.0
   t_stats: ^3.0.0
 
 dev_dependencies:
-  pedantic: ^1.10.0
+  lints: ^5.0.0
   test: ^1.16.0

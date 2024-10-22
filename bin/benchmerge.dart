@@ -108,7 +108,7 @@ Future<int> main(List<String> args) async {
   log.finer('Finished toBytes()');
 
   final benchmarkFilename =
-      path.withoutExtension(argResults.rest.first) + '-merged.benchmark';
+      '${path.withoutExtension(argResults.rest.first)}-merged.benchmark';
   try {
     final file = File(benchmarkFilename);
     log.fine('Writing to $benchmarkFilename');
