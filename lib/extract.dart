@@ -16,19 +16,19 @@ Future<BenchmarkResult> extractStatsFromFlutterTimeline(
 
   for (final event in events.where((e) => e.name == 'thread_name')) {
     final name = event.arguments!['name'] as String;
-    if (name.startsWith('1.ui')) {
+    if (name.startsWith('io.flutter.ui')) {
       uiThreadId = event.threadId!;
-    } else if (name.startsWith('1.raster')) {
+    } else if (name.startsWith('io.flutter.raster')) {
       rasterThreadId = event.threadId!;
     }
   }
   assert(uiThreadId != -1);
   assert(rasterThreadId != -1);
 
-  final uiTimes = measureTimes(events, uiThreadId, 'MessageLoop::FlushTasks')
+  final uiTimes = measureTimes(events, uiThreadId, 'Dart_InvokeClosure')
       .toList(growable: false);
   final rasterTimes =
-      measureTimes(events, rasterThreadId, 'MessageLoop::FlushTasks')
+      measureTimes(events, rasterThreadId, 'GPURasterizer::Draw')
           .toList(growable: false);
 
   if (shouldSort) {
