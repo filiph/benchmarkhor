@@ -1,3 +1,7 @@
+## 0.4.3
+
+- Allow specifying build budget threshold with `--threshold`
+
 ## 0.4.2
 
 - Measure full frames (and not `Dart_InvokeClosure`)

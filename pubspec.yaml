@@ -3,7 +3,7 @@ description: >
   Benchmark comparison tool. Provides ways to compare
   benchmark results as a whole, as opposed to just
   a few summary numbers.
-version: 0.4.2
+version: 0.4.3
 repository: https://github.com/filiph/benchmarkhor
 
 executables:
