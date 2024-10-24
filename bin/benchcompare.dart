@@ -12,6 +12,14 @@ Future<int> main(List<String> args) async {
   parser.addFlag('help', abbr: 'h', help: 'Show help.', defaultsTo: false);
   parser.addFlag('verbose',
       abbr: 'v', help: 'Verbose output', defaultsTo: false);
+  parser.addOption(
+    'threshold',
+    abbr: 't',
+    help: 'The threshold in milliseconds above which '
+        'a build time is considered over budget (a skipped frame). '
+        'Defaults to ~8.333 (which is 1/120th of a second).',
+    defaultsTo: (1000 / 120).toString(),
+  );
   var argResults = parser.parse(args);
 
   if (argResults['verbose']) {
@@ -34,6 +42,15 @@ Future<int> main(List<String> args) async {
     return 2;
   }
 
+  double? frameBudget;
+  frameBudget = double.tryParse(argResults.option('threshold') ?? 'N/A');
+  if (frameBudget == null) {
+    stderr
+        .writeln('ERROR: Threshold must be a parseable floating point number. '
+            'Instead got: "${argResults['threshold']}".');
+    return 1;
+  }
+
   BenchmarkResult original, improved;
   try {
     original = await readFromFile(argResults.rest.first);
@@ -48,7 +65,11 @@ Future<int> main(List<String> args) async {
     return 1;
   }
 
-  final comparison = FlutterComparison(original, improved);
+  final comparison = FlutterComparison(
+    original,
+    improved,
+    frameBudget,
+  );
 
   // print(comparison.uiDifferences);
   // print(comparison.rasterDifferences);

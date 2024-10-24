@@ -45,12 +45,16 @@ class FlutterComparison {
   final int runtimeThreshold;
 
   factory FlutterComparison(
-      BenchmarkResult original, BenchmarkResult improved) {
+    BenchmarkResult original,
+    BenchmarkResult improved,
+    double frameBudget,
+  ) {
     return FlutterComparison._(
       original,
       improved,
       _FlutterProfileBenchmarkResult(original),
       _FlutterProfileBenchmarkResult(improved),
+      frameBudget: frameBudget,
     );
   }
 
@@ -246,7 +250,7 @@ class FlutterComparison {
       int improvedSkipped) {
     final buf = StringBuffer();
 
-    buf.writeln('$thread thread:');
+    buf.writeln('$thread thread (N=$originalCount):');
 
     final runtimeDifference = improvedRuntime - originalRuntime;
     final gerund = runtimeDifference <= 0 ? 'improvement' : 'worsening';
@@ -268,12 +272,17 @@ class FlutterComparison {
       final higherPercent = ((jankRiskRatio.upper - 1) * 100).round();
       buf.write('* +$smallerPercent to +$higherPercent% more potential jank');
     }
-    buf.writeln(' ($originalSkipped -> $improvedSkipped)');
+    final originalSkippedRatio =
+        (originalSkipped / originalCount * 100).toStringAsFixed(1);
+    final improvedSkippedRatio =
+        (improvedSkipped / improvedCount * 100).toStringAsFixed(1);
+    buf.writeln(' ($originalSkipped -> $improvedSkipped, '
+        'or $originalSkippedRatio% -> $improvedSkippedRatio%)');
 
     final skippedDifference = improvedSkipped - originalSkipped;
-    final skippedPpt = (improvedSkipped / measurements.length -
-            originalSkipped / measurements.length) *
-        100;
+    final skippedPpt =
+        (improvedSkipped / improvedCount - originalSkipped / originalCount) *
+            100;
     final noun = skippedDifference <= 0 ? 'decrease' : 'increase';
     buf.writeln('  ('
         "That's a ${skippedPpt.abs().toStringAsFixed(0)} ppt "
