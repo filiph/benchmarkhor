@@ -1,11 +1,11 @@
 # Settings.
 
-original_file = "baseline-battery-after-upgrade.dat"
+original_file = "example-baseline.dat"
 original_name = "baseline"
-new_file = "baseline-battery-only-1-raycast.dat"
-new_name = "only 1 raycast"
+new_file = "example-experiment.dat"
+new_name = "some experiment"
 
-export_to_png = 0
+export_to_png = 1
 export_size = 1100
 export_file_name = "output.png"
 
