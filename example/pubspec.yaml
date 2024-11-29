@@ -1,0 +1,14 @@
+name: benchmarkhor_example
+version: 0.0.1
+description: An example of using benchmarkhor.
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+
+dependencies:
+  benchmarkhor:
+    path: ../
+  dart_internal:
+    path: ../dart_internal

@@ -78,6 +78,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.6"
+  dart_internal:
+    dependency: "direct main"
+    description:
+      path: dart_internal
+      relative: true
+    source: path
+    version: "0.0.1"
   file:
     dependency: transitive
     description:

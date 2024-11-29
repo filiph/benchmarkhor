@@ -1,0 +1,7 @@
+name: dart_internal
+version: 0.0.1
+description: >-
+  This is a special package which allows you to access dart:_internal
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
