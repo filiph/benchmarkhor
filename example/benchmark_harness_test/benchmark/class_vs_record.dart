@@ -56,34 +56,35 @@ final class Baseline2Benchmark extends _BaseBenchmark {
 }
 
 final class BaselineBenchmark extends _BaseBenchmark {
-  int _store = 0;
+  late final List<int> _store = List.filled(count, 0);
 
   BaselineBenchmark() : super('Baseline');
 
   @override
   void run() {
-    _store = getInt();
+    _store[_counter % count] = getInt();
   }
 
   @override
   void teardown() {
-    exitCode = _store;
+    exitCode = _store.last;
   }
 }
 
 final class ClassBenchmark extends _BaseBenchmark {
-  Clazz _store = Clazz(real: 0, integer: 0, string: '');
+  late final List<Clazz> _store =
+      List.filled(count, Clazz(real: 0, integer: 0, string: ''));
 
   ClassBenchmark() : super('Class');
 
   @override
   void run() {
-    _store = getClass();
+    _store[_counter % count] = getClass();
   }
 
   @override
   void teardown() {
-    exitCode = _store.integer;
+    exitCode = _store.last.integer;
   }
 }
 
@@ -97,22 +98,25 @@ final class Clazz {
 }
 
 final class RecordBenchmark extends _BaseBenchmark {
-  Record _store = (real: 0, integer: 0, string: '');
+  late final List<Record> _store =
+      List.filled(count, (real: 0, integer: 0, string: ''));
 
   RecordBenchmark() : super('Record');
 
   @override
   void run() {
-    _store = getRecord();
+    _store[_counter % count] = getRecord();
   }
 
   @override
   void teardown() {
-    exitCode = _store.integer;
+    exitCode = _store.last.integer;
   }
 }
 
 sealed class _BaseBenchmark extends BenchmarkBase {
+  final int count = 1000;
+
   int _counter = 0;
 
   _BaseBenchmark(super.name);
