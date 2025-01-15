@@ -11,49 +11,16 @@ void main() {
   print('Record: ${record / baseline}x');
 
   print('---');
-  print('Record is: ${((clazz / record - 1) * 100).round()} % faster.');
+  print('Record is: ${((record / clazz - 1) * 100).round()}% slower.');
 
-  return;
   BaselineBenchmark().report();
-  BaselineBenchmark().report();
-  Baseline2Benchmark().report();
   ClassBenchmark().report();
   RecordBenchmark().report();
   exitCode = 0;
+  return;
 }
 
 typedef Record = ({double real, int integer, String string});
-
-final class Baseline2Benchmark extends _BaseBenchmark {
-  int _integerStore = 0;
-  double _realStore = 0;
-  String _stringStore = '';
-
-  Baseline2Benchmark() : super('Baseline2');
-
-  @override
-  void run() {
-    switch (_counter++ % 2) {
-      case 0:
-        _realStore = 3.14;
-        _integerStore = 42;
-        _stringStore = 'hello';
-      case 1:
-        _realStore = -0.0;
-        _integerStore = 1337;
-        _stringStore = 'こんにちは世界';
-      default:
-        throw 'Unreachable';
-    }
-  }
-
-  @override
-  void teardown() {
-    exitCode = _realStore.hashCode;
-    exitCode = _integerStore;
-    exitCode = _stringStore.hashCode;
-  }
-}
 
 final class BaselineBenchmark extends _BaseBenchmark {
   late final List<int> _store = List.filled(count, 0);
@@ -62,7 +29,9 @@ final class BaselineBenchmark extends _BaseBenchmark {
 
   @override
   void run() {
-    _store[_counter % count] = getInt();
+    for (var i = 0; i < count; i++) {
+      _store[i] = getInt();
+    }
   }
 
   @override
@@ -79,7 +48,9 @@ final class ClassBenchmark extends _BaseBenchmark {
 
   @override
   void run() {
-    _store[_counter % count] = getClass();
+    for (var i = 0; i < count; i++) {
+      _store[i] = getClass();
+    }
   }
 
   @override
@@ -105,7 +76,9 @@ final class RecordBenchmark extends _BaseBenchmark {
 
   @override
   void run() {
-    _store[_counter % count] = getRecord();
+    for (var i = 0; i < count; i++) {
+      _store[i] = getRecord();
+    }
   }
 
   @override
@@ -120,6 +93,9 @@ sealed class _BaseBenchmark extends BenchmarkBase {
   int _counter = 0;
 
   _BaseBenchmark(super.name);
+
+  @override
+  void exercise() => run();
 
   Clazz getClass() => switch (_counter++ % 2) {
         0 => Clazz(real: 3.14, integer: 42, string: "hello"),
