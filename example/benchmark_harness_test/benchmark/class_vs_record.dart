@@ -10,6 +10,9 @@ void main() {
   print('Class: ${clazz / baseline}x');
   print('Record: ${record / baseline}x');
 
+  print('---');
+  print('Record is: ${((clazz / record - 1) * 100).round()} % faster.');
+
   return;
   BaselineBenchmark().report();
   BaselineBenchmark().report();
