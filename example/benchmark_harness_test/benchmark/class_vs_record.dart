@@ -7,11 +7,14 @@ void main() {
   final clazz = ClassBenchmark().measure();
   final record = RecordBenchmark().measure();
 
-  print('Class: ${clazz / baseline}x');
-  print('Record: ${record / baseline}x');
+  print('Class:\t${clazz / baseline}x\t${clazz - baseline}');
+  print('Record:\t${record / baseline}x\t${record - baseline}');
 
   print('---');
   print('Record is: ${((record / clazz - 1) * 100).round()}% slower.');
+  print('Record overhead is: '
+      '${(((record - baseline) / (clazz - baseline) - 1) * 100).round()}% '
+      'slower.');
 
   BaselineBenchmark().report();
   ClassBenchmark().report();
@@ -20,7 +23,7 @@ void main() {
   return;
 }
 
-typedef Record = ({double real, int integer, String string});
+typedef MyRecord = ({double real, int integer, String string});
 
 final class BaselineBenchmark extends _BaseBenchmark {
   late final List<int> _store = List.filled(count, 0);
@@ -41,10 +44,10 @@ final class BaselineBenchmark extends _BaseBenchmark {
 }
 
 final class ClassBenchmark extends _BaseBenchmark {
-  late final List<Clazz> _store =
-      List.filled(count, Clazz(real: 0, integer: 0, string: ''));
+  late final List<MyClass> _store =
+      List.filled(count, MyClass(real: 0, integer: 0, string: ''));
 
-  ClassBenchmark() : super('Class');
+  ClassBenchmark() : super('MyClass');
 
   @override
   void run() {
@@ -59,20 +62,20 @@ final class ClassBenchmark extends _BaseBenchmark {
   }
 }
 
-final class Clazz {
+final class MyClass {
   final double real;
   final int integer;
   final String string;
 
-  const Clazz(
+  const MyClass(
       {required this.real, required this.integer, required this.string});
 }
 
 final class RecordBenchmark extends _BaseBenchmark {
-  late final List<Record> _store =
+  late final List<MyRecord> _store =
       List.filled(count, (real: 0, integer: 0, string: ''));
 
-  RecordBenchmark() : super('Record');
+  RecordBenchmark() : super('MyRecord');
 
   @override
   void run() {
@@ -97,9 +100,9 @@ sealed class _BaseBenchmark extends BenchmarkBase {
   @override
   void exercise() => run();
 
-  Clazz getClass() => switch (_counter++ % 2) {
-        0 => Clazz(real: 3.14, integer: 42, string: "hello"),
-        1 => Clazz(real: -0.0, integer: 1337, string: "こんにちは世界"),
+  MyClass getClass() => switch (_counter++ % 2) {
+        0 => MyClass(real: 3.14, integer: 42, string: "hello"),
+        1 => MyClass(real: -0.0, integer: 1337, string: "こんにちは世界"),
         _ => throw 'Unreachable',
       };
 
@@ -109,7 +112,7 @@ sealed class _BaseBenchmark extends BenchmarkBase {
         _ => throw 'Unreachable',
       };
 
-  Record getRecord() => switch (_counter++ % 2) {
+  MyRecord getRecord() => switch (_counter++ % 2) {
         0 => (real: 3.14, integer: 42, string: "hello"),
         1 => (real: -0.0, integer: 1337, string: "こんにちは世界"),
         _ => throw 'Unreachable',
