@@ -11,6 +11,10 @@ final class HistogramEmitter extends ScoreEmitter {
     print('Ran ${result.exercisesCount} exercises, '
         '${result.iterationsPerExercise} iterations per exercise.');
     print(result.statistic.toString());
+
+    // https://en.wikipedia.org/wiki/Coefficient_of_variation
+    final cv = result.statistic.stdDeviation / result.statistic.mean;
+    print('Coefficient of variation: ${(cv * 100).toStringAsFixed(2)}%');
   }
 
   static String _createAsciiVisualization(List<int> measurements) {

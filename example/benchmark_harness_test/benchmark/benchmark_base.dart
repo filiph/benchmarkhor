@@ -82,7 +82,7 @@ class BenchmarkBase {
   }
 
   void report() {
-    emitter.emit(name, measure(exercises: 1000, perExercise: 1000));
+    emitter.emit(name, measure(exercises: 1000, perExercise: 100));
   }
 
   ({int exercises, int perExercise}) _estimateIterationsFor(
