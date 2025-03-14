@@ -122,11 +122,11 @@ class BenchmarkBase {
   }
 
   void report() {
-    emitter.emit(name, measure(exercises: 1000, perExercise: 100));
+    emitter.emit(name, measure(exercises: 100000, perExercise: 1));
   }
 
   Future<void> reportAsync() async {
-    emitter.emit(name, await measureAsync(exercises: 1000, perExercise: 100));
+    emitter.emit(name, await measureAsync(exercises: 100000, perExercise: 1));
   }
 
   ({int exercises, int perExercise}) _estimateIterationsFor(
