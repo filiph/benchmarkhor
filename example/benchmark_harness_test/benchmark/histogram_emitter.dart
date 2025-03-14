@@ -1,7 +1,5 @@
 import 'dart:math';
 
-import 'package:t_stats/t_stats.dart';
-
 import 'benchmark_result.dart';
 import 'score_emitter.dart';
 
@@ -12,9 +10,7 @@ final class HistogramEmitter extends ScoreEmitter {
     print(_createAsciiVisualization(result.measurements));
     print('Ran ${result.exercisesCount} exercises, '
         '${result.iterationsPerExercise} iterations per exercise.');
-    final statistic =
-        Statistic.from(result.measurements, name: "$testName $metric");
-    print(statistic.toString());
+    print(result.statistic.toString());
   }
 
   static String _createAsciiVisualization(List<int> measurements) {
