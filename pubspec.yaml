@@ -20,7 +20,7 @@ dependencies:
   lzma: ^1.0.1
   meta: ^1.16.0
   path: ^1.8.0
-  t_stats: ^3.0.0
+  t_stats: ^4.0.0
 
 dev_dependencies:
   lints: ^5.0.0

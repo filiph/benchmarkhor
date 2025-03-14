@@ -1,16 +1,25 @@
 import 'dart:io';
 
+import 'package:t_stats/t_stats.dart';
+
 import 'benchmark_base.dart';
 import 'histogram_emitter.dart';
 
 void main() async {
-  BaselineBenchmark().report();
-  ClassBenchmark().report();
-  RecordBenchmark().report();
+  // BaselineBenchmark().report();
+  // ClassBenchmark().report();
+  // RecordBenchmark().report();
 
-  await BaselineBenchmark().reportAsync();
-  await ClassBenchmark().reportAsync();
-  await RecordBenchmark().reportAsync();
+  final baseline = await BaselineBenchmark().reportAsync();
+  final clazz = await ClassBenchmark().reportAsync();
+  final record = await RecordBenchmark().reportAsync();
+
+  print(baseline.statistic);
+  print(clazz.statistic);
+  print(record.statistic);
+  final mannWhitney = MannWhitney.from(clazz.measurements, record.measurements);
+  print('Class beats Record in: '
+      '${((1 - mannWhitney.effectSize) * 100).toStringAsFixed(2)}%');
 
   exitCode = 0;
   return;

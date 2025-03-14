@@ -15,5 +15,5 @@ dev_dependencies:
   benchmark_harness: ^2.3.1
   benchmarkhor:
     path: ../../
-  t_stats: ^3.0.0
+  t_stats: ^4.0.0
   test: ^1.24.0

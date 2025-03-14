@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:t_stats/t_stats.dart';
+
 import 'benchmark_result.dart';
 import 'score_emitter.dart';
 
@@ -10,14 +12,20 @@ final class HistogramEmitter extends ScoreEmitter {
     print(_createAsciiVisualization(result.measurements));
     print('Ran ${result.exercisesCount} exercises, '
         '${result.iterationsPerExercise} iterations per exercise.');
-    print(result.statistic.toString());
+    print(ShapiroWilk.from(result.measurements).describe());
+    print(result.statistic);
+    print(ShapiroWilk.from(result.measurements.map((n) => log(n))).describe());
+    print(result.statisticLogNormal);
 
     // https://en.wikipedia.org/wiki/Coefficient_of_variation
     final cv = result.statistic.stdDeviation / result.statistic.mean;
-    print('Coefficient of variation: ${(cv * 100).toStringAsFixed(2)}%');
+    print('    Coefficient of variation: ${(cv * 100).toStringAsFixed(2)}%');
+    final logCv =
+        result.statisticLogNormal.stdDeviation / result.statisticLogNormal.mean;
+    print('Log coefficient of variation: ${(logCv * 100).toStringAsFixed(2)}%');
   }
 
-  static String _createAsciiVisualization(List<int> measurements) {
+  static String _createAsciiVisualization(Iterable<double> measurements) {
     final buf = StringBuffer();
 
     final histogram = _Histogram(measurements);
@@ -28,7 +36,7 @@ final class HistogramEmitter extends ScoreEmitter {
     const sideSize = (_Histogram.bucketCount - 1) ~/ 2;
 
     // How many characters should the largest bucket be high?
-    const height = 20;
+    const height = 10;
 
     for (var row = 1; row <= height; row++) {
       for (var column = 0; column < _Histogram.bucketCount; column++) {
@@ -68,7 +76,7 @@ final class HistogramEmitter extends ScoreEmitter {
 /// A histogram around 0.
 class _Histogram {
   static const bucketCount = 59;
-  static const sideSize = (bucketCount - 1) ~/ 2;
+  // static const sideSize = (bucketCount - 1) ~/ 2;
   final bucketMemberCounts = List<int>.filled(bucketCount, 0);
   late final List<double> bucketsNormalized;
   late final double lowestBound;
@@ -82,10 +90,10 @@ class _Histogram {
   /// If [forceRange] is specified, the histogram will only span from `-x`
   /// to `+x`, exactly. The measurements that fall outside this range will be
   /// added to the outermost buckets.
-  _Histogram(List<int> measurements, {int? forceRange}) {
+  _Histogram(Iterable<double> measurements, {int? forceRange}) {
     // Maximum distance from 0.
     var distance = forceRange ??
-        measurements.fold<int>(
+        measurements.fold<double>(
             0, (previousValue, element) => max(previousValue, element.abs()));
 
     lowestBound = 0;

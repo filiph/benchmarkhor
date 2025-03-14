@@ -253,14 +253,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.5"
-  quiver:
-    dependency: transitive
-    description:
-      name: quiver
-      sha256: ea0b925899e64ecdfbf9c7becb60d5b50e706ade44a85b2363be2a22d88117d2
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.2.2"
   shelf:
     dependency: transitive
     description:
@@ -344,11 +336,10 @@ packages:
   t_stats:
     dependency: "direct dev"
     description:
-      name: t_stats
-      sha256: ebe4babf8fba8140d4a66465707a5f3db43cf31c9159df225fee823973d467c6
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.0"
+      path: "../../../t_stats"
+      relative: true
+    source: path
+    version: "4.0.0"
   term_glyph:
     dependency: transitive
     description:
