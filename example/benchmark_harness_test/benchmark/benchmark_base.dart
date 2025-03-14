@@ -45,6 +45,46 @@ class BenchmarkBase {
       measureForImpl(f, minimumMillis).score;
 
   /// Measures the score for the benchmark and returns it.
+  Future<BenchmarkResult> measureAsync(
+      {int? exercises, int? perExercise}) async {
+    setup();
+
+    warmup();
+
+    if (exercises == null || perExercise == null) {
+      final (exercises: computedExercises, perExercise: computedPerExercise) =
+          _estimateIterationsFor(
+        const Duration(milliseconds: minimumMeasureDurationMillis),
+        warmupDuration: warmupDuration,
+      );
+      exercises ??= computedExercises;
+      perExercise ??= computedPerExercise;
+    }
+
+    final measurements = Uint32List(exercises);
+    final watch = Stopwatch()..start();
+    for (var i = 0; i < exercises; i++) {
+      watch.reset();
+      for (var i = 0; i < perExercise; i++) {
+        run();
+      }
+      // Give the benchmark a chance to do some work (like GC).
+      await Future<void>.delayed(Duration.zero);
+      final elapsed = watch.elapsedMicroseconds;
+      measurements[i] = elapsed;
+    }
+
+    teardown();
+
+    return BenchmarkResult(
+      name: name,
+      measurements: measurements,
+      exercisesCount: exercises,
+      iterationsPerExercise: perExercise,
+    );
+  }
+
+  /// Measures the score for the benchmark and returns it.
   BenchmarkResult measure({int? exercises, int? perExercise}) {
     setup();
 
@@ -83,6 +123,10 @@ class BenchmarkBase {
 
   void report() {
     emitter.emit(name, measure(exercises: 1000, perExercise: 100));
+  }
+
+  Future<void> reportAsync() async {
+    emitter.emit(name, await measureAsync(exercises: 1000, perExercise: 100));
   }
 
   ({int exercises, int perExercise}) _estimateIterationsFor(

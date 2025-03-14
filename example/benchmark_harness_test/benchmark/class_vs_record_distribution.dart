@@ -3,10 +3,15 @@ import 'dart:io';
 import 'benchmark_base.dart';
 import 'histogram_emitter.dart';
 
-void main() {
+void main() async {
   BaselineBenchmark().report();
   ClassBenchmark().report();
   RecordBenchmark().report();
+
+  await BaselineBenchmark().reportAsync();
+  await ClassBenchmark().reportAsync();
+  await RecordBenchmark().reportAsync();
+
   exitCode = 0;
   return;
 }
