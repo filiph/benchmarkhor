@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'harness.dart';
+import 'benchmark_base.dart';
 import 'histogram_emitter.dart';
 
 void main() {

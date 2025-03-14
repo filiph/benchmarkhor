@@ -68,6 +68,7 @@ class BenchmarkBase {
     teardown();
 
     return BenchmarkResult(
+      name: name,
       measurements: measurements,
       exercisesCount: exercises,
       iterationsPerExercise: perExercise,

@@ -18,7 +18,7 @@ class PrintEmitter implements ScoreEmitter {
     print(
       [
         '$testName($metric):',
-        result.averageScore,
+        result.statistic.mean,
         if (unit.isNotEmpty) unit,
       ].join(' '),
     );
