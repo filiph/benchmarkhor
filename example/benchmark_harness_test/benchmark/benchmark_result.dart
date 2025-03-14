@@ -11,8 +11,9 @@ class BenchmarkResult {
 
   final int iterationsPerExercise;
 
-  late final Statistic statistic =
-      Statistic.from(measurements.map((m) => m / iterationsPerExercise));
+  late final Statistic statistic = Statistic.from(
+      measurements.map((m) => m / iterationsPerExercise),
+      name: name);
 
   BenchmarkResult({
     required this.name,

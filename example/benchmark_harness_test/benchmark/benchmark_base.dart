@@ -15,9 +15,6 @@ class BenchmarkBase {
   const BenchmarkBase(this.name, {this.emitter = const PrintEmitter()});
 
   /// The benchmark code.
-  ///
-  /// This function is not used, if both [warmup] and [exercise] are
-  /// overwritten.
   void run() {}
 
   /// Runs a short version of the benchmark. By default invokes [run] once.
@@ -26,6 +23,7 @@ class BenchmarkBase {
   }
 
   /// Exercises the benchmark. By default invokes [run] 10 times.
+  @Deprecated('Use run instead')
   void exercise() {
     for (var i = 0; i < 10; i++) {
       run();
@@ -47,12 +45,20 @@ class BenchmarkBase {
       measureForImpl(f, minimumMillis).score;
 
   /// Measures the score for the benchmark and returns it.
-  BenchmarkResult measure() {
+  BenchmarkResult measure({int? exercises, int? perExercise}) {
     setup();
-    final (:exercises, :perExercise) = _estimateIterationsFor(
-      const Duration(milliseconds: minimumMeasureDurationMillis),
-      warmupDuration: warmupDuration,
-    );
+
+    warmup();
+
+    if (exercises == null || perExercise == null) {
+      final (exercises: computedExercises, perExercise: computedPerExercise) =
+          _estimateIterationsFor(
+        const Duration(milliseconds: minimumMeasureDurationMillis),
+        warmupDuration: warmupDuration,
+      );
+      exercises ??= computedExercises;
+      perExercise ??= computedPerExercise;
+    }
 
     final measurements = Uint32List(exercises);
     final watch = Stopwatch()..start();
@@ -76,7 +82,7 @@ class BenchmarkBase {
   }
 
   void report() {
-    emitter.emit(name, measure());
+    emitter.emit(name, measure(exercises: 1000, perExercise: 1000));
   }
 
   ({int exercises, int perExercise}) _estimateIterationsFor(
