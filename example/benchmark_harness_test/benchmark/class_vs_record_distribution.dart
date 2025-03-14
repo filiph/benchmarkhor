@@ -1,21 +1,9 @@
 import 'dart:io';
 
-import 'package:benchmark_harness/benchmark_harness.dart';
+import 'harness.dart';
+import 'histogram_emitter.dart';
 
 void main() {
-  // final baseline = BaselineBenchmark().measure();
-  // final clazz = ClassBenchmark().measure();
-  // final record = RecordBenchmark().measure();
-  //
-  // print('Class:\t${clazz / baseline}x\t${clazz - baseline}');
-  // print('Record:\t${record / baseline}x\t${record - baseline}');
-  //
-  // print('---');
-  // print('Record is: ${((record / clazz - 1) * 100).round()}% slower.');
-  // print('Record overhead is: '
-  //     '${(((record - baseline) / (clazz - baseline) - 1) * 100).round()}% '
-  //     'slower.');
-
   BaselineBenchmark().report();
   ClassBenchmark().report();
   RecordBenchmark().report();
@@ -95,7 +83,7 @@ sealed class _BaseBenchmark extends BenchmarkBase {
 
   int _counter = 0;
 
-  _BaseBenchmark(super.name);
+  _BaseBenchmark(super.name) : super(emitter: HistogramEmitter());
 
   @override
   void exercise() => run();
