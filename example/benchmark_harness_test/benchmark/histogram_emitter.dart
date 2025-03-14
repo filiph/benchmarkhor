@@ -17,11 +17,9 @@ final class HistogramEmitter extends ScoreEmitter {
     print(ShapiroWilk.from(result.measurements.map((n) => log(n))).describe());
     print(result.statisticLogNormal);
 
-    // https://en.wikipedia.org/wiki/Coefficient_of_variation
-    final cv = result.statistic.stdDeviation / result.statistic.mean;
+    final cv = result.statistic.coefficientOfVariation;
     print('    Coefficient of variation: ${(cv * 100).toStringAsFixed(2)}%');
-    final logCv =
-        result.statisticLogNormal.stdDeviation / result.statisticLogNormal.mean;
+    final logCv = result.statisticLogNormal.coefficientOfVariation;
     print('Log coefficient of variation: ${(logCv * 100).toStringAsFixed(2)}%');
   }
 
