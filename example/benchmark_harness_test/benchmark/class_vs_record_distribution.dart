@@ -23,9 +23,14 @@ void main() async {
     print('Class beats Record in: '
         '${((1 - mannWhitney.effectSize) * 100).toStringAsFixed(2)}%');
   } else {
-    final baseline = await BaselineBenchmark().measureAsync();
-    final clazz = await ClassBenchmark().measureAsync();
-    final record = await RecordBenchmark().measureAsync();
+    const exercises = 10000;
+    const perExercise = 1;
+    final baseline = await BaselineBenchmark()
+        .measureAsync(exercises: exercises, perExercise: perExercise);
+    final clazz = await ClassBenchmark()
+        .measureAsync(exercises: exercises, perExercise: perExercise);
+    final record = await RecordBenchmark()
+        .measureAsync(exercises: exercises, perExercise: perExercise);
 
     print('baseline\tclass\trecord');
     for (var i = 0; i < baseline.measurements.length; i++) {
