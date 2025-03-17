@@ -6,6 +6,8 @@ import 'dart:math';
 
 class ChartGenerator {
   final List<List<double>> data = [];
+  final Map<int, double> minValues = {};
+  final Map<int, double> maxValues = {};
   final Map<int, String> titles = {};
   final Map<int, String> colors = {
     0: "#0072B2",
@@ -34,23 +36,7 @@ class ChartGenerator {
     return false;
   }
 
-  int amax(Map<int, double> values) {
-    int maxIndex = -1;
-    double maxValue = double.negativeInfinity;
-
-    values.forEach((index, value) {
-      if (maxIndex == -1 || value > maxValue) {
-        maxIndex = index;
-        maxValue = value;
-      }
-    });
-
-    return maxIndex;
-  }
-
   void normalize() {
-    Map<int, double> maxValues = {};
-    Map<int, double> minValues = {};
     Map<int, double> deltas = {};
 
     for (int i = 0; i < data[0].length; i++) {
@@ -132,7 +118,7 @@ class ChartGenerator {
       String p = point((j) / data.length, data[j][i]);
       List<String> q = p.split(",");
       buffer.write(
-          "  <circle cx='${q[0]}' cy='${q[1]}' r='1.2' fill='${colors[i]}ff' stroke='${colors[i]}ff'/>\n");
+          "  <circle cx='${q[0]}' cy='${q[1]}' r='0.5' fill='${colors[i]}ff' stroke='${colors[i]}ff'/>\n");
     }
 
     return buffer.toString();
@@ -147,7 +133,7 @@ class ChartGenerator {
     buffer.write(
         "    <text style='fill: #eeeeee; font-size: ${fontSize}px; font-family: mono' xml:space='preserve'>");
     buffer.write(
-        "$title [${min.toStringAsFixed(3)}, ${max.toStringAsFixed(3)}]</text>\n");
+        "$title [${min.toStringAsFixed(2)}, ${max.toStringAsFixed(2)}]</text>\n");
     buffer.write("  </g>\n");
     return buffer.toString();
   }
@@ -166,7 +152,8 @@ class ChartGenerator {
 
     if (titles.isNotEmpty) {
       for (int i = 0; i < data[0].length; i++) {
-        print(legendText(i, titles[i] ?? "", 0, 1)); // Adjust min/max as needed
+        print(legendText(
+            i, titles[i] ?? "", minValues[i] ?? 0, maxValues[i] ?? 1));
       }
     }
 
