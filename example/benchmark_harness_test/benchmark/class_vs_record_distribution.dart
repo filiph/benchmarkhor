@@ -27,10 +27,10 @@ void main() async {
     final clazz = await ClassBenchmark().measureAsync();
     final record = await RecordBenchmark().measureAsync();
 
-    print('baseline,class,record');
+    print('baseline\tclass\trecord');
     for (var i = 0; i < baseline.measurements.length; i++) {
       print(
-          '${baseline.measurements[i]},${clazz.measurements[i]},${record.measurements[i]}');
+          '${baseline.measurements[i]}\t${clazz.measurements[i]}\t,${record.measurements[i]}');
     }
   }
 
