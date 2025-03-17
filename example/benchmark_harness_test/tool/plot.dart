@@ -92,6 +92,7 @@ class ChartGenerator {
     // }
   }
 
+  // TODO: just return a tuple
   String point(double x, double y) {
     double svgX = x * (chartWidth - 2 * xMargin) + xMargin;
     double svgY = (height - 2 * yMargin) - y * (height - 2 * yMargin) + yMargin;
@@ -127,6 +128,27 @@ class ChartGenerator {
     return buffer.toString();
   }
 
+  String circlesRandomOrder() {
+    const relativePointSize = 20.0;
+    final radius = chartWidth / data.length * relativePointSize;
+
+    StringBuffer buffer = StringBuffer();
+
+    List<int> indices = List.generate(data.first.length, (index) => index);
+
+    for (int j = 0; j < data.length; j++) {
+      indices.shuffle();
+      for (final i in indices) {
+        String p = point((j) / data.length, data[j][i]);
+        List<String> q = p.split(",");
+        buffer.write("  <circle cx='${q[0]}' cy='${q[1]}' r='$radius' "
+            "fill='${colors[i]}ff' stroke='${colors[i]}ff'/>\n");
+      }
+    }
+
+    return buffer.toString();
+  }
+
   String legendText(int i, String title, double min, double max) {
     StringBuffer buffer = StringBuffer();
     buffer.write(
@@ -149,9 +171,10 @@ class ChartGenerator {
     int titleWidth =
         titles.values.fold(0, (prev, element) => max(prev, element.length));
 
-    for (int i = 0; i < data[0].length; i++) {
-      print(circles(i));
-    }
+    // for (int i = 0; i < data[0].length; i++) {
+    //   print(circles(i));
+    // }
+    print(circlesRandomOrder());
 
     if (titles.isNotEmpty) {
       for (int i = 0; i < data[0].length; i++) {
