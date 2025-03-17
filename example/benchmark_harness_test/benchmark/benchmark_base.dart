@@ -19,7 +19,11 @@ class BenchmarkBase {
 
   /// Runs a short version of the benchmark. By default invokes [run] once.
   void warmup() {
-    run();
+    final watch = Stopwatch()..start();
+    do {
+      run();
+    } while (watch.elapsed < warmupDuration);
+    watch.stop();
   }
 
   /// Exercises the benchmark. By default invokes [run] 10 times.
@@ -49,8 +53,6 @@ class BenchmarkBase {
       {int? exercises, int? perExercise}) async {
     setup();
 
-    warmup();
-
     if (exercises == null || perExercise == null) {
       final (exercises: computedExercises, perExercise: computedPerExercise) =
           _estimateIterationsFor(
@@ -59,6 +61,8 @@ class BenchmarkBase {
       );
       exercises ??= computedExercises;
       perExercise ??= computedPerExercise;
+    } else {
+      warmup();
     }
 
     final measurements = Uint32List(exercises);
@@ -88,8 +92,6 @@ class BenchmarkBase {
   BenchmarkResult measure({int? exercises, int? perExercise}) {
     setup();
 
-    warmup();
-
     if (exercises == null || perExercise == null) {
       final (exercises: computedExercises, perExercise: computedPerExercise) =
           _estimateIterationsFor(
@@ -98,6 +100,8 @@ class BenchmarkBase {
       );
       exercises ??= computedExercises;
       perExercise ??= computedPerExercise;
+    } else {
+      warmup();
     }
 
     final measurements = Uint32List(exercises);
@@ -135,7 +139,7 @@ class BenchmarkBase {
 
   ({int exercises, int perExercise}) _estimateIterationsFor(
     Duration targetDuration, {
-    Duration warmupDuration = const Duration(milliseconds: 100),
+    required Duration warmupDuration,
     Duration minimumExerciseDuration = const Duration(milliseconds: 5),
   }) {
     var iter = 2;
