@@ -30,7 +30,7 @@ void main() async {
     print('baseline\tclass\trecord');
     for (var i = 0; i < baseline.measurements.length; i++) {
       print(
-          '${baseline.measurements[i]}\t${clazz.measurements[i]}\t,${record.measurements[i]}');
+          '${baseline.measurements[i]}\t${clazz.measurements[i]}\t${record.measurements[i]}');
     }
   }
 
