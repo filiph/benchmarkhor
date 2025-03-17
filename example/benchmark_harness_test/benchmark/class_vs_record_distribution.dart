@@ -10,16 +10,29 @@ void main() async {
   // ClassBenchmark().report();
   // RecordBenchmark().report();
 
-  final baseline = await BaselineBenchmark().reportAsync();
-  final clazz = await ClassBenchmark().reportAsync();
-  final record = await RecordBenchmark().reportAsync();
+  if (false) {
+    final baseline = await BaselineBenchmark().reportAsync();
+    final clazz = await ClassBenchmark().reportAsync();
+    final record = await RecordBenchmark().reportAsync();
 
-  print(baseline.statistic);
-  print(clazz.statistic);
-  print(record.statistic);
-  final mannWhitney = MannWhitney.from(clazz.measurements, record.measurements);
-  print('Class beats Record in: '
-      '${((1 - mannWhitney.effectSize) * 100).toStringAsFixed(2)}%');
+    print(baseline.statistic);
+    print(clazz.statistic);
+    print(record.statistic);
+    final mannWhitney =
+        MannWhitney.from(clazz.measurements, record.measurements);
+    print('Class beats Record in: '
+        '${((1 - mannWhitney.effectSize) * 100).toStringAsFixed(2)}%');
+  } else {
+    final baseline = await BaselineBenchmark().measureAsync();
+    final clazz = await ClassBenchmark().measureAsync();
+    final record = await RecordBenchmark().measureAsync();
+
+    print('baseline,class,record');
+    for (var i = 0; i < baseline.measurements.length; i++) {
+      print(
+          '${baseline.measurements[i]},${clazz.measurements[i]},${record.measurements[i]}');
+    }
+  }
 
   exitCode = 0;
   return;
