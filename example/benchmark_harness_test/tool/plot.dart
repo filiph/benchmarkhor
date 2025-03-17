@@ -8,12 +8,12 @@ class ChartGenerator {
   final List<List<double>> data = [];
   final Map<int, String> titles = {};
   final Map<int, String> colors = {
-    1: "#0072B2",
-    2: "#F0E442",
-    3: "#009E73",
-    4: "#CC79A7",
-    5: "#D55E00",
-    6: "#eeeeee"
+    0: "#0072B2",
+    1: "#F0E442",
+    2: "#009E73",
+    3: "#CC79A7",
+    4: "#D55E00",
+    5: "#eeeeee"
   };
 
   final int chartWidth = 320;
@@ -64,39 +64,46 @@ class ChartGenerator {
 
       deltas[i] = maxValues[i]! - minValues[i]!;
 
-      for (int j = 0; j < data.length; j++) {
-        data[j][i] -= minValues[i]!;
-        if (deltas[i]! > 0) {
-          data[j][i] /= deltas[i]!;
-        }
+      // for (int j = 0; j < data.length; j++) {
+      //   data[j][i] -= minValues[i]!;
+      //   if (deltas[i]! > 0) {
+      //     data[j][i] /= deltas[i]!;
+      //   }
+      // }
+    }
+
+    final totalMinValue = minValues.values.reduce(min);
+    final totalMaxValue = maxValues.values.reduce(max);
+
+    for (final row in data) {
+      for (int i = 0; i < row.length; i++) {
+        row[i] = (row[i] - totalMinValue) / (totalMaxValue - totalMinValue);
       }
     }
 
-    // Rescale to center around 0 (optional, not implemented here)
-
-    // Squish data slightly in descending order of deltas
-    int k = 0;
-    double? prevDelta;
-
-    while (deltas.isNotEmpty) {
-      int i = amax(deltas);
-
-      if (prevDelta != null &&
-          prevDelta.toStringAsFixed(3) != deltas[i]!.toStringAsFixed(3)) {
-        k++;
-      }
-
-      double scale = (data[0].length + 2 - k) / (data[0].length + 2);
-
-      if (scale != 1) {
-        for (int j = 0; j < data.length; j++) {
-          data[j][i] *= scale;
-        }
-      }
-
-      prevDelta = deltas[i];
-      deltas.remove(i);
-    }
+    // // Squish data slightly in descending order of deltas
+    // int k = 0;
+    // double? prevDelta;
+    //
+    // while (deltas.isNotEmpty) {
+    //   int i = amax(deltas);
+    //
+    //   if (prevDelta != null &&
+    //       prevDelta.toStringAsFixed(3) != deltas[i]!.toStringAsFixed(3)) {
+    //     k++;
+    //   }
+    //
+    //   double scale = (data[0].length + 2 - k) / (data[0].length + 2);
+    //
+    //   if (scale != 1) {
+    //     for (int j = 0; j < data.length; j++) {
+    //       data[j][i] *= scale;
+    //     }
+    //   }
+    //
+    //   prevDelta = deltas[i];
+    //   deltas.remove(i);
+    // }
   }
 
   String point(double x, double y) {
@@ -134,7 +141,7 @@ class ChartGenerator {
   String legendText(int i, String title, double min, double max) {
     StringBuffer buffer = StringBuffer();
     buffer.write(
-        "  <g transform='translate(${chartWidth + gutter}, ${i * lineHeight})'>\n");
+        "  <g transform='translate(${chartWidth + gutter}, ${(i + 1) * lineHeight})'>\n");
     buffer.write(
         "    <circle cx='-10' cy='${-lineHeight ~/ 2 + 5}' r='3.5' fill='${colors[i]}' stroke='${colors[i]}'/>\n");
     buffer.write(
@@ -191,7 +198,7 @@ class ChartGenerator {
 void main() async {
   ChartGenerator generator = ChartGenerator();
   final List<String> inputLines;
-  if (false) {
+  if (true) {
     inputLines = await stdin
         .transform(utf8.decoder)
         .transform(const LineSplitter())
