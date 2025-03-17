@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:math';
 
 class ChartGenerator {
+  final bool isHistogram;
   final List<List<double>> data = [];
   final Map<int, double> minValues = {};
   final Map<int, double> maxValues = {};
@@ -26,6 +27,8 @@ class ChartGenerator {
   final int gutter = 30;
   final int fontSize = 15;
   final int lineHeight = 20;
+
+  ChartGenerator({required this.isHistogram});
 
   bool hasTitle(List<String> fields) {
     for (var field in fields) {
@@ -100,15 +103,25 @@ class ChartGenerator {
   }
 
   String line(int i) {
-    StringBuffer buffer = StringBuffer();
-    buffer.write(
-        "  <polyline stroke='${colors[i]}ff' stroke-width='1.5' fill='none' points='");
+    final segments =
+        _Segment.splitToNonZeroSegments(data.map((row) => row[i]).toList());
 
-    for (int j = 0; j < data.length; j++) {
-      buffer.write("${point((j) / data.length, data[j][i])} ");
+    StringBuffer buffer = StringBuffer();
+
+    for (final segment in segments) {
+      if (segment.values.isEmpty) {
+        throw segment;
+      }
+      buffer.write(
+          "  <polyline stroke='${colors[i]}ff' stroke-width='1.5' fill='none' points='");
+      for (var index = 0; index < segment.values.length; index++) {
+        final j = segment.startingIndex + index;
+        final value = segment.values[index];
+        buffer.write("${point((j) / data.length, value)} ");
+      }
+      buffer.write("'/>\n");
     }
 
-    buffer.write("'/>");
     return buffer.toString();
   }
 
@@ -168,7 +181,13 @@ class ChartGenerator {
     print(
         "<svg xmlns='http://www.w3.org/2000/svg' width='${chartWidth + gutter + legendWidth}' height='$height' version='1.1'>");
 
-    print(circlesRandomOrder());
+    if (isHistogram) {
+      for (var i = 0; i < data.first.length; i++) {
+        print(line(i));
+      }
+    } else {
+      print(circlesRandomOrder());
+    }
 
     if (titles.isNotEmpty) {
       for (int i = 0; i < data[0].length; i++) {
@@ -202,8 +221,9 @@ class ChartGenerator {
   }
 }
 
-void main() async {
-  ChartGenerator generator = ChartGenerator();
+void main(List<String> args) async {
+  final isHistogram = args.contains('--histogram');
+  ChartGenerator generator = ChartGenerator(isHistogram: isHistogram);
   final List<String> inputLines;
   if (true) {
     inputLines = await stdin
@@ -211,9 +231,41 @@ void main() async {
         .transform(const LineSplitter())
         .toList();
   } else {
-    inputLines = File('test_data.txt').readAsLinesSync();
+    inputLines = File('histogram_data.txt').readAsLinesSync();
   }
   generator.processInput(inputLines);
   generator.normalize();
   generator.display();
+}
+
+class _Segment {
+  final int startingIndex;
+  final List<double> values;
+  const _Segment(this.startingIndex, this.values);
+
+  static Iterable<_Segment> splitToNonZeroSegments(List<double> values) sync* {
+    var segmentValues = <double>[];
+    var segmentStartingIndex = 0;
+    var prev = 0.0;
+    for (int i = 0; i < values.length; i++) {
+      final current = values[i];
+      if (prev == 0 && current == 0) {
+        if (segmentValues.isNotEmpty) {
+          yield _Segment(segmentStartingIndex, segmentValues);
+          segmentValues = <double>[];
+        }
+        continue;
+      }
+      if (prev == 0 && current > 0 && segmentValues.isEmpty) {
+        segmentStartingIndex = i - 1;
+        segmentValues.add(prev);
+        segmentValues.add(current);
+        continue;
+      }
+      segmentValues.add(current);
+    }
+    if (segmentValues.isNotEmpty) {
+      yield _Segment(segmentStartingIndex, segmentValues);
+    }
+  }
 }

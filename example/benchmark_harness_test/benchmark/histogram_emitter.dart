@@ -26,18 +26,18 @@ final class HistogramEmitter extends ScoreEmitter {
   static String _createAsciiVisualization(Iterable<double> measurements) {
     final buf = StringBuffer();
 
-    final histogram = _Histogram(measurements);
+    final histogram = Histogram(measurements);
 
     // We want a bucket for the exact middle of the range.
-    assert(_Histogram.bucketCount.isOdd);
+    assert(histogram.bucketCount.isOdd);
     // Number of characters on each side of the center line.
-    const sideSize = (_Histogram.bucketCount - 1) ~/ 2;
+    final sideSize = (histogram.bucketCount - 1) ~/ 2;
 
     // How many characters should the largest bucket be high?
     const height = 10;
 
     for (var row = 1; row <= height; row++) {
-      for (var column = 0; column < _Histogram.bucketCount; column++) {
+      for (var column = 0; column < histogram.bucketCount; column++) {
         final value = histogram.bucketsNormalized[column];
         if (value > (height - row + 0.5) / height) {
           // Definitely above the line.
@@ -58,7 +58,7 @@ final class HistogramEmitter extends ScoreEmitter {
       buf.writeln();
     }
 
-    buf.writeln('─' * _Histogram.bucketCount);
+    buf.writeln('─' * histogram.bucketCount);
 
     String formatBound(double value) =>
         '${(value / 1000).abs().toStringAsFixed(1)}ms';
@@ -71,11 +71,11 @@ final class HistogramEmitter extends ScoreEmitter {
   }
 }
 
-/// A histogram around 0.
-class _Histogram {
-  static const bucketCount = 79;
+/// A histogram.
+class Histogram {
+  static const defaultBucketCount = 79;
   // static const sideSize = (bucketCount - 1) ~/ 2;
-  final bucketMemberCounts = List<int>.filled(bucketCount, 0);
+  late final bucketMemberCounts = List<int>.filled(bucketCount, 0);
   late final List<double> bucketsNormalized;
   late final double lowestBound;
 
@@ -83,12 +83,15 @@ class _Histogram {
   // Number of characters on each side of the center line.
   late final double bucketWidth;
 
+  final int bucketCount;
+
   /// Creates a histogram from a list of [measurements].
   ///
   /// If [forceRange] is specified, the histogram will only span from `-x`
   /// to `+x`, exactly. The measurements that fall outside this range will be
   /// added to the outermost buckets.
-  _Histogram(Iterable<double> measurements, {int? forceRange}) {
+  Histogram(Iterable<double> measurements,
+      {double? forceRange, this.bucketCount = defaultBucketCount}) {
     // Maximum distance from 0.
     var distance = forceRange ??
         measurements.fold<double>(

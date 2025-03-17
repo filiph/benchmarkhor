@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:t_stats/t_stats.dart';
 
@@ -10,7 +11,7 @@ void main() async {
   // ClassBenchmark().report();
   // RecordBenchmark().report();
 
-  const exercises = 100000;
+  const exercises = 10000;
   const perExercise = 1;
 
   final baseline = await BaselineBenchmark()
@@ -40,6 +41,43 @@ void main() async {
     print('Data in $dataFile.');
   } finally {
     output?.close();
+  }
+
+  final histogramFile = File('histogram_data.txt');
+  IOSink? histogramOutput;
+  try {
+    histogramOutput = histogramFile.openWrite();
+    final minValue = <double>[
+      baseline.statistic.min.toDouble(),
+      clazz.statistic.min.toDouble(),
+      record.statistic.min.toDouble(),
+    ].fold(double.infinity, (a, b) => math.min(a, b));
+    final maxValue = <double>[
+      baseline.statistic.max.toDouble(),
+      clazz.statistic.max.toDouble(),
+      record.statistic.max.toDouble(),
+    ].fold(double.negativeInfinity, (a, b) => math.max(a, b));
+    final rangeMax = maxValue / 6;
+    const bucketCount = 1000;
+    final baselineHistogram = Histogram(baseline.measurements,
+        forceRange: rangeMax, bucketCount: bucketCount);
+    final baselineBuckets = baselineHistogram.bucketsNormalized;
+    final clazzHistogram = Histogram(clazz.measurements,
+        forceRange: rangeMax, bucketCount: bucketCount);
+    final clazzBuckets = clazzHistogram.bucketsNormalized;
+    final recordHistogram = Histogram(record.measurements,
+        forceRange: rangeMax, bucketCount: bucketCount);
+    final recordBuckets = recordHistogram.bucketsNormalized;
+
+    histogramOutput.writeln('baseline\tclass\trecord');
+    for (var i = 0; i < baselineBuckets.length; i++) {
+      histogramOutput.writeln('${baselineBuckets[i]}\t'
+          '${clazzBuckets[i]}\t'
+          '${recordBuckets[i]}');
+    }
+    print('Histogram data in $histogramFile.');
+  } finally {
+    histogramOutput?.close();
   }
 
   exitCode = 0;
@@ -114,7 +152,7 @@ final class RecordBenchmark extends _BaseBenchmark {
 }
 
 sealed class _BaseBenchmark extends BenchmarkBase {
-  final int count = 1000;
+  final int count = 10000;
 
   int _counter = 0;
 
