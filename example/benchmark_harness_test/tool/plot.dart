@@ -168,12 +168,6 @@ class ChartGenerator {
     print(
         "<svg xmlns='http://www.w3.org/2000/svg' width='${chartWidth + gutter + legendWidth}' height='$height' version='1.1'>");
 
-    int titleWidth =
-        titles.values.fold(0, (prev, element) => max(prev, element.length));
-
-    // for (int i = 0; i < data[0].length; i++) {
-    //   print(circles(i));
-    // }
     print(circlesRandomOrder());
 
     if (titles.isNotEmpty) {

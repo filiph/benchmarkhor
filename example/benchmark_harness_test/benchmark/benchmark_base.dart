@@ -125,14 +125,16 @@ class BenchmarkBase {
     );
   }
 
-  BenchmarkResult report() {
-    final result = measure(exercises: 1000, perExercise: 100);
+  BenchmarkResult report({int? exercises, int? perExercise}) {
+    final result = measure(exercises: exercises, perExercise: perExercise);
     emitter.emit(name, result);
     return result;
   }
 
-  Future<BenchmarkResult> reportAsync() async {
-    final result = await measureAsync(exercises: 1000, perExercise: 100);
+  Future<BenchmarkResult> reportAsync(
+      {int? exercises, int? perExercise}) async {
+    final result =
+        await measureAsync(exercises: exercises, perExercise: perExercise);
     emitter.emit(name, result);
     return result;
   }

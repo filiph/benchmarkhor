@@ -10,33 +10,36 @@ void main() async {
   // ClassBenchmark().report();
   // RecordBenchmark().report();
 
-  if (false) {
-    final baseline = await BaselineBenchmark().reportAsync();
-    final clazz = await ClassBenchmark().reportAsync();
-    final record = await RecordBenchmark().reportAsync();
+  const exercises = 100000;
+  const perExercise = 1;
 
-    print(baseline.statistic);
-    print(clazz.statistic);
-    print(record.statistic);
-    final mannWhitney =
-        MannWhitney.from(clazz.measurements, record.measurements);
-    print('Class beats Record in: '
-        '${((1 - mannWhitney.effectSize) * 100).toStringAsFixed(2)}%');
-  } else {
-    const exercises = 10000;
-    const perExercise = 1;
-    final baseline = await BaselineBenchmark()
-        .measureAsync(exercises: exercises, perExercise: perExercise);
-    final clazz = await ClassBenchmark()
-        .measureAsync(exercises: exercises, perExercise: perExercise);
-    final record = await RecordBenchmark()
-        .measureAsync(exercises: exercises, perExercise: perExercise);
+  final baseline = await BaselineBenchmark()
+      .reportAsync(exercises: exercises, perExercise: perExercise);
+  final clazz = await ClassBenchmark()
+      .reportAsync(exercises: exercises, perExercise: perExercise);
+  final record = await RecordBenchmark()
+      .reportAsync(exercises: exercises, perExercise: perExercise);
 
-    print('baseline\tclass\trecord');
+  print(baseline.statistic);
+  print(clazz.statistic);
+  print(record.statistic);
+  final mannWhitney = MannWhitney.from(clazz.measurements, record.measurements);
+  print('Class beats Record in: '
+      '${((1 - mannWhitney.effectSize) * 100).toStringAsFixed(2)}%');
+
+  final dataFile = File('data.txt');
+  IOSink? output;
+  try {
+    output = dataFile.openWrite();
+    output.writeln('baseline\tclass\trecord');
     for (var i = 0; i < baseline.measurements.length; i++) {
-      print(
-          '${baseline.measurements[i]}\t${clazz.measurements[i]}\t${record.measurements[i]}');
+      output.writeln('${baseline.measurements[i]}\t'
+          '${clazz.measurements[i]}\t'
+          '${record.measurements[i]}');
     }
+    print('Data in $dataFile.');
+  } finally {
+    output?.close();
   }
 
   exitCode = 0;
