@@ -112,13 +112,16 @@ class ChartGenerator {
   }
 
   String circles(int i) {
+    const relativePointSize = 15.0;
+    final radius = chartWidth / data.length * relativePointSize;
+
     StringBuffer buffer = StringBuffer();
 
     for (int j = 0; j < data.length; j++) {
       String p = point((j) / data.length, data[j][i]);
       List<String> q = p.split(",");
-      buffer.write(
-          "  <circle cx='${q[0]}' cy='${q[1]}' r='0.5' fill='${colors[i]}ff' stroke='${colors[i]}ff'/>\n");
+      buffer.write("  <circle cx='${q[0]}' cy='${q[1]}' r='$radius' "
+          "fill='${colors[i]}ff' stroke='${colors[i]}ff'/>\n");
     }
 
     return buffer.toString();
