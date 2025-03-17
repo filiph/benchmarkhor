@@ -73,7 +73,7 @@ final class HistogramEmitter extends ScoreEmitter {
 
 /// A histogram around 0.
 class _Histogram {
-  static const bucketCount = 59;
+  static const bucketCount = 79;
   // static const sideSize = (bucketCount - 1) ~/ 2;
   final bucketMemberCounts = List<int>.filled(bucketCount, 0);
   late final List<double> bucketsNormalized;
