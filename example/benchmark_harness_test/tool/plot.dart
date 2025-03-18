@@ -254,12 +254,14 @@ class _Segment {
           yield _Segment(segmentStartingIndex, segmentValues);
           segmentValues = <double>[];
         }
+        prev = current;
         continue;
       }
       if (prev == 0 && current > 0 && segmentValues.isEmpty) {
         segmentStartingIndex = i - 1;
         segmentValues.add(prev);
         segmentValues.add(current);
+        prev = current;
         continue;
       }
       segmentValues.add(current);
