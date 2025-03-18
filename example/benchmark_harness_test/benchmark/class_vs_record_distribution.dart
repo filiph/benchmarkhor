@@ -14,16 +14,25 @@ void main() async {
   const exercises = 10000;
   const perExercise = 1;
 
+  final record = await RecordBenchmark()
+      .reportAsync(exercises: exercises, perExercise: perExercise);
   final baseline = await BaselineBenchmark()
       .reportAsync(exercises: exercises, perExercise: perExercise);
   final clazz = await ClassBenchmark()
       .reportAsync(exercises: exercises, perExercise: perExercise);
-  final record = await RecordBenchmark()
-      .reportAsync(exercises: exercises, perExercise: perExercise);
 
-  print(baseline.statistic);
-  print(clazz.statistic);
-  print(record.statistic);
+  print('five number summary');
+  print(baseline.statistic.toFiveNumberSummary());
+  print(clazz.statistic.toFiveNumberSummary());
+  print(record.statistic.toFiveNumberSummary());
+  print('p99');
+  print(baseline.statistic.p99);
+  print(clazz.statistic.p99);
+  print(record.statistic.p99);
+  print('p999');
+  print(baseline.statistic.p999);
+  print(clazz.statistic.p999);
+  print(record.statistic.p999);
   final mannWhitney = MannWhitney.from(clazz.measurements, record.measurements);
   print('Class beats Record in: '
       '${((1 - mannWhitney.effectSize) * 100).toStringAsFixed(2)}%');
@@ -153,7 +162,7 @@ final class RecordBenchmark extends _BaseBenchmark {
 }
 
 sealed class _BaseBenchmark extends BenchmarkBase {
-  final int count = 10000;
+  final int count = 100000;
 
   int _counter = 0;
 

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:t_stats/t_stats.dart';
 
 import 'benchmark_result.dart';
+import 'find_peaks.dart';
 import 'score_emitter.dart';
 
 final class HistogramEmitter extends ScoreEmitter {
@@ -68,6 +69,12 @@ final class HistogramEmitter extends ScoreEmitter {
         '^'
         '${formatBound(histogram.highestBound).padLeft(sideSize)}');
 
+    buf.writeln();
+
+    for (final peak in histogram.peaks) {
+      buf.writeln('Peak: ${peak.$1} at ${peak.$2}');
+    }
+
     return buf.toString();
   }
 }
@@ -75,14 +82,16 @@ final class HistogramEmitter extends ScoreEmitter {
 /// A histogram.
 class Histogram {
   static const defaultBucketCount = 79;
-  // static const sideSize = (bucketCount - 1) ~/ 2;
+
   late final bucketMemberCounts = List<int>.filled(bucketCount, 0);
+
   late final List<double> bucketsNormalized;
+
   late final double lowestBound;
 
   late final double highestBound;
-  // Number of characters on each side of the center line.
-  late final double bucketWidth;
+
+  late final List<(Peak, double)> peaks;
 
   final int bucketCount;
 
@@ -181,6 +190,24 @@ class Histogram {
         double.negativeInfinity, (prev, next) => math.max(prev, next.density));
     bucketsNormalized =
         densityCurve.map((p) => p.density / maxDensity).toList(growable: false);
+
+    // Find peaks.
+    final peaks = getPersistentHomology(bucketsNormalized);
+    this.peaks = peaks.map<(Peak, double)>((p) {
+      final position = p.index / (bucketCount - 1);
+      return (p, getValueFromPosition(position));
+    }).toList(growable: false);
+  }
+
+  /// Returns the value represented by the [position] on the histogram.
+  ///
+  /// For example, if [lowestBound] is 0 and [highestBound] is 100, then
+  /// the value at position 0.5 will be 50.
+  double getValueFromPosition(double position) {
+    if (position < 0) throw ArgumentError.value(position);
+    if (position > 1) throw ArgumentError.value(position);
+
+    return lowestBound + (highestBound - lowestBound) * position;
   }
 }
 
