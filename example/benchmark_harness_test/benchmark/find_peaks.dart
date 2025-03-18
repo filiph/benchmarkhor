@@ -62,13 +62,17 @@ List<Peak> getPersistentHomology(List<double> seq) {
 
 class Peak {
   final int index;
+  final int indexLeft;
+  final int indexRight;
   final double value;
   final double persistence;
 
-  const Peak._(this.index, this.value, this.persistence);
+  const Peak._(this.index, this.indexLeft, this.indexRight, this.value,
+      this.persistence);
 
   @override
-  String toString() => 'Peak(@$index, ${persistence.toStringAsFixed(3)})';
+  String toString() => 'Peak(<$indexLeft-^$index^-$indexRight>, '
+      '${persistence.toStringAsFixed(3)})';
 }
 
 /// Working, mutable peak.
@@ -88,5 +92,6 @@ class _Peak {
     return died == null ? double.infinity : seq[born] - seq[died!];
   }
 
-  Peak bake(List<double> seq) => Peak._(born, seq[born], getPersistence(seq));
+  Peak bake(List<double> seq) =>
+      Peak._(born, left, right, seq[born], getPersistence(seq));
 }
