@@ -99,7 +99,7 @@ class ChartGenerator {
   String point(double x, double y) {
     double svgX = x * (chartWidth - 2 * xMargin) + xMargin;
     double svgY = (height - 2 * yMargin) - y * (height - 2 * yMargin) + yMargin;
-    return "${svgX.round()},${svgY.round()}";
+    return "${svgX.toStringAsFixed(3)},${svgY.toStringAsFixed(3)}";
   }
 
   String line(int i) {
