@@ -113,7 +113,7 @@ class ChartGenerator {
         throw segment;
       }
       buffer.write(
-          "  <polyline stroke='${colors[i]}ff' stroke-width='1.5' fill='none' points='");
+          "  <polyline stroke='${colors[i]}dd' stroke-width='1.5' fill='${colors[i]}66' points='");
       for (var index = 0; index < segment.values.length; index++) {
         final j = segment.startingIndex + index;
         final value = segment.values[index];
@@ -263,6 +263,10 @@ class _Segment {
         continue;
       }
       segmentValues.add(current);
+      prev = current;
+    }
+    if (prev > 0) {
+      segmentValues.add(0);
     }
     if (segmentValues.isNotEmpty) {
       yield _Segment(segmentStartingIndex, segmentValues);
