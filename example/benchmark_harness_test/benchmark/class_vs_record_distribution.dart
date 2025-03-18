@@ -57,16 +57,17 @@ void main() async {
       clazz.statistic.max.toDouble(),
       record.statistic.max.toDouble(),
     ].fold(double.negativeInfinity, (a, b) => math.max(a, b));
-    final rangeMax = maxValue / 6;
+    final rangeMax = maxValue;
     const bucketCount = 1000;
+    const bandwidth = 0.5;
     final baselineHistogram = Histogram(baseline.measurements,
-        forceRange: rangeMax, bucketCount: bucketCount);
+        forceRange: rangeMax, bucketCount: bucketCount, bandwidth: bandwidth);
     final baselineBuckets = baselineHistogram.bucketsNormalized;
     final clazzHistogram = Histogram(clazz.measurements,
-        forceRange: rangeMax, bucketCount: bucketCount);
+        forceRange: rangeMax, bucketCount: bucketCount, bandwidth: bandwidth);
     final clazzBuckets = clazzHistogram.bucketsNormalized;
     final recordHistogram = Histogram(record.measurements,
-        forceRange: rangeMax, bucketCount: bucketCount);
+        forceRange: rangeMax, bucketCount: bucketCount, bandwidth: bandwidth);
     final recordBuckets = recordHistogram.bucketsNormalized;
 
     histogramOutput.writeln('baseline\tclass\trecord');

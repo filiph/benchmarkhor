@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'dart:math' as math;
 
 import 'package:t_stats/t_stats.dart';
 
@@ -14,7 +14,8 @@ final class HistogramEmitter extends ScoreEmitter {
         '${result.iterationsPerExercise} iterations per exercise.');
     print(ShapiroWilk.from(result.measurements).describe());
     print(result.statistic);
-    print(ShapiroWilk.from(result.measurements.map((n) => log(n))).describe());
+    print(ShapiroWilk.from(result.measurements.map((n) => math.log(n)))
+        .describe());
     print(result.statisticLogNormal);
 
     final cv = result.statistic.coefficientOfVariation;
@@ -90,33 +91,101 @@ class Histogram {
   /// If [forceRange] is specified, the histogram will only span from `-x`
   /// to `+x`, exactly. The measurements that fall outside this range will be
   /// added to the outermost buckets.
-  Histogram(Iterable<double> measurements,
-      {double? forceRange, this.bucketCount = defaultBucketCount}) {
-    // Maximum distance from 0.
-    var distance = forceRange ??
-        measurements.fold<double>(
-            0, (previousValue, element) => max(previousValue, element.abs()));
+  Histogram(
+    Iterable<double> measurements, {
+    double? forceRange,
+    this.bucketCount = defaultBucketCount,
+    double? bandwidth,
+  }) {
+    // // Maximum distance from 0.
+    // var distance = forceRange ??
+    //     measurements.fold<double>(
+    //         0, (previousValue, element) => max(previousValue, element.abs()));
+    //
+    // lowestBound = 0;
+    // highestBound = (distance + 1);
+    //
+    // bucketWidth = (highestBound - lowestBound) / bucketCount;
+    //
+    // for (final m in measurements) {
+    //   var bucketIndex = ((m - lowestBound) / bucketWidth).floor();
+    //   if (bucketIndex < 0) {
+    //     assert(forceRange != null);
+    //     bucketIndex = 0;
+    //   }
+    //   if (bucketIndex >= bucketCount) {
+    //     assert(forceRange != null);
+    //     bucketIndex = bucketCount - 1;
+    //   }
+    //   bucketMemberCounts[bucketIndex] += 1;
+    // }
+    //
+    // final highestCount = bucketMemberCounts.fold<int>(0, max);
+    // bucketsNormalized = List<double>.generate(
+    //     bucketCount, (index) => bucketMemberCounts[index] / highestCount);
+    //
+    // // TODO: detect peaks: https://www.sthu.org/blog/13-perstopology-peakdetection/index.html
+    // //   maybe back in t_stats?
 
-    lowestBound = 0;
-    highestBound = (distance + 1);
+    final statistic = Statistic.from(measurements);
+    final stdDev = statistic.stdDeviation;
 
-    bucketWidth = (highestBound - lowestBound) / bucketCount;
+    // Default bandwidth using Silverman's rule
+    final iqr = statistic.p75 - statistic.p25;
+    bandwidth ??= 0.9 *
+        math.min(stdDev, iqr / 1.34) *
+        math.pow(measurements.length, -1 / 5);
 
-    for (final m in measurements) {
-      var bucketIndex = ((m - lowestBound) / bucketWidth).floor();
-      if (bucketIndex < 0) {
-        assert(forceRange != null);
-        bucketIndex = 0;
-      }
-      if (bucketIndex >= bucketCount) {
-        assert(forceRange != null);
-        bucketIndex = bucketCount - 1;
-      }
-      bucketMemberCounts[bucketIndex] += 1;
+    double min = measurements.fold(
+        double.infinity, (prev, next) => math.min(prev, next));
+    var max = measurements.fold(
+        double.negativeInfinity, (prev, next) => math.max(prev, next));
+    var range = max - min;
+
+    // Add padding.
+    min -= range * 0.1;
+    max += range * 0.1;
+
+    // HACK: reset min to 0 and max to forceRange -- for now
+    min = 0;
+    if (forceRange != null) max = forceRange;
+
+    final points = bucketCount;
+    List<_KdePoint> densityCurve = [];
+    double step = (max - min) / (points - 1);
+
+    double kernelFunction(double u) {
+      // Epanechnikov (parabolic) kernel.
+      // https://en.wikipedia.org/wiki/Kernel_(statistics)#Kernel_functions_in_common_use
+      if (u.abs() > 1) return 0;
+      return 3 / 4 * (1 - u * u);
     }
 
-    final highestCount = bucketMemberCounts.fold<int>(0, max);
-    bucketsNormalized = List<double>.generate(
-        bucketCount, (index) => bucketMemberCounts[index] / highestCount);
+    for (int i = 0; i < points; i++) {
+      double x = min + i * step;
+      double density = 0;
+
+      // Apply kernel to each data point
+      for (double value in measurements) {
+        density += kernelFunction((x - value) / bandwidth);
+      }
+
+      density *= 1 / (measurements.length * bandwidth);
+      densityCurve.add(_KdePoint(x, density));
+    }
+
+    lowestBound = min;
+    highestBound = max;
+
+    final maxDensity = densityCurve.fold(
+        double.negativeInfinity, (prev, next) => math.max(prev, next.density));
+    bucketsNormalized =
+        densityCurve.map((p) => p.density / maxDensity).toList(growable: false);
   }
+}
+
+class _KdePoint {
+  final double value;
+  final double density;
+  const _KdePoint(this.value, this.density);
 }
