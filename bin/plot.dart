@@ -158,6 +158,9 @@ class ViolinData {
   final List<(double, double)> kdePoints;
   final double maxDensity;
 
+  /// The maximum value this input wants to show on the y-axis.
+  final double inputMax;
+
   ViolinData({
     required this.label,
     required this.sorted,
@@ -171,9 +174,14 @@ class ViolinData {
     required this.outliers,
     required this.kdePoints,
     required this.maxDensity,
+    required this.inputMax,
   });
 
-  factory ViolinData.compute(String label, List<num> values) {
+  factory ViolinData.compute(
+    String label,
+    List<num> values, {
+    double maxOutlierCoefficient = 3.0,
+  }) {
     if (values.isEmpty) {
       stderr.writeln('Warning: $label has no data.');
     }
@@ -184,6 +192,8 @@ class ViolinData {
     final med = percentile(sorted, 0.50);
     final q3 = percentile(sorted, 0.75);
     final iqr = q3 - q1;
+
+    final inputMax = med + maxOutlierCoefficient * iqr;
 
     final fenceLo = q1 - 1.5 * iqr;
     final fenceHi = q3 + 1.5 * iqr;
@@ -198,13 +208,9 @@ class ViolinData {
         .map((v) => v.toDouble())
         .toList();
 
-    // KDE over the full data range (whisker range + 3 bandwidths)
-    final stdDev = stat.stdDeviation.toDouble();
-    double bw = 1.06 * stdDev * pow(sorted.length, -0.2);
-    if (bw == 0) bw = 1.0;
-    final kdeMin = sorted.first.toDouble() - 3 * bw;
-    final kdeMax = sorted.last.toDouble() + 3 * bw;
-    final kdePoints = kde(sorted, kdeMin, kdeMax, bwOverride: bw);
+    // KDE over the non-outlier data range, truncated at whiskers.
+    final nonOutlierList = nonOutliers.toList();
+    final kdePoints = kde(nonOutlierList, whiskerLo, whiskerHi);
     final maxDensity =
         kdePoints.isEmpty ? 0.0 : kdePoints.map((p) => p.$2).reduce(max);
 
@@ -221,6 +227,7 @@ class ViolinData {
       outliers: outliers,
       kdePoints: kdePoints,
       maxDensity: maxDensity,
+      inputMax: inputMax,
     );
   }
 }
@@ -231,16 +238,17 @@ class ViolinData {
 
 String buildSvg(List<ViolinData> violins) {
   // Global y range: 0 to max of all data (including outliers and KDE tails)
-  double globalYMax = 0;
+  double plotMaximum = 0;
+  for (final v in violins) {
+    if (v.sorted.isEmpty) continue;
+    plotMaximum = max(plotMaximum, v.inputMax);
+  }
+
+  double globalYMax = plotMaximum;
   double globalYMin = double.infinity;
   for (final v in violins) {
     if (v.sorted.isEmpty) continue;
-    for (final p in v.kdePoints) {
-      globalYMax = max(globalYMax, p.$1);
-      globalYMin = min(globalYMin, p.$1);
-    }
     // Also consider raw data for safety (though KDE usually spans it)
-    globalYMax = max(globalYMax, v.sorted.last.toDouble());
     globalYMin = min(globalYMin, v.sorted.first.toDouble());
   }
   // Always include 0
@@ -286,16 +294,11 @@ String buildSvg(List<ViolinData> violins) {
     'viewBox="0 0 $svgWidth $svgHeight">',
   );
 
-  // Background
-  buf.writeln(
-    '<rect width="$svgWidth" height="$svgHeight" fill="white"/>',
-  );
-
   // --- Y axis line ---
   final axisX = marginLeft;
   buf.writeln(
     '<line x1="$axisX" y1="$marginTop" x2="$axisX" '
-    'y2="${marginTop + plotHeight}" stroke="#444" stroke-width="1.5"/>',
+    'y2="${marginTop + plotHeight}" stroke="#ccc" stroke-width="1.5"/>',
   );
 
   // --- Tick marks and labels ---
@@ -305,19 +308,19 @@ String buildSvg(List<ViolinData> violins) {
     // Tick mark
     buf.writeln(
       '<line x1="${axisX - 6}" y1="$ty" x2="$axisX" y2="$ty" '
-      'stroke="#444" stroke-width="1.2"/>',
+      'stroke="#ccc" stroke-width="1.2"/>',
     );
     // Light grid line
     buf.writeln(
       '<line x1="$axisX" y1="$ty" x2="${axisX + plotWidth}" y2="$ty" '
-      'stroke="#e0e0e0" stroke-width="0.8"/>',
+      'stroke="#333" stroke-width="0.8"/>',
     );
     // Label
     final label = _formatTick(tick);
     buf.writeln(
       '<text x="${axisX - 10}" y="${ty + 4}" '
       'text-anchor="end" font-family="Arial,sans-serif" '
-      'font-size="12" fill="#444">$label</text>',
+      'font-size="12" fill="#ccc">$label</text>',
     );
   }
 
@@ -326,7 +329,7 @@ String buildSvg(List<ViolinData> violins) {
     final y0 = toSvgY(0);
     buf.writeln(
       '<line x1="$axisX" y1="$y0" x2="${axisX + plotWidth}" y2="$y0" '
-      'stroke="#222" stroke-width="1.5"/>',
+      'stroke="#eee" stroke-width="1.5"/>',
     );
   }
 
@@ -362,6 +365,7 @@ String buildSvg(List<ViolinData> violins) {
       final rightPoints = StringBuffer();
       final leftPoints = StringBuffer();
       for (final (y, density) in v.kdePoints) {
+        if (y > plotMaximum) continue;
         final svgY = toSvgY(y);
         final halfW = (density / globalMaxDensity) * maxHalfPx;
         rightPoints.write('${slotCenterX + halfW},$svgY ');
@@ -385,7 +389,7 @@ String buildSvg(List<ViolinData> violins) {
     buf.writeln(
       '<text x="$slotCenterX" y="${marginTop + plotHeight + 25}" '
       'text-anchor="middle" font-family="Arial,sans-serif" '
-      'font-size="14" font-weight="bold" fill="#444">${v.label}</text>',
+      'font-size="14" font-weight="bold" fill="#eee">${v.label}</text>',
     );
 
     // --- Box plot ---
@@ -402,46 +406,64 @@ String buildSvg(List<ViolinData> violins) {
     buf.writeln(
       '<line x1="$slotCenterX" y1="$yWhiskerHi" '
       'x2="$slotCenterX" y2="$yQ3" '
-      'stroke="black" stroke-width="1.5"/>',
+      'stroke="white" stroke-width="1.5"/>',
     );
     buf.writeln(
       '<line x1="$slotCenterX" y1="$yQ1" '
       'x2="$slotCenterX" y2="$yWhiskerLo" '
-      'stroke="black" stroke-width="1.5"/>',
+      'stroke="white" stroke-width="1.5"/>',
     );
 
     // Whisker caps (horizontal)
     buf.writeln(
       '<line x1="${slotCenterX - 8}" y1="$yWhiskerHi" '
       'x2="${slotCenterX + 8}" y2="$yWhiskerHi" '
-      'stroke="black" stroke-width="1.5"/>',
+      'stroke="white" stroke-width="1.5"/>',
     );
     buf.writeln(
       '<line x1="${slotCenterX - 8}" y1="$yWhiskerLo" '
       'x2="${slotCenterX + 8}" y2="$yWhiskerLo" '
-      'stroke="black" stroke-width="1.5"/>',
+      'stroke="white" stroke-width="1.5"/>',
     );
 
     // IQR box
     buf.writeln(
       '<rect x="${slotCenterX - boxHalfWidth}" y="$yQ3" '
       'width="${boxHalfWidth * 2}" height="${yQ1 - yQ3}" '
-      'fill="white" stroke="black" stroke-width="2"/>',
+      'fill="none" stroke="white" stroke-width="2"/>',
     );
 
     // Median line
     buf.writeln(
       '<line x1="${slotCenterX - boxHalfWidth}" y1="$yMedian" '
       'x2="${slotCenterX + boxHalfWidth}" y2="$yMedian" '
-      'stroke="black" stroke-width="2.5"/>',
+      'stroke="white" stroke-width="2.5"/>',
     );
 
     // --- Outliers ---
+    int excludedCount = 0;
+    double excludedMax = 0;
     for (final o in v.outliers) {
+      if (o > plotMaximum) {
+        excludedCount++;
+        excludedMax = max(excludedMax, o);
+        continue;
+      }
       final oy = toSvgY(o);
       buf.writeln(
         '<circle cx="$slotCenterX" cy="$oy" r="3" '
-        'fill="black" opacity="0.7"/>',
+        'stroke="white" opacity="0.7"/>',
+      );
+    }
+
+    // --- Outlier note ---
+    if (excludedCount > 0) {
+      final formattedMax = _formatTick(excludedMax);
+      final note = '+$excludedCount outliers (max $formattedMax)';
+      buf.writeln(
+        '<text x="$slotCenterX" y="${marginTop - 10}" '
+        'text-anchor="middle" font-family="Arial,sans-serif" '
+        'font-size="11" fill="#aaa">$note</text>',
       );
     }
   }
@@ -484,6 +506,11 @@ void main(List<String> arguments) {
       abbr: 'i',
       help: 'Input .dat file (can be specified multiple times).',
     )
+    ..addOption(
+      'max-outlier-coefficient',
+      help: 'How many IQRs above the median to set the y-axis limit.',
+      defaultsTo: '3.0',
+    )
     ..addFlag(
       'help',
       abbr: 'h',
@@ -508,6 +535,9 @@ void main(List<String> arguments) {
   }
 
   final inputs = args['input'] as List<String>;
+  final maxOutlierCoefficient =
+      double.tryParse(args['max-outlier-coefficient'] as String) ?? 3.0;
+
   if (inputs.isEmpty) {
     stderr.writeln('Error: at least one --input (-i) file is required.');
     stderr.writeln(parser.usage);
@@ -522,7 +552,11 @@ void main(List<String> arguments) {
           RegExp(r'\.dat$', caseSensitive: false),
           '',
         );
-    violins.add(ViolinData.compute(label, values));
+    violins.add(ViolinData.compute(
+      label,
+      values,
+      maxOutlierCoefficient: maxOutlierCoefficient,
+    ));
   }
 
   final svg = buildSvg(violins);
