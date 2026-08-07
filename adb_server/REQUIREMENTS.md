@@ -23,7 +23,7 @@ It does four things:
 |---|---|---|
 | Synology NAS, Intel Celeron J4125 | Runs this container | **x86_64 / amd64** -- build for amd64 |
 | Orange Pi 5B (Rockchip RK3588S, Android 12) | Device under test ("DUT") | On the same LAN, wired Ethernet, mains-powered, headless-ish (HDMI dummy plug) |
-| Flutter benchmark APKs | The actual experiments | Release builds, self-contained, write results to files on-device |
+| Flutter benchmark APKs | The actual experiments | An **APK pair** -- app + `androidTest` -- launched with `am instrument`. Profile builds (`--release` is not available to instrumentation). The app writes its own results to files on-device |
 
 The NAS and the DUT talk only over Ethernet. There is no human present during runs.
 
@@ -81,6 +81,7 @@ Everything lives under a single configurable root, bind-mounted from the NAS. Pr
     2026-08-03T14-22-05Z__set-contains-enum-vs-object/
       job.json            # immutable job spec (written by submitter)
       app.apk             # the benchmark APK
+      app-test.apk        # its androidTest APK (same signing key as app.apk)
       status.json         # MUTABLE server-owned state
       job.log             # human-readable log for this job
       runs/
@@ -117,8 +118,10 @@ Design a minimal schema, roughly:
   "name": "set-contains-enum-vs-object",
   "description": "Free text. Shown in the UI.",
   "apk": "app.apk",
+  "test_apk": "app-test.apk",
   "package": "com.example.benchmark",
-  "activity": ".MainActivity",
+  "test_package": "com.example.benchmark.test",
+  "instrumentation_runner": "dev.flutter.plugins.integration_test.FlutterTestRunner",
   "repetitions": 3,
   "run_timeout_seconds": 1800,
   "expected_result_files": ["baseline.txt", "variant_a.txt", "variant_b.txt"],
@@ -216,15 +219,17 @@ For each of `repetitions`:
 3. **Apply the device profile** (optional, config-driven). If a profile script/command list is configured, run it and record the commands verbatim + their sha256 in `run.json`. This is how the user pins CPU governor, frequency, and core affinity for downclocked stable operation. The server does not invent these commands -- it executes what it's given and records what it did.
 4. **Pre-run device snapshot** → `run.json` under `device_before` (§7).
 5. **Optional thermal gate.** If configured, poll SoC temperature until below a threshold or a timeout expires. In v1, on timeout: proceed but record a `warnings: ["thermal_gate_timeout"]` entry. Do not silently drop the run.
-6. **Clean device state.** Remove the on-device result directory. Uninstall the package if present (avoids stale files and stale caches masquerading as results).
-7. **Install:** `adb install -r -g app.apk`.
+6. **Clean device state.** Remove the on-device result directory. Uninstall both the package and the test package if present (avoids stale files and stale caches masquerading as results). Note that uninstalling wipes `/sdcard/Android/data/<pkg>/`, so this must happen *before* the install, never after the pull.
+7. **Install:** `adb install -r -g app.apk`, then `adb install -r -g app-test.apk`. Both must be signed with the same key or `am instrument` fails obscurely.
 8. **Optional AOT settle:** `adb shell cmd package compile -m speed -f <pkg>`, then a short idle wait. Configurable, default on. Rationale: `install` triggers background dexopt that can churn for minutes and contaminate an early run.
 9. **Keep the device awake:** `adb shell svc power stayon true` and add the package to the deviceidle whitelist. Log failures as warnings, not errors -- these commands vary across builds.
 10. **Clear logcat** (`adb logcat -c`), then start capturing logcat to `logcat.txt` for the duration of the run.
-11. **Launch:** `adb shell am start -W -n <pkg>/<activity>` (plus any extras from `job.json`).
+11. **Launch:** `adb shell am instrument -w -r <test_package>/<instrumentation_runner>` (plus any extras from `job.json`).
+    Do not trust `am instrument -w` to return: a known Flutter regression leaves instrumentation hanging after "All tests passed!", so wrap every invocation in a host-side timeout and treat the completion contract below -- not the exit status -- as the signal.
+    Parameterise by `adb push`ing a scenario file into `device_result_dir` rather than fighting `-e` extras into Dart.
 12. **Wait for completion** -- see the contract below.
 13. **Post-run device snapshot** → `device_after`.
-14. **Pull results:** copy every file from the on-device result dir into `runs/run-NNN/results/`. Then write `results_index.json` with filename, byte size, sha256, and line count per file. **Do not parse, transform, sort, round, or summarise the contents.** They are raw sample streams and must survive byte-identical.
+14. **Pull results:** copy every file from the on-device result dir into `runs/run-NNN/results/`. Then write `results_index.json` with filename, byte size, sha256, and line count per file. **Do not parse, transform, sort, round, or summarise the contents.** They are raw measurement streams and must survive byte-identical.
 15. **Validate:** if `expected_result_files` is set and any are missing or zero-length → run `failed`.
 16. **Finalise:** write `run.json`, `am force-stop`, increment `runs_completed`, update `status.json` atomically.
 

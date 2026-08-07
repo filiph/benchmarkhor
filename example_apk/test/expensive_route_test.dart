@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('Expensive route opens at every multiple of the threshold', (
-    WidgetTester tester,
+    tester,
   ) async {
     await tester.pumpWidget(const MyApp());
 

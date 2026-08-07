@@ -4,13 +4,24 @@ This is the contract a benchmark APK must honour so `adb_server` can reliably
 detect when a run has finished, without parsing or interpreting the actual
 measurement data.
 
+The vocabulary here (Trial, Frame, Session) is defined in
+[`doc/CONTEXT-SHARED.md`](../doc/CONTEXT-SHARED.md).
+
 ## Result files
 
 The app writes all of its result files into the directory named in
-`job.json`'s `device_result_dir`. Each file is a raw, self-contained sample
-stream (e.g. newline-delimited numbers). The server pulls these files
-byte-for-byte and never parses, transforms, sorts, rounds, or summarises
-their contents.
+`job.json`'s `device_result_dir`. Each file is a raw, self-contained
+measurement stream, one record per line -- newline-delimited numbers for a
+microbenchmark's Iterations, or newline-delimited JSON objects for a Trial's
+Frames. The server pulls these files byte-for-byte and never parses,
+transforms, sorts, rounds, or summarises their contents.
+
+The app must not average, filter or bucket anything. A Frame that looks like
+an outlier is still data; deciding that is the host's job.
+
+For a worked example, see `example_apk/integration_test/frame_recorder.dart`,
+which emits one JSON object per Frame with all six `FrameTiming` phase
+timestamps and a phase tag.
 
 ## Completion signal
 

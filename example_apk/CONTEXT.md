@@ -2,7 +2,9 @@
 
 This context covers `example_apk`, the throwaway Flutter app that Benchmarkhor
 measures in order to demonstrate and validate itself. Its vocabulary is about
-workloads and triggers, not about plotting.
+workloads and triggers, not about plotting. For **Trial**, **Session**,
+**Variant** and friends, see the [shared experiment
+vocabulary](../doc/CONTEXT-SHARED.md).
 
 ## Language
 
@@ -24,16 +26,17 @@ _Avoid_: Heavy route, dog page, slow screen
 
 **Threshold**:
 The count at which the **Counter** opens the **Expensive Route**. Reaching a
-multiple of the threshold re-arms the trigger, so one run yields several samples.
+multiple of the threshold re-arms the trigger, so one launch of the app can yield
+several **Trials**.
 _Avoid_: Limit, trigger point
 
 ## Example dialogue
 
-**Dev**: Where do I get the samples from?
+**Dev**: Where do I get the **Trials** from?
 
 **Expert**: Tap the FAB on the **Counter**. Every time the count crosses a
 multiple of the **Threshold**, the **Expensive Route** opens, and that build is
-what we're measuring.
+the **Trial** we're measuring.
 
 **Dev**: So should I `const` those widgets and switch to a lazy list?
 
