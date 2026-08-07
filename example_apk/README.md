@@ -33,6 +33,28 @@ together with every Frame in it.
 `--profile` matters too: debug-mode numbers are meaningless. Drop it only when
 you're checking that the Trial *runs*, not what it measures.
 
+## Building for `adb_server`
+
+To generate the APK pair (app + `androidTest`) for the benchmarking rig:
+
+```sh
+# Baseline
+flutter build apk --profile -t integration_test/expensive_route_trial_test.dart
+cd android && ./gradlew app:assembleAndroidTest && cd ..
+cp build/app/outputs/flutter-apk/app-profile.apk staging/baseline.apk
+cp build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk staging/baseline-test.apk
+
+# Optimized
+flutter build apk --profile -t integration_test/expensive_route_trial_test_optimized.dart
+cd android && ./gradlew app:assembleAndroidTest && cd ..
+cp build/app/outputs/flutter-apk/app-profile.apk staging/improved.apk
+cp build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk staging/improved-test.apk
+```
+
+The `androidTest` APK is a generic bridge (via `MainActivityTest.java`) that triggers the `target` Dart file bundled in the main APK.
+
+A sample `session.json` is provided in `staging/`.
+
 ## What comes out
 
 One JSON object per Frame, newline-delimited, honouring

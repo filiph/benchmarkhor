@@ -129,13 +129,13 @@ Design a minimal schema, roughly:
       "test_apk": "improved-test.apk"
     }
   },
-  "package": "com.example.benchmark",
-  "test_package": "com.example.benchmark.test",
+  "package": "com.example.example_apk",
+  "test_package": "com.example.example_apk.test",
   "instrumentation_runner": "dev.flutter.plugins.integration_test.FlutterTestRunner",
   "rounds": 3,
   "trial_timeout_seconds": 1800,
-  "expected_result_files": ["baseline.txt", "variant_a.txt", "variant_b.txt"],
-  "device_result_dir": "/sdcard/Android/data/com.example.benchmark/files/bench",
+  "expected_result_files": ["frames.jsonl"],
+  "device_result_dir": "/sdcard/Android/data/com.example.example_apk/files",
   "tags": { "flutter": "3.41", "git_commit": "abc123", "notes": "..." }
 }
 ```
