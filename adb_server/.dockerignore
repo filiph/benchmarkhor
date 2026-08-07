@@ -1,0 +1,10 @@
+.dart_tool/
+.packages
+build/
+.git/
+.gitignore
+*.md
+test/
+example_job/
+data/
+.env

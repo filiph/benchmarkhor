@@ -1,0 +1,21 @@
+services:
+  adb_server:
+    build: .
+    image: adb_server:local
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+      - adb_key:/root/.android
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:${PORT:-8080}/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  adb_key:
