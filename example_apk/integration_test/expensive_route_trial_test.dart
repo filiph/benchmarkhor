@@ -42,7 +42,7 @@ void main() {
   testWidgets(
     'Expensive Route Trial: ten taps, then ten screens of scrolling',
     (tester) async {
-      binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
+      binding.framePolicy = .fullyLive;
 
       final recorder = FrameRecorder();
 
