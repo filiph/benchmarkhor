@@ -5,25 +5,25 @@ drives an Android device under test ("DUT") over ADB (TCP/IP) and stores raw
 benchmark results as plain files on disk -- no database, no aggregation.
 
 See `REQUIREMENTS.md` for the full design brief and `CONTRACT.md` for the
-contract benchmark APKs must honour so the server can detect run completion.
+contract benchmark APKs must honour so the server can detect trial completion.
 
 ## Status
 
 This is an early skeleton ("the beginnings"). Implemented so far:
 
 - Configuration from environment variables (`lib/config.dart`).
-- Job/status data models with validation (`lib/models.dart`).
-- Disk-backed job store: atomic writes, job discovery (including jobs
-  dropped directly onto `jobs/` over SMB), and crash recovery of stale
-  `running` jobs on startup (`lib/job_store.dart`).
-- A minimal read-only HTTP API: `GET /health`, `GET /api/jobs`,
-  `GET /api/jobs/<id>` (`lib/api.dart`, `bin/server.dart`).
+- Session/status data models with validation (`lib/models.dart`).
+- Disk-backed session store: atomic writes, session discovery (including sessions
+  dropped directly onto `sessions/` over SMB), and crash recovery of stale
+  `running` sessions on startup (`lib/session_store.dart`).
+- A minimal read-only HTTP API: `GET /health`, `GET /api/sessions`,
+  `GET /api/sessions/<id>` (`lib/api.dart`, `bin/server.dart`).
 
 Not implemented yet (see `REQUIREMENTS.md` for the full spec of each):
 
-- `POST /api/jobs` (job submission), `POST /api/jobs/<id>/cancel`,
+- `POST /api/sessions` (session submission), `POST /api/sessions/<id>/cancel`,
   `POST /api/queue/next` and the runner/mutual-exclusion machinery.
-- The ADB wrapper, the run lifecycle, and device metadata probing.
+- The ADB wrapper, the trial lifecycle, and device metadata probing.
 - The HTML status page.
 - The fake-adb test fixture.
 
@@ -39,7 +39,7 @@ Then:
 
 ```sh
 curl http://localhost:8080/health
-curl http://localhost:8080/api/jobs
+curl http://localhost:8080/api/sessions
 ```
 
 ## Configuration
@@ -74,7 +74,7 @@ make test    # run `dart test` locally (uses the fake-adb fixture, no container 
 and set at least `DUT_ADDRESS` to your device's `ip:port`. `.env` is
 gitignored; it's machine-specific.
 
-Data (`jobs/`, `archive/`, `device/`, `server.log`) is bind-mounted to
+Data (`sessions/`, `archive/`, `device/`, `server.log`) is bind-mounted to
 `adb_server/data/` on your Mac so you can inspect it directly. The adb key
 (`~/.android` inside the container) is persisted in a named Docker volume
 (`adb_key`) so re-running `make up` doesn't lose device authorisation.
@@ -95,7 +95,7 @@ there from `.env.example`, and let Synology's **Container Manager** build
 and run it from `docker-compose.yml` (Container Manager reads Compose
 files directly -- Project > Create > "Create docker-compose.yml").
 
-Make sure `/data` (jobs/results/logs) and `/root/.android` (adb key) are
+Make sure `/data` (sessions/results/logs) and `/root/.android` (adb key) are
 backed by persistent NAS volumes/paths, not ephemeral container storage --
 see the `docker-compose.yml` volumes for the exact mounts.
 
@@ -104,7 +104,7 @@ see the `docker-compose.yml` volumes for the exact mounts.
 The container generates its own `adbkey` the first time it runs `adb`. The
 device under test (DUT) will report `unauthorized` and, because this rig
 is headless and unattended, **nobody is there to tap "Allow" at 2am**.
-Fix this once, before relying on unattended runs:
+Fix this once, before relying on unattended trials:
 
 1. **Persist the key and authorise interactively once.** With a display
    attached to the DUT, run the container (or `adb connect`/`adb shell`
@@ -126,7 +126,7 @@ Also make sure:
 - The DUT has a **static DHCP reservation** so `DUT_ADDRESS` stays valid
   across reboots.
 
-Per `REQUIREMENTS.md` §10, once the run lifecycle is implemented, an
+Per `REQUIREMENTS.md` §10, once the trial lifecycle is implemented, an
 `unauthorized` `adb get-state` must surface verbatim in the API response
-and `job.log` (not a generic non-zero exit code) and point back to this
+and `session.log` (not a generic non-zero exit code) and point back to this
 section.

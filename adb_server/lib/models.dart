@@ -1,11 +1,11 @@
-/// Data models for jobs and their mutable status.
+/// Data models for sessions and their mutable status.
 ///
 /// See `REQUIREMENTS.md` §4 for the on-disk schemas these mirror.
 library;
 
-/// The states a job can be in. See `REQUIREMENTS.md` §4 for the full state
+/// The states a session can be in. See `REQUIREMENTS.md` §4 for the full state
 /// machine diagram.
-enum JobState {
+enum SessionState {
   queued,
   running,
   done,
@@ -14,81 +14,121 @@ enum JobState {
   interrupted,
   invalid;
 
-  static JobState parse(String value) => JobState.values.firstWhere(
+  static SessionState parse(String value) => SessionState.values.firstWhere(
         (s) => s.name == value,
         orElse: () =>
-            throw FormatException('Unknown job state: "$value"'),
+            throw FormatException('Unknown session state: "$value"'),
       );
 }
 
-/// The immutable, submitter-authored job specification (`job.json`).
-class JobSpec {
+/// Specification for a single variant within a session.
+class VariantSpec {
+  final String apk;
+  final String testApk;
+
+  const VariantSpec({
+    required this.apk,
+    required this.testApk,
+  });
+
+  factory VariantSpec.fromJson(Map<String, dynamic> json) {
+    return VariantSpec(
+      apk: json['apk'] as String? ?? 'app.apk',
+      testApk: json['test_apk'] as String? ?? 'app-test.apk',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'apk': apk,
+        'test_apk': testApk,
+      };
+}
+
+/// The immutable, submitter-authored session specification (`session.json`).
+class SessionSpec {
   static const currentSchemaVersion = 1;
 
   final int schemaVersion;
   final String name;
   final String description;
-  final String apk;
+  final Map<String, VariantSpec> variants;
   final String package;
-  final String activity;
-  final int repetitions;
-  final int? runTimeoutSeconds;
+  final String testPackage;
+  final String instrumentationRunner;
+  final int rounds;
+  final int? trialTimeoutSeconds;
   final List<String> expectedResultFiles;
   final String deviceResultDir;
   final Map<String, dynamic> tags;
 
-  const JobSpec({
+  const SessionSpec({
     this.schemaVersion = currentSchemaVersion,
     required this.name,
     this.description = '',
-    this.apk = 'app.apk',
+    required this.variants,
     required this.package,
-    required this.activity,
-    this.repetitions = 1,
-    this.runTimeoutSeconds,
+    required this.testPackage,
+    required this.instrumentationRunner,
+    this.rounds = 1,
+    this.trialTimeoutSeconds,
     this.expectedResultFiles = const [],
     required this.deviceResultDir,
     this.tags = const {},
   });
 
-  /// Parses and validates a `job.json` map.
+  /// Parses and validates a `session.json` map.
   ///
   /// Throws a [FormatException] with a human-readable message if the map
   /// doesn't satisfy the minimal schema. Callers are expected to catch this
-  /// and transition the job to [JobState.invalid] rather than retry.
-  factory JobSpec.fromJson(Map<String, dynamic> json) {
+  /// and transition the session to [SessionState.invalid] rather than retry.
+  factory SessionSpec.fromJson(Map<String, dynamic> json) {
     String requireString(String key) {
       final value = json[key];
       if (value is! String || value.isEmpty) {
-        throw FormatException('job.json: "$key" must be a non-empty string');
+        throw FormatException('session.json: "$key" must be a non-empty string');
       }
       return value;
     }
 
-    final repetitions = json['repetitions'];
-    if (repetitions != null &&
-        (repetitions is! int || repetitions < 1)) {
+    final variantsJson = json['variants'];
+    if (variantsJson is! Map) {
+      throw const FormatException('session.json: "variants" must be a map');
+    }
+    final variants = variantsJson.cast<String, dynamic>().map(
+          (key, value) => MapEntry(
+            key,
+            VariantSpec.fromJson(value as Map<String, dynamic>),
+          ),
+        );
+
+    final rounds = json['rounds'] ?? json['repetitions'];
+    if (rounds != null && (rounds is! int || rounds < 1)) {
       throw const FormatException(
-        'job.json: "repetitions" must be a positive integer',
+        'session.json: "rounds" must be a positive integer',
       );
     }
 
     final expectedResultFiles = json['expected_result_files'];
     if (expectedResultFiles != null && expectedResultFiles is! List) {
       throw const FormatException(
-        'job.json: "expected_result_files" must be a list of strings',
+        'session.json: "expected_result_files" must be a list of strings',
       );
     }
 
-    return JobSpec(
+    final package = requireString('package');
+
+    return SessionSpec(
       schemaVersion: json['schema_version'] as int? ?? currentSchemaVersion,
       name: requireString('name'),
       description: json['description'] as String? ?? '',
-      apk: json['apk'] as String? ?? 'app.apk',
-      package: requireString('package'),
-      activity: requireString('activity'),
-      repetitions: (json['repetitions'] as int?) ?? 1,
-      runTimeoutSeconds: json['run_timeout_seconds'] as int?,
+      variants: variants,
+      package: package,
+      testPackage: json['test_package'] as String? ?? '$package.test',
+      instrumentationRunner: json['instrumentation_runner'] as String? ??
+          'dev.flutter.plugins.integration_test.FlutterTestRunner',
+      rounds: (rounds as int?) ?? 1,
+      trialTimeoutSeconds:
+          (json['trial_timeout_seconds'] ?? json['run_timeout_seconds']) as int?,
       expectedResultFiles: (expectedResultFiles as List?)
               ?.map((e) => e as String)
               .toList() ??
@@ -102,34 +142,35 @@ class JobSpec {
         'schema_version': schemaVersion,
         'name': name,
         'description': description,
-        'apk': apk,
+        'variants': variants.map((k, v) => MapEntry(k, v.toJson())),
         'package': package,
-        'activity': activity,
-        'repetitions': repetitions,
-        if (runTimeoutSeconds != null)
-          'run_timeout_seconds': runTimeoutSeconds,
+        'test_package': testPackage,
+        'instrumentation_runner': instrumentationRunner,
+        'rounds': rounds,
+        if (trialTimeoutSeconds != null)
+          'trial_timeout_seconds': trialTimeoutSeconds,
         'expected_result_files': expectedResultFiles,
         'device_result_dir': deviceResultDir,
         'tags': tags,
       };
 }
 
-/// One entry in a [JobStatus.history] list.
-class JobHistoryEntry {
+/// One entry in a [SessionStatus.history] list.
+class SessionHistoryEntry {
   final DateTime at;
   final String from;
   final String to;
   final String? reason;
 
-  const JobHistoryEntry({
+  const SessionHistoryEntry({
     required this.at,
     required this.from,
     required this.to,
     this.reason,
   });
 
-  factory JobHistoryEntry.fromJson(Map<String, dynamic> json) =>
-      JobHistoryEntry(
+  factory SessionHistoryEntry.fromJson(Map<String, dynamic> json) =>
+      SessionHistoryEntry(
         at: DateTime.parse(json['at'] as String),
         from: json['from'] as String,
         to: json['to'] as String,
@@ -144,62 +185,62 @@ class JobHistoryEntry {
       };
 }
 
-/// The mutable, server-owned job state (`status.json`).
-class JobStatus {
+/// The mutable, server-owned session state (`status.json`).
+class SessionStatus {
   static const currentSchemaVersion = 1;
 
   final int schemaVersion;
-  final String jobId;
-  final JobState state;
+  final String sessionId;
+  final SessionState state;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final int runsCompleted;
-  final int runsPlanned;
-  final String? currentRun;
-  final List<JobHistoryEntry> history;
+  final int roundsCompleted;
+  final int roundsPlanned;
+  final String? currentTrial;
+  final List<SessionHistoryEntry> history;
   final String? error;
 
-  const JobStatus({
+  const SessionStatus({
     this.schemaVersion = currentSchemaVersion,
-    required this.jobId,
+    required this.sessionId,
     required this.state,
     required this.createdAt,
     required this.updatedAt,
-    this.runsCompleted = 0,
-    required this.runsPlanned,
-    this.currentRun,
+    this.roundsCompleted = 0,
+    required this.roundsPlanned,
+    this.currentTrial,
     this.history = const [],
     this.error,
   });
 
-  /// A freshly created, `queued` status for a newly discovered job.
-  factory JobStatus.initial({
-    required String jobId,
-    required int runsPlanned,
+  /// A freshly created, `queued` status for a newly discovered session.
+  factory SessionStatus.initial({
+    required String sessionId,
+    required int roundsPlanned,
   }) {
     final now = DateTime.now().toUtc();
-    return JobStatus(
-      jobId: jobId,
-      state: JobState.queued,
+    return SessionStatus(
+      sessionId: sessionId,
+      state: SessionState.queued,
       createdAt: now,
       updatedAt: now,
-      runsPlanned: runsPlanned,
+      roundsPlanned: roundsPlanned,
     );
   }
 
-  factory JobStatus.fromJson(Map<String, dynamic> json) => JobStatus(
-        schemaVersion:
-            json['schema_version'] as int? ?? currentSchemaVersion,
-        jobId: json['job_id'] as String,
-        state: JobState.parse(json['state'] as String),
+  factory SessionStatus.fromJson(Map<String, dynamic> json) => SessionStatus(
+        schemaVersion: json['schema_version'] as int? ?? currentSchemaVersion,
+        sessionId: (json['session_id'] ?? json['job_id']) as String,
+        state: SessionState.parse(json['state'] as String),
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),
-        runsCompleted: json['runs_completed'] as int? ?? 0,
-        runsPlanned: json['runs_planned'] as int,
-        currentRun: json['current_run'] as String?,
+        roundsCompleted:
+            (json['rounds_completed'] ?? json['runs_completed']) as int? ?? 0,
+        roundsPlanned: (json['rounds_planned'] ?? json['runs_planned']) as int,
+        currentTrial: (json['current_trial'] ?? json['current_run']) as String?,
         history: (json['history'] as List?)
                 ?.map((e) =>
-                    JobHistoryEntry.fromJson(e as Map<String, dynamic>))
+                    SessionHistoryEntry.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             const [],
         error: json['error'] as String?,
@@ -207,38 +248,38 @@ class JobStatus {
 
   Map<String, dynamic> toJson() => {
         'schema_version': schemaVersion,
-        'job_id': jobId,
+        'session_id': sessionId,
         'state': state.name,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
-        'runs_completed': runsCompleted,
-        'runs_planned': runsPlanned,
-        'current_run': currentRun,
+        'rounds_completed': roundsCompleted,
+        'rounds_planned': roundsPlanned,
+        'current_trial': currentTrial,
         'history': history.map((e) => e.toJson()).toList(),
         'error': error,
       };
 
   /// Returns a copy of this status transitioned to [to], appending a
-  /// [JobHistoryEntry] recording the transition.
-  JobStatus transitionTo(
-    JobState to, {
+  /// [SessionHistoryEntry] recording the transition.
+  SessionStatus transitionTo(
+    SessionState to, {
     String? reason,
     String? error,
-    int? runsCompleted,
-    String? currentRun,
+    int? roundsCompleted,
+    String? currentTrial,
   }) {
     final now = DateTime.now().toUtc();
-    return JobStatus(
-      jobId: jobId,
+    return SessionStatus(
+      sessionId: sessionId,
       state: to,
       createdAt: createdAt,
       updatedAt: now,
-      runsCompleted: runsCompleted ?? this.runsCompleted,
-      runsPlanned: runsPlanned,
-      currentRun: currentRun ?? this.currentRun,
+      roundsCompleted: roundsCompleted ?? this.roundsCompleted,
+      roundsPlanned: roundsPlanned,
+      currentTrial: currentTrial ?? this.currentTrial,
       history: [
         ...history,
-        JobHistoryEntry(at: now, from: state.name, to: to.name, reason: reason),
+        SessionHistoryEntry(at: now, from: state.name, to: to.name, reason: reason),
       ],
       error: error ?? this.error,
     );

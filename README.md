@@ -6,6 +6,9 @@
 It provides ways to compare benchmark data as a whole, as opposed to just
 as a handful of summary numbers.
 
+> **Note:** The main `benchmarkhor` project and `@example/benchmark_harness_test` 
+> are currently **on hold** while we focus on `@example_apk` and `@adb_server`.
+
 (Markhor is a species of 
 [mountain goat](https://www.google.com/search?q=markhor).)
 

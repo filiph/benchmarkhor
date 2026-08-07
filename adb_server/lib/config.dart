@@ -6,7 +6,7 @@ class Config {
   /// Address of the device under test, e.g. `192.168.1.42:5555`.
   final String dutAddress;
 
-  /// NAS-backed root directory holding all job state. See `REQUIREMENTS.md`
+  /// NAS-backed root directory holding all session state. See `REQUIREMENTS.md`
   /// §4.
   final String dataDir;
 
@@ -17,13 +17,13 @@ class Config {
   /// point at a fake adb fixture.
   final String adbPath;
 
-  /// How often (in seconds) the runner polls the device for run completion.
+  /// How often (in seconds) the runner polls the device for trial completion.
   final int pollIntervalSeconds;
 
-  /// Default per-run timeout, used when a job doesn't specify its own.
-  final int defaultRunTimeoutSeconds;
+  /// Default per-trial timeout, used when a session doesn't specify its own.
+  final int defaultTrialTimeoutSeconds;
 
-  /// SoC temperature (Celsius) below which a run is allowed to start. If
+  /// SoC temperature (Celsius) below which a trial is allowed to start. If
   /// null, the thermal gate is disabled.
   final double? thermalGateCelsius;
 
@@ -31,7 +31,7 @@ class Config {
   final int thermalGateTimeoutSeconds;
 
   /// Path to a newline-separated file of shell commands to run on the DUT
-  /// before each run (e.g. to pin CPU governor/frequency). If null, no
+  /// before each trial (e.g. to pin CPU governor/frequency). If null, no
   /// device profile is applied.
   final String? deviceProfileFile;
 
@@ -47,7 +47,7 @@ class Config {
     required this.port,
     required this.adbPath,
     required this.pollIntervalSeconds,
-    required this.defaultRunTimeoutSeconds,
+    required this.defaultTrialTimeoutSeconds,
     required this.thermalGateCelsius,
     required this.thermalGateTimeoutSeconds,
     required this.deviceProfileFile,
@@ -75,8 +75,10 @@ class Config {
       adbPath: env['ADB_PATH'] ?? 'adb',
       pollIntervalSeconds:
           int.tryParse(env['POLL_INTERVAL_SECONDS'] ?? '') ?? 15,
-      defaultRunTimeoutSeconds:
-          int.tryParse(env['DEFAULT_RUN_TIMEOUT_SECONDS'] ?? '') ?? 1800,
+      defaultTrialTimeoutSeconds:
+          int.tryParse(env['DEFAULT_TRIAL_TIMEOUT_SECONDS'] ?? '') ??
+              int.tryParse(env['DEFAULT_RUN_TIMEOUT_SECONDS'] ?? '') ??
+              1800,
       thermalGateCelsius: double.tryParse(env['THERMAL_GATE_CELSIUS'] ?? ''),
       thermalGateTimeoutSeconds:
           int.tryParse(env['THERMAL_GATE_TIMEOUT_SECONDS'] ?? '') ?? 300,
@@ -88,18 +90,18 @@ class Config {
   }
 
   /// A JSON-serialisable summary, safe to embed in `/health` responses and
-  /// in every `run.json`.
+  /// in every `trial.json`.
   Map<String, dynamic> toJson() => {
-        'dut_address': dutAddress,
-        'data_dir': dataDir,
-        'port': port,
-        'adb_path': adbPath,
-        'poll_interval_seconds': pollIntervalSeconds,
-        'default_run_timeout_seconds': defaultRunTimeoutSeconds,
-        'thermal_gate_celsius': thermalGateCelsius,
-        'thermal_gate_timeout_seconds': thermalGateTimeoutSeconds,
-        'device_profile_file': deviceProfileFile,
-        'precompile_package': precompilePackage,
-        'log_level': logLevel,
-      };
+    'dut_address': dutAddress,
+    'data_dir': dataDir,
+    'port': port,
+    'adb_path': adbPath,
+    'poll_interval_seconds': pollIntervalSeconds,
+    'default_trial_timeout_seconds': defaultTrialTimeoutSeconds,
+    'thermal_gate_celsius': thermalGateCelsius,
+    'thermal_gate_timeout_seconds': thermalGateTimeoutSeconds,
+    'device_profile_file': deviceProfileFile,
+    'precompile_package': precompilePackage,
+    'log_level': logLevel,
+  };
 }

@@ -33,7 +33,7 @@ The primary use case in v1 is **R&D microbenchmarking of Dart code** -- e.g. "is
 
 - Expected effect sizes are **large (10%+)**. We are not chasing 1% effects yet.
 - The DUT's CPU is **deliberately downclocked and pinned** so thermal drift is small.
-- Each benchmark runs **many iterations**, and the **APK itself is responsible for interleaving** variants (A/B/A/B/...). The server never interleaves anything.
+- Each benchmark runs **many Rounds**, and the **server is responsible for interleaving** Variants by installing and running different APKs for each **Trial**. The APK itself only knows how to run a single Variant.
 - **The output is thousands of raw data points, not summary statistics.** This is a hard requirement, see §6.
 
 A secondary future use case is frame-timing benchmarks. Don't build for it, but don't design anything that forbids it.
@@ -77,24 +77,26 @@ Everything lives under a single configurable root, bind-mounted from the NAS. Pr
 
 ```
 /data/
-  jobs/
+  sessions/
     2026-08-03T14-22-05Z__set-contains-enum-vs-object/
-      job.json            # immutable job spec (written by submitter)
-      app.apk             # the benchmark APK
-      app-test.apk        # its androidTest APK (same signing key as app.apk)
+      session.json            # immutable session spec (written by submitter)
+      baseline.apk        # APK for the baseline variant
+      baseline-test.apk   # its androidTest APK
+      improved.apk        # APK for the improved variant
+      improved-test.apk   # its androidTest APK
       status.json         # MUTABLE server-owned state
-      job.log             # human-readable log for this job
-      runs/
-        run-001/
-          run.json        # full metadata snapshot for this single execution
-          logcat.txt      # filtered logcat captured during the run
+      session.log             # human-readable log for this session
+      trials/
+        trial-001/
+          trial.json        # full metadata snapshot for this single execution
+          logcat.txt      # filtered logcat captured during the trial
           adb.log         # every adb command + exit code + stderr
           results/        # verbatim files pulled off the device
             baseline.txt
             variant_a.txt
             variant_b.txt
           results_index.json   # filename, bytes, sha256, line count -- nothing more
-  archive/                # completed jobs moved here (optional, v1 may skip)
+  archive/                # completed sessions moved here (optional, v1 may skip)
   device/
     last_snapshot.json    # most recent device probe, for GET /api/device
   server.log
@@ -102,13 +104,13 @@ Everything lives under a single configurable root, bind-mounted from the NAS. Pr
 
 ### Rules
 
-- **Job ID = directory name.** Use `<ISO8601-utc-compact>__<slug>`. This makes lexicographic sort = chronological sort, which is also the queue order (FIFO).
-- **`job.json` is written once and never modified by the server.** All mutable state goes in `status.json`.
-- **All writes to `status.json` and `run.json` must be atomic**: write to `foo.json.tmp` in the same directory, `flush()`, then `rename()`. Never leave a half-written status file -- a crash mid-write must not corrupt the queue.
+- **Session ID = directory name.** Use `<ISO8601-utc-compact>__<slug>`. This makes lexicographic sort = chronological sort, which is also the queue order (FIFO).
+- **`session.json` is written once and never modified by the server.** All mutable state goes in `status.json`.
+- **All writes to `status.json` and `trial.json` must be atomic**: write to `foo.json.tmp` in the same directory, `flush()`, then `rename()`. Never leave a half-written status file -- a crash mid-write must not corrupt the queue.
 - **Nothing important is held only in memory.** If the container is killed (DSM update, power loss), restarting it must recover the full picture from disk.
 - The user can and will interact with these directories directly over SMB. Filenames must be human-readable and SMB-safe: no `:` (breaks on some clients -- hence `14-22-05` not `14:22:05`), no characters needing escaping.
 
-### `job.json` (submitter-authored)
+### `session.json` (submitter-authored)
 
 Design a minimal schema, roughly:
 
@@ -117,41 +119,49 @@ Design a minimal schema, roughly:
   "schema_version": 1,
   "name": "set-contains-enum-vs-object",
   "description": "Free text. Shown in the UI.",
-  "apk": "app.apk",
-  "test_apk": "app-test.apk",
+  "variants": {
+    "baseline": {
+      "apk": "baseline.apk",
+      "test_apk": "baseline-test.apk"
+    },
+    "improved": {
+      "apk": "improved.apk",
+      "test_apk": "improved-test.apk"
+    }
+  },
   "package": "com.example.benchmark",
   "test_package": "com.example.benchmark.test",
   "instrumentation_runner": "dev.flutter.plugins.integration_test.FlutterTestRunner",
-  "repetitions": 3,
-  "run_timeout_seconds": 1800,
+  "rounds": 3,
+  "trial_timeout_seconds": 1800,
   "expected_result_files": ["baseline.txt", "variant_a.txt", "variant_b.txt"],
   "device_result_dir": "/sdcard/Android/data/com.example.benchmark/files/bench",
   "tags": { "flutter": "3.41", "git_commit": "abc123", "notes": "..." }
 }
 ```
 
-`repetitions` = how many times the server executes the whole APK (each producing one `runs/run-NNN/`). Note this is *sessions*, not iterations -- iteration count and interleaving are the APK's business.
+`rounds` = how many **Rounds** the server executes. Each Round involves running every **Variant** once, in random order, with a fresh install/uninstall cycle per **Trial**.
 
-Validate the schema on read. A malformed `job.json` must move the job to state `invalid` **immediately, with the parse error recorded in `status.json`** -- never retried in a loop. (This is a specific bug to avoid: a poll loop that skips a bad job without marking it will spin forever.)
+Validate the schema on read. A malformed `session.json` must move the session to state `invalid` **immediately, with the parse error recorded in `status.json`** -- never retried in a loop.
 
 ### `status.json` (server-owned)
 
 ```json
 {
   "schema_version": 1,
-  "job_id": "...",
+  "session_id": "...",
   "state": "queued",
   "created_at": "...",
   "updated_at": "...",
-  "runs_completed": 0,
-  "runs_planned": 3,
-  "current_run": null,
+  "rounds_completed": 0,
+  "rounds_planned": 3,
+  "current_trial": null,
   "history": [ { "at": "...", "from": "queued", "to": "running", "reason": "..." } ],
   "error": null
 }
 ```
 
-### Job state machine
+### Session state machine
 
 ```
 queued ──▶ running ──▶ done
@@ -160,10 +170,10 @@ queued ──▶ running ──▶ done
    │          ├──▶ cancelled    (explicit cancel while running)
    │          └──▶ interrupted  (server restarted mid-run)
    ├──▶ cancelled  (explicit cancel while queued)
-   └──▶ invalid    (bad job.json / missing APK)
+   └──▶ invalid    (bad session.json / missing APK)
 ```
 
-**On startup**, scan `jobs/`. Any job found in `running` is stale by definition -- transition it to `interrupted` with a reason. Do not attempt to resume it. Partial artifacts stay on disk.
+**On startup**, scan `sessions/`. Any session found in `running` is stale by definition -- transition it to `interrupted` with a reason. Do not attempt to resume it. Partial artifacts stay on disk.
 
 ---
 
@@ -174,33 +184,33 @@ Bind `0.0.0.0` on a configurable port (default `8080`). All JSON responses, `app
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Liveness. Returns version, uptime, `busy: bool`, config summary. |
-| `GET` | `/api/jobs` | List jobs. Optional `?state=queued`. Returns summaries, newest first. |
-| `GET` | `/api/jobs/<id>` | Full detail: merged `job.json` + `status.json` + list of runs. |
-| `POST` | `/api/jobs` | Create a job. See below. |
-| `POST` | `/api/jobs/<id>/cancel` | Cancel queued or running job. |
-| `POST` | `/api/queue/next` | **Start the next queued job if idle.** Core operation. |
+| `GET` | `/api/sessions` | List sessions. Optional `?state=queued`. Returns summaries, newest first. |
+| `GET` | `/api/sessions/<id>` | Full detail: merged `session.json` + `status.json` + list of trials. |
+| `POST` | `/api/sessions` | Create a session. See below. |
+| `POST` | `/api/sessions/<id>/cancel` | Cancel queued or running session. |
+| `POST` | `/api/queue/next` | **Start the next queued session if idle.** Core operation. |
 | `GET` | `/api/device` | Probe the DUT now and return a metadata snapshot (§7). Cache briefly. |
-| `GET` | `/api/jobs/<id>/runs/<run>/results/<file>` | Serve a raw result file (`text/plain`). |
-| `GET` | `/api/jobs/<id>/log` | Tail of `job.log`, `?lines=N`. |
+| `GET` | `/api/sessions/<id>/trials/<trial>/results/<file>` | Serve a raw result file (`text/plain`). |
+| `GET` | `/api/sessions/<id>/log` | Tail of `session.log`, `?lines=N`. |
 | `GET` | `/` | Minimal HTML status page (§8). |
 
 ### `POST /api/queue/next` semantics -- read carefully
 
-- If a run is already in progress: return **409 Conflict** with the current job ID. Do not queue the request, do not block.
-- If no jobs are `queued`: return **204 No Content** (or 200 with `{"started": null}` -- agent's choice, document it).
-- Otherwise: pick the **lexicographically first** `queued` job, transition it to `running`, kick off execution **asynchronously**, and return **202 Accepted** with the job ID immediately. Do not hold the HTTP connection open for the duration of a 30-minute benchmark.
+- If a trial is already in progress: return **409 Conflict** with the current session ID. Do not queue the request, do not block.
+- If no sessions are `queued`: return **204 No Content** (or 200 with `{"started": null}` -- agent's choice, document it).
+- Otherwise: pick the **lexicographically first** `queued` session, transition it to `running`, kick off execution **asynchronously**, and return **202 Accepted** with the session ID immediately. Do not hold the HTTP connection open for the duration of a 30-minute benchmark.
 
 Mutual exclusion must be enforced by **two** mechanisms:
 1. An in-process guard (a single `bool`/`Completer` behind synchronous check-and-set -- no `await` between check and set).
-2. A lock file on disk (`/data/.runner.lock` containing pid + job ID + timestamp) so a second accidentally-started container fails loudly instead of two adb clients fighting over one device. **Two ADB clients targeting one device concurrently is a known source of mystery flakiness -- prevent it structurally.**
+2. A lock file on disk (`/data/.runner.lock` containing pid + session ID + timestamp) so a second accidentally-started container fails loudly instead of two adb clients fighting over one device. **Two ADB clients targeting one device concurrently is a known source of mystery flakiness -- prevent it structurally.**
 
-### `POST /api/jobs`
+### `POST /api/sessions`
 
-Support `multipart/form-data` with an `apk` file part and a `job` JSON part. Create the directory, write `job.json` + `app.apk`, compute the APK sha256, set state `queued`, return 201 with the job ID.
+Support `multipart/form-data` with multiple APK file parts and a `session` JSON part. Create the directory, write `session.json` and all provided APKs, compute their sha256, set state `queued`, return 201 with the session ID.
 
-Also support the **drop-folder path**: the user copies a directory into `/data/jobs/` over SMB. So the job lister must treat "directory containing `job.json` but no `status.json`" as a newly discovered job and create `status.json` with state `queued` on first sight. Both submission paths must converge on identical on-disk state.
+Also support the **drop-folder path**: the user copies a directory into `/data/sessions/` over SMB. So the session lister must treat "directory containing `session.json` but no `status.json`" as a newly discovered session and create `status.json` with state `queued` on first sight. Both submission paths must converge on identical on-disk state.
 
-### `POST /api/jobs/<id>/cancel`
+### `POST /api/sessions/<id>/cancel`
 
 - `queued` → `cancelled`, done.
 - `running` → set a cancellation flag the run loop checks between steps, `adb shell am force-stop <pkg>`, mark `cancelled`, **keep partial artifacts**. Return 202.
@@ -210,30 +220,30 @@ Also support the **drop-folder path**: the user copies a directory into `/data/j
 
 ## 6. The run lifecycle
 
-This is the heart of the program. Implement it as an explicit, ordered, logged sequence. Every adb invocation and its exit code/stderr goes into `runs/run-NNN/adb.log`.
+This is the heart of the program. Implement it as an explicit, ordered, logged sequence. Every adb invocation and its exit code/stderr goes into `trials/trial-NNN/adb.log`.
 
-For each of `repetitions`:
+For each **Round** (up to `rounds`):
 
-1. **Create** `runs/run-NNN/` (zero-padded, starting at 001).
-2. **Connect / verify device.** `adb connect <addr>`, then `adb -s <addr> get-state`. Retry a small number of times with backoff. If the device reports `unauthorized`, fail with a clear, actionable error message (see §10 -- this is the most likely first-time failure).
-3. **Apply the device profile** (optional, config-driven). If a profile script/command list is configured, run it and record the commands verbatim + their sha256 in `run.json`. This is how the user pins CPU governor, frequency, and core affinity for downclocked stable operation. The server does not invent these commands -- it executes what it's given and records what it did.
-4. **Pre-run device snapshot** → `run.json` under `device_before` (§7).
-5. **Optional thermal gate.** If configured, poll SoC temperature until below a threshold or a timeout expires. In v1, on timeout: proceed but record a `warnings: ["thermal_gate_timeout"]` entry. Do not silently drop the run.
-6. **Clean device state.** Remove the on-device result directory. Uninstall both the package and the test package if present (avoids stale files and stale caches masquerading as results). Note that uninstalling wipes `/sdcard/Android/data/<pkg>/`, so this must happen *before* the install, never after the pull.
-7. **Install:** `adb install -r -g app.apk`, then `adb install -r -g app-test.apk`. Both must be signed with the same key or `am instrument` fails obscurely.
-8. **Optional AOT settle:** `adb shell cmd package compile -m speed -f <pkg>`, then a short idle wait. Configurable, default on. Rationale: `install` triggers background dexopt that can churn for minutes and contaminate an early run.
-9. **Keep the device awake:** `adb shell svc power stayon true` and add the package to the deviceidle whitelist. Log failures as warnings, not errors -- these commands vary across builds.
-10. **Clear logcat** (`adb logcat -c`), then start capturing logcat to `logcat.txt` for the duration of the run.
-11. **Launch:** `adb shell am instrument -w -r <test_package>/<instrumentation_runner>` (plus any extras from `job.json`).
-    Do not trust `am instrument -w` to return: a known Flutter regression leaves instrumentation hanging after "All tests passed!", so wrap every invocation in a host-side timeout and treat the completion contract below -- not the exit status -- as the signal.
-    Parameterise by `adb push`ing a scenario file into `device_result_dir` rather than fighting `-e` extras into Dart.
-12. **Wait for completion** -- see the contract below.
-13. **Post-run device snapshot** → `device_after`.
-14. **Pull results:** copy every file from the on-device result dir into `runs/run-NNN/results/`. Then write `results_index.json` with filename, byte size, sha256, and line count per file. **Do not parse, transform, sort, round, or summarise the contents.** They are raw measurement streams and must survive byte-identical.
-15. **Validate:** if `expected_result_files` is set and any are missing or zero-length → run `failed`.
-16. **Finalise:** write `run.json`, `am force-stop`, increment `runs_completed`, update `status.json` atomically.
+1. **Shuffle** the list of **Variants** to prevent order-dependent bias (e.g. thermal drift).
+2. **For each Variant** in the shuffled list (this execution is a **Trial**):
+    1. **Create** `trials/trial-NNN/` (zero-padded, starting at 001).
+    2. **Connect / verify device.** `adb connect <addr>`, then `adb -s <addr> get-state`. Retry a small number of times with backoff.
+    3. **Apply the device profile** (optional, config-driven).
+    4. **Pre-run device snapshot** → `trial.json` under `device_before`.
+    5. **Optional thermal gate.** If configured, poll SoC temperature until below a threshold or a timeout expires **before every Trial**. In v1, on timeout: proceed but record a `warnings: ["thermal_gate_timeout"]` entry.
+    6. **Clean device state.** Remove the on-device result directory. By default, the next step uses `adb install -r` (replace), but provide a config/job flag to perform a full `uninstall` before each Trial for maximum isolation. Note that uninstalling wipes `/sdcard/Android/data/<pkg>/`.
+    7. **Install:** `adb install -r -g <variant_apk>`, then `adb install -r -g <variant_test_apk>`.
+    8. **Optional AOT settle:** `adb shell cmd package compile -m speed -f <pkg>`.
+    9. **Keep the device awake.**
+    10. **Clear logcat** (`adb logcat -c`), then start capturing logcat to `logcat.txt`.
+    11. **Launch:** `adb shell am instrument -w -r <test_package>/<instrumentation_runner>` (plus any extras).
+    12. **Wait for completion** -- see the contract below.
+    13. **Post-run device snapshot** → `device_after`.
+    14. **Pull results:** copy every file from the on-device result dir into `trials/trial-NNN/results/<variant_name>/`.
+    15. **Validate:** if `expected_result_files` is set and any are missing or zero-length → trial `failed`.
+    16. **Finalise:** write `trial.json`, `am force-stop`, increment `rounds_completed`, update `status.json` atomically.
 
-After the last repetition → job `done`. If any repetition fails, v1 behaviour: **abort remaining repetitions**, job `failed`, keep everything collected so far. (Ask the user if they'd prefer continue-on-error.)
+After the last repetition → session `done`. If any repetition fails, v1 behaviour: **abort remaining repetitions**, session `failed`, keep everything collected so far. (Ask the user if they'd prefer continue-on-error.)
 
 ### Completion contract between server and APK
 
@@ -245,7 +255,7 @@ Server-side detection, in priority order:
 1. Sentinel file exists (`adb shell test -f <dir>/DONE`).
 2. `BENCH_DONE` / `BENCH_FAILED` marker seen in the logcat stream.
 3. Process gone (`adb shell pidof <pkg>` returns nothing) **for two consecutive polls** -- treat a vanished process with no sentinel as a **crash**, i.e. `failed`, not success. Capture logcat for diagnosis.
-4. `run_timeout_seconds` exceeded → `failed`, force-stop, still pull whatever exists.
+4. `trial_timeout_seconds` exceeded → `failed`, force-stop, still pull whatever exists.
 
 **Polling interval:** configurable, default **15 seconds**. Each poll wakes adbd, forks a process on the DUT, and generates network traffic. For the CPU-bound R&D benchmarks targeted here (10%+ effects, downclocked CPU) that noise is negligible. For future frame-timing work it may not be, so the interval must be tunable and its value must be recorded in `run.json`.
 
@@ -295,7 +305,7 @@ Design a single `DeviceProbe` class that returns a `Map<String, dynamic>` so the
 
 One route, `GET /`, serving **server-rendered HTML from a Dart string or a static file**. No framework, no build step, no JS bundler. `<meta http-equiv="refresh" content="10">` is entirely acceptable in v1.
 
-Show: device online/offline + current temperature; whether a run is in progress and which job/run; a table of jobs with state, progress `2/3`, timestamps; per-job links to result files and logs; buttons that `POST` to `/api/queue/next` and `/api/jobs/<id>/cancel`.
+Show: device online/offline + current temperature; whether a trial is in progress and which session/trial; a table of sessions with state, progress `2/3`, timestamps; per-session links to result files and logs; buttons that `POST` to `/api/queue/next` and `/api/sessions/<id>/cancel`.
 
 Deliberately deferred: charts, violin plots, APK upload UI, metadata composer. The user intends to build a richer frontend later (possibly Jaspr) -- so keep the JSON API complete enough that the HTML page is a *pure client of it*, with no privileged internal access. That's the property that makes the later frontend cheap.
 
@@ -303,7 +313,7 @@ Deliberately deferred: charts, violin plots, APK upload UI, metadata composer. T
 
 ## 9. Configuration
 
-Env vars, all with sane defaults, all echoed into `/health` and into every `run.json`:
+Env vars, all with sane defaults, all echoed into `/health` and into every `trial.json`:
 
 | Var | Default | Meaning |
 |---|---|---|
@@ -312,10 +322,10 @@ Env vars, all with sane defaults, all echoed into `/health` and into every `run.
 | `PORT` | `8080` | HTTP port |
 | `ADB_PATH` | `adb` | Overridable -- **used for testing, see §11** |
 | `POLL_INTERVAL_SECONDS` | `15` | Completion polling |
-| `DEFAULT_RUN_TIMEOUT_SECONDS` | `1800` | Overridable per job |
-| `THERMAL_GATE_CELSIUS` | unset | If set, gate before each run |
+| `DEFAULT_TRIAL_TIMEOUT_SECONDS` | `1800` | Overridable per session |
+| `THERMAL_GATE_CELSIUS` | unset | If set, gate before each trial |
 | `THERMAL_GATE_TIMEOUT_SECONDS` | `300` | |
-| `DEVICE_PROFILE_FILE` | unset | Newline-separated shell commands run on the DUT pre-run |
+| `DEVICE_PROFILE_FILE` | unset | Newline-separated shell commands run on the DUT pre-trial |
 | `PRECOMPILE_PACKAGE` | `true` | Step 8 |
 | `LOG_LEVEL` | `info` | |
 
@@ -335,7 +345,7 @@ Multi-stage `Dockerfile` in `adb_server/`:
 
 | Container path | Purpose |
 |---|---|
-| `/data` | Jobs, results, logs -- a NAS share, visible over SMB |
+| `/data` | Sessions, results, logs -- a NAS share, visible over SMB |
 | `/root/.android` (or the chosen home) | **ADB key persistence -- do not skip this** |
 
 Also provide `docker-compose.yml` (Synology Container Manager reads compose) with `restart: unless-stopped` and the volumes above.
@@ -349,14 +359,14 @@ The container generates its own `adbkey` on first use. The DUT will report `unau
 
 Also document: `adb tcpip 5555` / setting `persist.adb.tcp.port` generally requires root and must survive DUT reboots, and the DUT needs a **static DHCP reservation** so `DUT_ADDRESS` stays valid.
 
-Make the error path good: when `get-state` returns `unauthorized`, the API response and `job.log` must say *exactly* that, and point to the README section. Don't let it surface as a generic non-zero exit code.
+Make the error path good: when `get-state` returns `unauthorized`, the API response and `session.log` must say *exactly* that, and point to the README section. Don't let it surface as a generic non-zero exit code.
 
 ---
 
 ## 11. Testing
 
-- **A fake adb.** Because `ADB_PATH` is injectable, provide a test fixture script/executable that mimics adb: canned `getprop`/`cat`/`dumpsys` output, a fake sentinel file appearing after N seconds, and injectable failure modes (unauthorized, timeout, crash-without-sentinel, missing result files). **The full run lifecycle must be integration-testable with no hardware present.** This is the single highest-value test asset in the project -- build it early.
-- Unit tests for: job ID generation/sorting, `job.json` validation, state transitions, atomic write behaviour, `results_index.json` computation.
+- **A fake adb.** Because `ADB_PATH` is injectable, provide a test fixture script/executable that mimics adb: canned `getprop`/`cat`/`dumpsys` output, a fake sentinel file appearing after N seconds, and injectable failure modes (unauthorized, timeout, crash-without-sentinel, missing result files). **The full trial lifecycle must be integration-testable with no hardware present.** This is the single highest-value test asset in the project -- build it early.
+- Unit tests for: session ID generation/sorting, `session.json` validation, state transitions, atomic write behaviour, `results_index.json` computation.
 - A concurrency test: two simultaneous `POST /api/queue/next` calls → exactly one 202, one 409.
 - A crash-recovery test: `running` status on disk at startup → becomes `interrupted`.
 
@@ -376,17 +386,17 @@ adb_server/
   bin/server.dart
   lib/
     config.dart
-    job_store.dart       # disk I/O, atomic writes, state machine
-    models.dart          # Job, Status, RunMetadata
+    session_store.dart       # disk I/O, atomic writes, state machine
+    models.dart          # Session, Status, TrialMetadata
     adb.dart             # thin typed wrapper over the adb subprocess
     device_probe.dart    # §7
     runner.dart          # §6 lifecycle + mutual exclusion
     api.dart             # shelf router
     web/index.html       # or a Dart string template
-  test/
-    fixtures/fake_adb/
-    ...
-  example_job/           # a sample job.json + README showing the drop-folder workflow
+    test/
+      fixtures/fake_adb/
+      ...
+    example_session/           # a sample session.json + README showing the drop-folder workflow
 ```
 
 ---
@@ -395,20 +405,20 @@ adb_server/
 
 - **Prefer boring.** Every abstraction must pay for itself in v1. No plugin systems, no event buses, no dependency injection frameworks.
 - **Log every adb command and its exit status.** When this rig misbehaves at 3am, `adb.log` is the only witness.
-- **Fail loudly, never silently.** A run that produces no data must be `failed` with a reason -- never `done` with empty results. Ambiguity in this layer poisons the science downstream.
+- **Fail loudly, never silently.** A trial that produces no data must be `failed` with a reason -- never `done` with empty results. Ambiguity in this layer poisons the science downstream.
 - **Never mutate result data.** Not even whitespace trimming.
-- **Warnings are first-class.** Every `run.json` has a `warnings: []` array. Unsupported commands, thermal-gate timeouts, and failed `svc power` calls go there and are shown in the UI. The user needs to know which runs were taken under degraded conditions.
-- **Schema-version everything** (`job.json`, `status.json`, `run.json`, `results_index.json`). This data is meant to be comparable months from now.
+- **Warnings are first-class.** Every `trial.json` has a `warnings: []` array. Unsupported commands, thermal-gate timeouts, and failed `svc power` calls go there and are shown in the UI. The user needs to know which trials were taken under degraded conditions.
+- **Schema-version everything** (`session.json`, `status.json`, `trial.json`, `results_index.json`). This data is meant to be comparable months from now.
 
 ---
 
 ## 14. Known open questions -- ask the user
 
-1. Should a failed repetition abort the rest of the job, or continue and record partial success?
-2. Should `GET /api/jobs` list archived/completed jobs indefinitely, or is an `archive/` sweep wanted in v1?
+1. Should a failed repetition abort the rest of the session, or continue and record partial success?
+2. Should `GET /api/sessions` list archived/completed sessions indefinitely, or is an `archive/` sweep wanted in v1?
 3. Exact on-device result directory: is `/sdcard/Android/data/<pkg>/files/...` reliably `adb pull`-able on this build, or is a `run-as`/root fallback needed? (Scoped-storage restrictions since Android 11 make this build-dependent -- worth verifying on the actual device before finalising the pull step.)
 4. Is the DUT rooted with a working `su`? This determines whether the device-profile step can pin governors and frequencies at all.
 5. Preferred device-profile mechanism: a file of shell commands, or an inline list in config?
-6. Should `POST /api/jobs` accept a URL to fetch the APK from, as an alternative to multipart upload?
+6. Should `POST /api/sessions` accept a URL to fetch the APK from, as an alternative to multipart upload?
 7. Is an `autorun` mode (drain the queue automatically) wanted behind a config flag in v1, or strictly manual?
-8. Should the server capture a Perfetto trace or `dumpsys gfxinfo` alongside runs? (Not needed for CPU microbenchmarks; relevant later for frame timing. Confirm it's out of scope for v1.)
+8. Should the server capture a Perfetto trace or `dumpsys gfxinfo` alongside trials? (Not needed for CPU microbenchmarks; relevant later for frame timing. Confirm it's out of scope for v1.)

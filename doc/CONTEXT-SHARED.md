@@ -19,8 +19,8 @@ _Avoid_: Test, benchmark suite, study
 
 **Variant**:
 One arm of the comparison: a single thing under test. Two Variants differ in the
-thing under investigation and in nothing else. Whether a Variant ships as its own
-APK or as a branch inside one APK is packaging, not vocabulary.
+thing under investigation and in nothing else. In practice, Benchmarkhor
+prefers to package each Variant as its own APK.
 _Avoid_: Version, build flavour, arm, condition
 
 **Baseline**:
@@ -39,12 +39,16 @@ _Avoid_: Setup, config, environment
 **Session**:
 One running of the rig, from something like `adb install` through to a batch of
 data coming back. A Session exercises several **Variants**, including the
-**Baseline**, randomly interleaved.
+**Baseline**, randomly interleaved. The **Session** (or its runner) is
+responsible for installing, running, and uninstalling the correct APK for each
+**Trial**.
 _Avoid_: Run, job, execution
 
 **Round**:
 One complete pass over all **Variants** within a **Session**. Interleaving means
-a Session is a sequence of Rounds, not a sequence of Variants.
+a Session is a sequence of Rounds, not a sequence of Variants. Since each
+**Variant** is its own APK, a **Round** involves multiple `adb install` and
+`adb uninstall` cycles.
 _Avoid_: Cycle, sweep, pass
 
 **Trial**:
@@ -70,11 +74,12 @@ _Avoid_: Sample, tick, data point
 `example_apk/CONTEXT.md`) and a **Frame** timing (in `adb_server/CONTRACT.md`),
 one word at two granularities. Use **Trial** or **Frame**.
 
-**"Run"** is unresolved. `adb_server`'s on-disk layout spends it on
-`runs/run-NNN/` and its `job.json` has a `repetitions` field meaning "how many
-times the server executes the whole APK" — which is close to, but not the same
-as, a **Session**. Until that is settled, prefer **Session**, **Round**, or
-**Trial**, and read `run-NNN` as `adb_server`'s own word.
+**"Run"** is resolved. `adb_server`'s on-disk layout used to spend it on
+`runs/run-NNN/` and its `job.json` had a `repetitions` field meaning "how many
+times the server executes the whole APK" — which was close to, but not the same
+as, a **Session**. We have now renamed these to `trials/trial-NNN/` and
+`session.json` with a `rounds` field to align with this vocabulary.
+Prefer **Session**, **Round**, or **Trial**.
 
 ## Example dialogue
 

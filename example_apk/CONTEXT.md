@@ -27,7 +27,7 @@ _Avoid_: Heavy route, dog page, slow screen
 **Threshold**:
 The count at which the **Counter** opens the **Expensive Route**. Reaching a
 multiple of the threshold re-arms the trigger, so one launch of the app can yield
-several **Trials**.
+several **Trials** (of the same **Variant**).
 _Avoid_: Limit, trigger point
 
 ## Example dialogue

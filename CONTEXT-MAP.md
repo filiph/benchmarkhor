@@ -7,6 +7,8 @@ All contexts speak the [shared experiment vocabulary](./doc/CONTEXT-SHARED.md)
 
 - [Plotting](./CONTEXT.md) — renders benchmark distributions as violin/box plots (`bin/plot.dart`)
 - [Example App Under Measurement](./example_apk/CONTEXT.md) — the Flutter app whose frames are timed to produce Trial data
+- **Benchmarkhor** (root) — [ON HOLD] The main tool for comparing benchmarks
+- **Benchmark Harness Test** (`@example/benchmark_harness_test`) — [ON HOLD] Performance tests for the harness itself
 
 ## Relationships
 

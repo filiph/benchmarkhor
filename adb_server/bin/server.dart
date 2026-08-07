@@ -6,7 +6,7 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import 'package:adb_server/api.dart';
 import 'package:adb_server/config.dart';
-import 'package:adb_server/job_store.dart';
+import 'package:adb_server/session_store.dart';
 
 final _log = Logger('adb_server');
 
@@ -31,16 +31,16 @@ Future<void> main(List<String> arguments) async {
     orElse: () => Level.INFO,
   );
 
-  final jobStore = JobStore(config.dataDir);
-  await Directory(jobStore.jobsDir.path).create(recursive: true);
+  final sessionStore = SessionStore(config.dataDir);
+  await Directory(sessionStore.sessionsDir.path).create(recursive: true);
 
-  _log.info('Recovering interrupted jobs (if any)...');
-  await jobStore.recoverInterruptedJobs();
+  _log.info('Recovering interrupted sessions (if any)...');
+  await sessionStore.recoverInterruptedSessions();
 
-  _log.info('Discovering jobs dropped directly onto the filesystem...');
-  await jobStore.discoverNewJobs();
+  _log.info('Discovering sessions dropped directly onto the filesystem...');
+  await sessionStore.discoverNewSessions();
 
-  final api = Api(config: config, jobStore: jobStore);
+  final api = Api(config: config, sessionStore: sessionStore);
   final handler =
       const Pipeline().addMiddleware(logRequests()).addHandler(api.router.call);
 

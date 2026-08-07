@@ -5,6 +5,6 @@ build/
 .gitignore
 *.md
 test/
-example_job/
+example_session/
 data/
 .env

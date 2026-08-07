@@ -1,7 +1,7 @@
 # The `adb_server` ↔ benchmark APK contract
 
 This is the contract a benchmark APK must honour so `adb_server` can reliably
-detect when a run has finished, without parsing or interpreting the actual
+detect when a trial has finished, without parsing or interpreting the actual
 measurement data.
 
 The vocabulary here (Trial, Frame, Session) is defined in
@@ -10,7 +10,7 @@ The vocabulary here (Trial, Frame, Session) is defined in
 ## Result files
 
 The app writes all of its result files into the directory named in
-`job.json`'s `device_result_dir`. Each file is a raw, self-contained
+`session.json`'s `device_result_dir`. Each file is a raw, self-contained
 measurement stream, one record per line -- newline-delimited numbers for a
 microbenchmark's Iterations, or newline-delimited JSON objects for a Trial's
 Frames. The server pulls these files byte-for-byte and never parses,
@@ -46,12 +46,12 @@ BENCH_FAILED <reason>
 
 ## What the server does with this
 
-In priority order, the server considers a run complete when:
+In priority order, the server considers a trial complete when:
 
 1. `DONE` (or `FAILED`) exists in the result directory.
 2. A `BENCH_DONE` / `BENCH_FAILED` marker is seen in the logcat stream.
 3. The app's process has disappeared with no sentinel present, for two
    consecutive polls -- this is treated as a crash (`failed`), not success.
-4. The configured `run_timeout_seconds` has elapsed -- treated as `failed`.
+4. The configured `trial_timeout_seconds` has elapsed -- treated as `failed`.
 
-See `REQUIREMENTS.md` §6 for the full run lifecycle this fits into.
+See `REQUIREMENTS.md` §6 for the full trial lifecycle this fits into.
