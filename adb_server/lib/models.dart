@@ -285,3 +285,58 @@ class SessionStatus {
     );
   }
 }
+
+/// The metadata captured for a single [Trial] (`trial.json`).
+class TrialMetadata {
+  static const currentSchemaVersion = 1;
+
+  final int schemaVersion;
+  final String sessionId;
+  final String variantName;
+  final String trialId;
+  final DateTime startedAt;
+  final DateTime finishedAt;
+  final Map<String, dynamic> deviceBefore;
+  final Map<String, dynamic> deviceAfter;
+  final List<String> warnings;
+  final Map<String, dynamic> config;
+
+  const TrialMetadata({
+    this.schemaVersion = currentSchemaVersion,
+    required this.sessionId,
+    required this.variantName,
+    required this.trialId,
+    required this.startedAt,
+    required this.finishedAt,
+    this.deviceBefore = const {},
+    this.deviceAfter = const {},
+    this.warnings = const [],
+    this.config = const {},
+  });
+
+  factory TrialMetadata.fromJson(Map<String, dynamic> json) => TrialMetadata(
+        schemaVersion: json['schema_version'] as int? ?? currentSchemaVersion,
+        sessionId: json['session_id'] as String,
+        variantName: json['variant_name'] as String,
+        trialId: json['trial_id'] as String,
+        startedAt: DateTime.parse(json['started_at'] as String),
+        finishedAt: DateTime.parse(json['finished_at'] as String),
+        deviceBefore: json['device_before'] as Map<String, dynamic>? ?? const {},
+        deviceAfter: json['device_after'] as Map<String, dynamic>? ?? const {},
+        warnings: (json['warnings'] as List?)?.cast<String>() ?? const [],
+        config: json['config'] as Map<String, dynamic>? ?? const {},
+      );
+
+  Map<String, dynamic> toJson() => {
+        'schema_version': schemaVersion,
+        'session_id': sessionId,
+        'variant_name': variantName,
+        'trial_id': trialId,
+        'started_at': startedAt.toIso8601String(),
+        'finished_at': finishedAt.toIso8601String(),
+        'device_before': deviceBefore,
+        'device_after': deviceAfter,
+        'warnings': warnings,
+        'config': config,
+      };
+}

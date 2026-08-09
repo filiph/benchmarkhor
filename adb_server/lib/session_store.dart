@@ -25,6 +25,33 @@ class SessionStore {
   File statusFile(String sessionId) =>
       File(p.join(sessionDir(sessionId).path, 'status.json'));
 
+  File sessionLogFile(String sessionId) =>
+      File(p.join(sessionDir(sessionId).path, 'session.log'));
+
+  Directory trialsDir(String sessionId) =>
+      Directory(p.join(sessionDir(sessionId).path, 'trials'));
+
+  Directory trialDir(String sessionId, String trialId) =>
+      Directory(p.join(trialsDir(sessionId).path, trialId));
+
+  File trialMetadataFile(String sessionId, String trialId) =>
+      File(p.join(trialDir(sessionId, trialId).path, 'trial.json'));
+
+  File trialAdbLogFile(String sessionId, String trialId) =>
+      File(p.join(trialDir(sessionId, trialId).path, 'adb.log'));
+
+  File trialLogcatFile(String sessionId, String trialId) =>
+      File(p.join(trialDir(sessionId, trialId).path, 'logcat.txt'));
+
+  Directory trialResultsDir(String sessionId, String trialId) =>
+      Directory(p.join(trialDir(sessionId, trialId).path, 'results'));
+
+  File lockFile() => File(p.join(dataDir, '.runner.lock'));
+
+  Directory get deviceDir => Directory(p.join(dataDir, 'device'));
+
+  File lastSnapshotFile() => File(p.join(deviceDir.path, 'last_snapshot.json'));
+
   /// Writes [contents] to [file] atomically: write to a sibling `.tmp` file,
   /// flush, then rename over the destination. See `REQUIREMENTS.md` §4.
   Future<void> writeAtomic(File file, String contents) async {

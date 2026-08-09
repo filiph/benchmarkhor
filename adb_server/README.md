@@ -16,14 +16,14 @@ This is an early skeleton ("the beginnings"). Implemented so far:
 - Disk-backed session store: atomic writes, session discovery (including sessions
   dropped directly onto `sessions/` over SMB), and crash recovery of stale
   `running` sessions on startup (`lib/session_store.dart`).
-- A minimal read-only HTTP API: `GET /health`, `GET /api/sessions`,
-  `GET /api/sessions/<id>` (`lib/api.dart`, `bin/server.dart`).
+- A minimal HTTP API: `GET /health`, `GET /api/sessions`,
+  `GET /api/sessions/<id>`, `GET /api/device` (probe), `POST /api/sessions` (submission),
+  `POST /api/sessions/<id>/cancel` (`lib/api.dart`, `bin/server.dart`).
+- The ADB wrapper (`lib/adb.dart`), the trial lifecycle/runner (`lib/runner.dart`),
+  and device metadata probing (`lib/device_probe.dart`).
 
 Not implemented yet (see `REQUIREMENTS.md` for the full spec of each):
 
-- `POST /api/sessions` (session submission), `POST /api/sessions/<id>/cancel`,
-  `POST /api/queue/next` and the runner/mutual-exclusion machinery.
-- The ADB wrapper, the trial lifecycle, and device metadata probing.
 - The HTML status page.
 - The fake-adb test fixture.
 
@@ -98,6 +98,15 @@ files directly -- Project > Create > "Create docker-compose.yml").
 Make sure `/data` (sessions/results/logs) and `/root/.android` (adb key) are
 backed by persistent NAS volumes/paths, not ephemeral container storage --
 see the `docker-compose.yml` volumes for the exact mounts.
+
+### A note on networking
+
+On **macOS (Docker Desktop/OrbStack)**, do NOT use `network_mode: host`. It will
+not work as expected and the container will likely fail to connect to your
+device. The default bridge mode works fine and handles Tailscale routing.
+
+On the **Synology NAS**, `network_mode: host` IS recommended (and often
+required) so the container can see the local network and the ADB device.
 
 ### The ADB authorisation trap
 

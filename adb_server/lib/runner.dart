@@ -1,0 +1,412 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
+import 'package:logging/logging.dart';
+import 'package:path/path.dart' as p;
+
+import 'adb.dart';
+import 'config.dart';
+import 'device_probe.dart';
+import 'models.dart';
+import 'session_store.dart';
+
+final _log = Logger('runner');
+
+class CancelledException implements Exception {
+  final String message;
+  CancelledException(this.message);
+  @override
+  String toString() => 'CancelledException: $message';
+}
+
+class Runner {
+  final Config config;
+  final SessionStore sessionStore;
+  
+  static String? _runningSessionId;
+  static String? statusMessage;
+  static bool get isBusy => _runningSessionId != null;
+
+  Runner({required this.config, required this.sessionStore});
+
+  /// Tries to start the next queued session.
+  ///
+  /// Returns the sessionId if a session was started, null otherwise.
+  /// Throws [StateError] if a session is already running.
+  Future<String?> startNext() async {
+    if (isBusy) {
+      throw StateError('A session is already running: $_runningSessionId');
+    }
+
+    // Cross-process lock check
+    final lockFile = sessionStore.lockFile();
+    if (await lockFile.exists()) {
+      final content = await lockFile.readAsString();
+      _log.warning('Lock file exists: $content');
+
+      final pidMatch = RegExp(r'pid: (\d+)').firstMatch(content);
+      if (pidMatch != null) {
+        final lockPid = int.parse(pidMatch.group(1)!);
+        if (await _isPidAlive(lockPid)) {
+          throw StateError(
+              'Lock file exists and PID $lockPid is alive. Another runner is active.');
+        } else {
+          _log.warning('Lock file belongs to dead PID $lockPid. Stealing lock.');
+          await lockFile.delete();
+        }
+      } else {
+        // Malformed lock file, safer to fail and require manual deletion?
+        // Or steal it? Let's fail for safety if we can't parse it.
+        throw StateError(
+            'Lock file exists but is malformed. Delete it manually: ${lockFile.path}');
+      }
+    }
+
+    await sessionStore.discoverNewSessions();
+    final queued = <String>[];
+    for (final id in await sessionStore.listSessionIds()) {
+      final status = await sessionStore.readStatus(id);
+      if (status?.state == SessionState.queued) {
+        queued.add(id);
+      }
+    }
+
+    if (queued.isEmpty) return null;
+
+    final sessionId = queued.first;
+    _runningSessionId = sessionId;
+
+    // Async execution
+    unawaited(_run(sessionId).catchError((e, st) {
+      _log.severe('Session $sessionId failed with unhandled error', e, st);
+    }).whenComplete(() {
+      _runningSessionId = null;
+      statusMessage = null;
+    }));
+
+    return sessionId;
+  }
+
+  Future<void> _run(String sessionId) async {
+    _log.info('Starting session $sessionId');
+    
+    // Create lock file
+    final lockFile = sessionStore.lockFile();
+    await lockFile.writeAsString('pid: $pid, session: $sessionId, at: ${DateTime.now().toUtc()}');
+
+    SessionStatus status = (await sessionStore.readStatus(sessionId))!;
+    SessionSpec spec = await sessionStore.readSessionSpec(sessionId);
+    
+    status = status.transitionTo(SessionState.running);
+    await sessionStore.writeStatus(status);
+
+    final sessionLog = sessionStore.sessionLogFile(sessionId);
+    final logSink = sessionLog.openWrite(mode: FileMode.append);
+    
+    void log(String message) {
+      final entry = '${DateTime.now().toUtc().toIso8601String()} $message';
+      _log.info('[$sessionId] $message');
+      logSink.writeln(entry);
+      statusMessage = message;
+    }
+
+    try {
+      final adb = Adb(
+        adbPath: config.adbPath,
+        deviceAddress: config.dutAddress,
+      );
+      final probe = DeviceProbe(adb);
+
+      log('Connecting to device ${config.dutAddress}...');
+      if (!await adb.connect()) {
+        throw Exception('Failed to connect to device');
+      }
+
+      log('Device state: ${await adb.getState()}');
+
+      for (int round = status.roundsCompleted + 1; round <= spec.rounds; round++) {
+        log('Starting Round $round/${spec.rounds}');
+        
+        final variants = spec.variants.keys.toList()..shuffle();
+        for (final variantName in variants) {
+          final trialId = 'trial-${(status.roundsCompleted * spec.variants.length + variants.indexOf(variantName) + 1).toString().padLeft(3, '0')}';
+          log('Starting Trial $trialId (Variant: $variantName)');
+          
+          await _runTrial(sessionId, trialId, variantName, spec, adb, probe, log);
+          
+          // Check for cancellation between trials
+          status = (await sessionStore.readStatus(sessionId))!;
+          if (status.state == SessionState.cancelled) {
+            throw CancelledException('Session cancelled between trials.');
+          }
+        }
+        
+        status = status.transitionTo(
+          SessionState.running,
+          roundsCompleted: round,
+        );
+        await sessionStore.writeStatus(status);
+      }
+
+      log('Session completed successfully.');
+      await sessionStore.writeStatus(status.transitionTo(SessionState.done));
+
+    } catch (e, st) {
+      if (e is CancelledException) {
+        log('Session cancelled: ${e.message}');
+      } else {
+        log('Error during session: $e\n$st');
+        await sessionStore.writeStatus(status.transitionTo(SessionState.failed, error: e.toString()));
+      }
+    } finally {
+      await logSink.flush();
+      await logSink.close();
+      if (await lockFile.exists()) {
+        await lockFile.delete();
+      }
+    }
+  }
+
+  Future<void> _runTrial(
+    String sessionId,
+    String trialId,
+    String variantName,
+    SessionSpec spec,
+    Adb adb,
+    DeviceProbe probe,
+    void Function(String) log,
+  ) async {
+    final trialDir = sessionStore.trialDir(sessionId, trialId);
+    await trialDir.create(recursive: true);
+    
+    final adbLogFile = sessionStore.trialAdbLogFile(sessionId, trialId);
+    final trialAdb = Adb(
+      adbPath: config.adbPath,
+      deviceAddress: config.dutAddress,
+      adbLog: adbLogFile,
+    );
+    final trialProbe = DeviceProbe(trialAdb);
+    
+    final startedAt = DateTime.now().toUtc();
+    
+    // 1. Thermal Gate
+    final warnings = <String>[];
+    if (config.thermalGateCelsius != null) {
+      log('Thermal gating...');
+      final timeout = DateTime.now()
+          .add(Duration(seconds: config.thermalGateTimeoutSeconds));
+      bool gated = false;
+      while (DateTime.now().isBefore(timeout)) {
+        final p = await trialProbe.probe();
+        final temps = p['temperatures'] as List<Map<String, String>>?;
+        final maxTemp = temps
+                ?.map((t) => double.tryParse(t['temp'] ?? '0') ?? 0)
+                .reduce(max) ??
+            0;
+        // temps are often in millicelsius
+        final tempC = maxTemp > 1000 ? maxTemp / 1000 : maxTemp;
+
+        if (tempC < config.thermalGateCelsius!) {
+          log('Temperature $tempC C is below threshold ${config.thermalGateCelsius} C.');
+          gated = true;
+          break;
+        }
+        log('Temperature $tempC C is too high, waiting...');
+        await Future.delayed(const Duration(seconds: 10));
+      }
+
+      if (!gated) {
+        final msg = 'Thermal gate timeout after ${config.thermalGateTimeoutSeconds}s. Proceeding anyway.';
+        log(msg);
+        warnings.add(msg);
+      }
+    }
+
+    // 2. Pre-run snapshot
+    log('Capturing pre-run snapshot...');
+    final deviceBefore = await trialProbe.probe();
+    await sessionStore.deviceDir.create(recursive: true);
+    await sessionStore.writeAtomic(
+      sessionStore.lastSnapshotFile(),
+      const JsonEncoder.withIndent('  ').convert(deviceBefore),
+    );
+
+    // 3. Clean device state
+    log('Cleaning device state...');
+    await trialAdb.shell('rm -rf ${spec.deviceResultDir}');
+    await trialAdb.shell('mkdir -p ${spec.deviceResultDir}');
+
+    // 4. Install
+    final variant = spec.variants[variantName]!;
+    log('Installing APKs for $variantName...');
+    final apkPath = p.join(sessionStore.sessionDir(sessionId).path, variant.apk);
+    final testApkPath = p.join(sessionStore.sessionDir(sessionId).path, variant.testApk);
+    
+    await trialAdb.install(apkPath);
+    await trialAdb.install(testApkPath);
+
+    // 5. Precompile
+    if (config.precompilePackage) {
+      log('Precompiling package ${spec.package}...');
+      await trialAdb.shell('cmd package compile -m speed -f ${spec.package}');
+    }
+
+    // 6. Launch
+    log('Launching instrumentation...');
+    await trialAdb.clearLogcat();
+    final logcatFile = sessionStore.trialLogcatFile(sessionId, trialId);
+    final logcatProcess = await trialAdb.startLogcat(logcatFile);
+
+    String? benchDoneMarker;
+    final logcatSub = logcatProcess.lines.listen((line) {
+      if (line.contains('BENCH_DONE') || line.contains('BENCH_FAILED')) {
+        benchDoneMarker = line;
+      }
+    });
+
+    try {
+      unawaited(trialAdb.run([
+        'shell',
+        'am',
+        'instrument',
+        '-w',
+        '-r',
+        '${spec.testPackage}/${spec.instrumentationRunner}'
+      ]));
+
+      // 7. Wait for completion (Contract)
+      log('Waiting for completion...');
+      final timeout =
+          spec.trialTimeoutSeconds ?? config.defaultTrialTimeoutSeconds;
+      final deadline = DateTime.now().add(Duration(seconds: timeout));
+
+      bool finished = false;
+      int consecutivePidMissing = 0;
+
+      while (DateTime.now().isBefore(deadline)) {
+        // Immediate cancellation check
+        final currentStatus = await sessionStore.readStatus(sessionId);
+        if (currentStatus?.state == SessionState.cancelled) {
+          throw CancelledException('Session cancelled during trial poll.');
+        }
+
+        // Priority 1: Sentinel file
+        final sentinel = await trialAdb
+            .shell('test -f ${spec.deviceResultDir}/DONE && echo YES');
+        if ((sentinel.stdout as String).contains('YES')) {
+          log('Sentinel file DONE found.');
+          finished = true;
+          break;
+        }
+
+        final failed = await trialAdb
+            .shell('test -f ${spec.deviceResultDir}/FAILED && echo YES');
+        if ((failed.stdout as String).contains('YES')) {
+          log('Sentinel file FAILED found.');
+          break;
+        }
+
+        // Priority 2: Logcat marker
+        if (benchDoneMarker != null) {
+          log('Marker found in logcat: $benchDoneMarker');
+          if (benchDoneMarker!.contains('BENCH_DONE')) {
+            finished = true;
+          }
+          break;
+        }
+
+        // Priority 3: Process gone
+        final pidof = await trialAdb.shell('pidof ${spec.package}');
+        if ((pidof.stdout as String).trim().isEmpty) {
+          consecutivePidMissing++;
+          if (consecutivePidMissing >= 2) {
+            log('Process disappeared without sentinel for 2 polls.');
+            break;
+          }
+        } else {
+          consecutivePidMissing = 0;
+        }
+
+        await Future.delayed(Duration(seconds: config.pollIntervalSeconds));
+      }
+
+      await logcatSub.cancel();
+      await logcatProcess.stop();
+
+      // 8. Pull results
+      log('Pulling results...');
+      final resultsDir = sessionStore.trialResultsDir(sessionId, trialId);
+      await resultsDir.create(recursive: true);
+      await trialAdb.pull(spec.deviceResultDir, resultsDir.path);
+
+      // 8b. Generate Results Index
+      await _generateResultsIndex(resultsDir);
+
+      // 9. Post-run snapshot
+      log('Capturing post-run snapshot...');
+      final deviceAfter = await trialProbe.probe();
+
+      // 10. Finalize Trial
+      final finishedAt = DateTime.now().toUtc();
+      final metadata = TrialMetadata(
+        sessionId: sessionId,
+        variantName: variantName,
+        trialId: trialId,
+        startedAt: startedAt,
+        finishedAt: finishedAt,
+        deviceBefore: deviceBefore,
+        deviceAfter: deviceAfter,
+        warnings: warnings,
+        config: config.toJson(),
+      );
+
+      await sessionStore.writeAtomic(
+        sessionStore.trialMetadataFile(sessionId, trialId),
+        const JsonEncoder.withIndent('  ').convert(metadata.toJson()),
+      );
+
+      if (!finished) {
+        throw Exception('Trial failed or timed out.');
+      }
+    } finally {
+      log('Uninstalling APKs...');
+      await trialAdb.uninstall(spec.package);
+      await trialAdb.uninstall(spec.testPackage);
+    }
+  }
+
+  Future<void> _generateResultsIndex(Directory resultsDir) async {
+    final index = <Map<String, dynamic>>[];
+    await for (final entity in resultsDir.list(recursive: true)) {
+      if (entity is File) {
+        final bytes = await entity.readAsBytes();
+        final sha256Hash = sha256.convert(bytes).toString();
+        final lines = utf8.decode(bytes).split('\n').length;
+        index.add({
+          'filename': p.relative(entity.path, from: resultsDir.path),
+          'bytes': bytes.length,
+          'sha256': sha256Hash,
+          'line_count': lines,
+        });
+      }
+    }
+    final indexFile = File(p.join(resultsDir.parent.path, 'results_index.json'));
+    await sessionStore.writeAtomic(
+      indexFile,
+      const JsonEncoder.withIndent('  ').convert(index),
+    );
+  }
+
+  Future<bool> _isPidAlive(int pid) async {
+    if (Platform.isWindows) {
+      final res = await Process.run('tasklist', ['/FI', 'PID eq $pid']);
+      return res.stdout.toString().contains(pid.toString());
+    } else {
+      final res = await Process.run('kill', ['-0', pid.toString()]);
+      return res.exitCode == 0;
+    }
+  }
+}

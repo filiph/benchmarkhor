@@ -6,6 +6,7 @@ All contexts speak the [shared experiment vocabulary](./doc/CONTEXT-SHARED.md)
 ## Contexts
 
 - [Plotting](./CONTEXT.md) — renders benchmark distributions as violin/box plots (`bin/plot.dart`)
+- [ADB Server](./adb_server/README.md) — drives the Android device under test and collects raw measurements (`adb_server/`)
 - [Example App Under Measurement](./example_apk/CONTEXT.md) — the Flutter app whose frames are timed to produce Trial data
 - **Benchmarkhor** (root) — [ON HOLD] The main tool for comparing benchmarks
 - **Benchmark Harness Test** (`@example/benchmark_harness_test`) — [ON HOLD] Performance tests for the harness itself

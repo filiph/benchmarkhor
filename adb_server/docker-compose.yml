@@ -5,6 +5,10 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
+    # NOTE: network_mode: host is generally required for the Synology NAS deployment
+    # to access the local network, but it DOES NOT work on Docker Desktop for Mac
+    # (it connects to the Docker VM, not your Mac host). Use bridge mode (default) on Mac.
+    # network_mode: host
     env_file:
       - .env
     volumes:

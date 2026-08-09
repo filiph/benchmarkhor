@@ -6,6 +6,7 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import 'package:adb_server/api.dart';
 import 'package:adb_server/config.dart';
+import 'package:adb_server/runner.dart';
 import 'package:adb_server/session_store.dart';
 
 final _log = Logger('adb_server');
@@ -40,7 +41,9 @@ Future<void> main(List<String> arguments) async {
   _log.info('Discovering sessions dropped directly onto the filesystem...');
   await sessionStore.discoverNewSessions();
 
-  final api = Api(config: config, sessionStore: sessionStore);
+  final runner = Runner(config: config, sessionStore: sessionStore);
+
+  final api = Api(config: config, sessionStore: sessionStore, runner: runner);
   final handler =
       const Pipeline().addMiddleware(logRequests()).addHandler(api.router.call);
 
