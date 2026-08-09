@@ -16,8 +16,7 @@ enum SessionState {
 
   static SessionState parse(String value) => SessionState.values.firstWhere(
         (s) => s.name == value,
-        orElse: () =>
-            throw FormatException('Unknown session state: "$value"'),
+        orElse: () => throw FormatException('Unknown session state: "$value"'),
       );
 }
 
@@ -85,7 +84,8 @@ class SessionSpec {
     String requireString(String key) {
       final value = json[key];
       if (value is! String || value.isEmpty) {
-        throw FormatException('session.json: "$key" must be a non-empty string');
+        throw FormatException(
+            'session.json: "$key" must be a non-empty string');
       }
       return value;
     }
@@ -127,12 +127,11 @@ class SessionSpec {
       instrumentationRunner: json['instrumentation_runner'] as String? ??
           'dev.flutter.plugins.integration_test.FlutterTestRunner',
       rounds: (rounds as int?) ?? 1,
-      trialTimeoutSeconds:
-          (json['trial_timeout_seconds'] ?? json['run_timeout_seconds']) as int?,
-      expectedResultFiles: (expectedResultFiles as List?)
-              ?.map((e) => e as String)
-              .toList() ??
-          const [],
+      trialTimeoutSeconds: (json['trial_timeout_seconds'] ??
+          json['run_timeout_seconds']) as int?,
+      expectedResultFiles:
+          (expectedResultFiles as List?)?.map((e) => e as String).toList() ??
+              const [],
       deviceResultDir: requireString('device_result_dir'),
       tags: (json['tags'] as Map?)?.cast<String, dynamic>() ?? const {},
     );
@@ -279,7 +278,8 @@ class SessionStatus {
       currentTrial: currentTrial ?? this.currentTrial,
       history: [
         ...history,
-        SessionHistoryEntry(at: now, from: state.name, to: to.name, reason: reason),
+        SessionHistoryEntry(
+            at: now, from: state.name, to: to.name, reason: reason),
       ],
       error: error ?? this.error,
     );
@@ -321,7 +321,8 @@ class TrialMetadata {
         trialId: json['trial_id'] as String,
         startedAt: DateTime.parse(json['started_at'] as String),
         finishedAt: DateTime.parse(json['finished_at'] as String),
-        deviceBefore: json['device_before'] as Map<String, dynamic>? ?? const {},
+        deviceBefore:
+            json['device_before'] as Map<String, dynamic>? ?? const {},
         deviceAfter: json['device_after'] as Map<String, dynamic>? ?? const {},
         warnings: (json['warnings'] as List?)?.cast<String>() ?? const [],
         config: json['config'] as Map<String, dynamic>? ?? const {},

@@ -75,7 +75,7 @@ void main() {
     final response = await api.router.call(request);
     expect(response.statusCode, 200);
     expect(response.headers['content-type'], 'text/html');
-    
+
     final body = await response.readAsString();
     expect(body, contains('<h1>adb_server</h1>'));
     expect(body, contains('DUT: <code>127.0.0.1:5555</code>'));

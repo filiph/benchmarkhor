@@ -23,7 +23,8 @@ void main(List<String> arguments) {
   }
 
   if (cmd.contains('getprop ro.build.fingerprint')) {
-    print('google/crosshatch/crosshatch:12/SP1A.210812.015/7679544:user/release-keys');
+    print(
+        'google/crosshatch/crosshatch:12/SP1A.210812.015/7679544:user/release-keys');
     return;
   }
 
@@ -42,14 +43,8 @@ void main(List<String> arguments) {
   }
 
   if (cmd.contains('am instrument')) {
-    // Start a background process that creates the DONE file after a few seconds
-    // In a real test we might want to control this more precisely.
-    final resultDirMatch = RegExp(r'rm -rf (.*?) &&').firstMatch(cmd);
-    // Wait, the runner sends am instrument as a separate command.
-    // I need to know where the results dir is.
-    // Let's assume the test setup will handle the DONE file creation if needed,
-    // or we just return success here and the test will wait for it.
-    print('INSTRUMENTATION_STATUS: class=dev.flutter.plugins.integration_test.FlutterTestRunner');
+    print(
+        'INSTRUMENTATION_STATUS: class=dev.flutter.plugins.integration_test.FlutterTestRunner');
     print('INSTRUMENTATION_STATUS: test=sample_test');
     print('INSTRUMENTATION_STATUS_CODE: 1');
     print('INSTRUMENTATION_RESULT: stream=');

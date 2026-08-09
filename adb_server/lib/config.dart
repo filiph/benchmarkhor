@@ -92,16 +92,16 @@ class Config {
   /// A JSON-serialisable summary, safe to embed in `/health` responses and
   /// in every `trial.json`.
   Map<String, dynamic> toJson() => {
-    'dut_address': dutAddress,
-    'data_dir': dataDir,
-    'port': port,
-    'adb_path': adbPath,
-    'poll_interval_seconds': pollIntervalSeconds,
-    'default_trial_timeout_seconds': defaultTrialTimeoutSeconds,
-    'thermal_gate_celsius': thermalGateCelsius,
-    'thermal_gate_timeout_seconds': thermalGateTimeoutSeconds,
-    'device_profile_file': deviceProfileFile,
-    'precompile_package': precompilePackage,
-    'log_level': logLevel,
-  };
+        'dut_address': dutAddress,
+        'data_dir': dataDir,
+        'port': port,
+        'adb_path': adbPath,
+        'poll_interval_seconds': pollIntervalSeconds,
+        'default_trial_timeout_seconds': defaultTrialTimeoutSeconds,
+        'thermal_gate_celsius': thermalGateCelsius,
+        'thermal_gate_timeout_seconds': thermalGateTimeoutSeconds,
+        'device_profile_file': deviceProfileFile,
+        'precompile_package': precompilePackage,
+        'log_level': logLevel,
+      };
 }

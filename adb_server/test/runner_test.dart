@@ -17,7 +17,8 @@ void main() {
   setUpAll(() {
     fakeAdbPath = p.absolute('test/fixtures/fake_adb/adb');
     if (!File(fakeAdbPath).existsSync()) {
-      throw StateError('Fake ADB not found at $fakeAdbPath. Run make to build it.');
+      throw StateError(
+          'Fake ADB not found at $fakeAdbPath. Run make to build it.');
     }
   });
 
@@ -55,7 +56,8 @@ void main() {
       'device_result_dir': p.join(tempDir.path, 'device_sdcard'),
       'rounds': 1,
     };
-    await File(p.join(dir.path, 'session.json')).writeAsString(jsonEncode(spec));
+    await File(p.join(dir.path, 'session.json'))
+        .writeAsString(jsonEncode(spec));
     await File(p.join(dir.path, 'app.apk')).create();
     await File(p.join(dir.path, 'test.apk')).create();
   }
@@ -70,7 +72,7 @@ void main() {
     // Create the device result dir and the DONE file so fake_adb "sees" it
     final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
     await deviceSdcard.create(recursive: true);
-    
+
     // Start the runner
     final startedId = await runner.startNext();
     expect(startedId, sessionId);
@@ -79,18 +81,19 @@ void main() {
     // In a background loop, we wait for the runner to start the trial,
     // then we create the DONE file.
     // Since we are using fake_adb, it will respond to `test -f` based on this.
-    
+
     // We wait a bit for the runner to start _run().
-    await Future.delayed(const Duration(seconds: 2));
-    
+    await Future<void>.delayed(const Duration(seconds: 2));
+
     // Simulate app finishing
-    await File(p.join(deviceSdcard.path, 'result.txt')).writeAsString('bench results');
+    await File(p.join(deviceSdcard.path, 'result.txt'))
+        .writeAsString('bench results');
     await File(p.join(deviceSdcard.path, 'DONE')).create();
 
     // Wait for the runner to finish
     int attempts = 0;
     while (Runner.isBusy && attempts < 10) {
-      await Future.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 2));
       attempts++;
     }
 
@@ -102,11 +105,14 @@ void main() {
     final trialDir = store.trialDir(sessionId, 'trial-001');
     expect(await trialDir.exists(), isTrue);
     expect(await File(p.join(trialDir.path, 'trial.json')).exists(), isTrue);
-    expect(await File(p.join(trialDir.path, 'results_index.json')).exists(), isTrue);
-    expect(await File(p.join(trialDir.path, 'results/result.txt')).exists(), isTrue);
-    
-    final indexRaw = await File(p.join(trialDir.path, 'results_index.json')).readAsString();
-    final List index = jsonDecode(indexRaw);
+    expect(await File(p.join(trialDir.path, 'results_index.json')).exists(),
+        isTrue);
+    expect(await File(p.join(trialDir.path, 'results/result.txt')).exists(),
+        isTrue);
+
+    final indexRaw =
+        await File(p.join(trialDir.path, 'results_index.json')).readAsString();
+    final index = jsonDecode(indexRaw) as List<dynamic>;
     expect(index, hasLength(2));
     expect(index.any((e) => e['filename'] == 'result.txt'), isTrue);
     expect(index.any((e) => e['filename'] == 'DONE'), isTrue);
@@ -123,7 +129,7 @@ void main() {
       pollIntervalSeconds: 1,
       defaultTrialTimeoutSeconds: 30,
       thermalGateCelsius: 30, // 35C > 30C, so it will wait
-      thermalGateTimeoutSeconds: 2, 
+      thermalGateTimeoutSeconds: 2,
       deviceProfileFile: null,
       precompilePackage: false,
       logLevel: 'info',
@@ -134,7 +140,7 @@ void main() {
     await store.discoverNewSessions();
 
     final runner = Runner(config: tightConfig, sessionStore: store);
-    
+
     final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
     await deviceSdcard.create(recursive: true);
     await File(p.join(deviceSdcard.path, 'DONE')).create();
@@ -143,14 +149,14 @@ void main() {
 
     int attempts = 0;
     while (Runner.isBusy && attempts < 10) {
-      await Future.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 2));
       attempts++;
     }
 
-    final metadata = TrialMetadata.fromJson(jsonDecode(
-      await store.trialMetadataFile(sessionId, 'trial-001').readAsString()
-    ));
-    
+    final metadata = TrialMetadata.fromJson(jsonDecode(await store
+        .trialMetadataFile(sessionId, 'trial-001')
+        .readAsString()) as Map<String, dynamic>);
+
     expect(metadata.warnings, contains(contains('Thermal gate timeout')));
   });
 }

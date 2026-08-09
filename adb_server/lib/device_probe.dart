@@ -12,7 +12,8 @@ class DeviceProbe {
     final metadata = <String, dynamic>{};
     final warnings = <String>[];
 
-    Future<void> capture(String key, String command, {String? Function(String)? parser}) async {
+    Future<void> capture(String key, String command,
+        {String? Function(String)? parser}) async {
       try {
         final result = await adb.shell(command);
         if (result.exitCode == 0) {
@@ -36,11 +37,12 @@ class DeviceProbe {
 
     // CPU metadata
     await capture('cpu_online', 'cat /sys/devices/system/cpu/online');
-    
+
     // Attempt to get per-core frequencies
     final frequencies = <String, String>{};
     for (var i = 0; i < 8; i++) {
-      final res = await adb.shell('cat /sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq');
+      final res = await adb
+          .shell('cat /sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq');
       if (res.exitCode == 0) {
         frequencies['cpu$i'] = (res.stdout as String).trim();
       }
@@ -50,9 +52,11 @@ class DeviceProbe {
     // Thermal metadata
     final temperatures = <Map<String, String>>[];
     for (var i = 0; i < 20; i++) {
-      final typeRes = await adb.shell('cat /sys/class/thermal/thermal_zone$i/type');
+      final typeRes =
+          await adb.shell('cat /sys/class/thermal/thermal_zone$i/type');
       if (typeRes.exitCode != 0) break;
-      final tempRes = await adb.shell('cat /sys/class/thermal/thermal_zone$i/temp');
+      final tempRes =
+          await adb.shell('cat /sys/class/thermal/thermal_zone$i/temp');
       if (tempRes.exitCode == 0) {
         temperatures.add({
           'type': (typeRes.stdout as String).trim(),

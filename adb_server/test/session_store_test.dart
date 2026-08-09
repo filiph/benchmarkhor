@@ -23,7 +23,8 @@ void main() {
       String sessionId, Map<String, dynamic> json) async {
     final dir = Directory(p.join(store.sessionsDir.path, sessionId));
     await dir.create(recursive: true);
-    await File(p.join(dir.path, 'session.json')).writeAsString(jsonEncode(json));
+    await File(p.join(dir.path, 'session.json'))
+        .writeAsString(jsonEncode(json));
   }
 
   group('discoverNewSessions', () {

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:logging/logging.dart';
-import 'package:path/path.dart' as p;
 
 final _log = Logger('adb');
 
@@ -64,36 +63,48 @@ class Adb {
         ..writeln('Stdout:\n${result.stdout}')
         ..writeln('Stderr:\n${result.stderr}')
         ..writeln();
-      await adbLog!.writeAsString(logEntry.toString(), mode: FileMode.append, flush: true);
+      await adbLog!.writeAsString(logEntry.toString(),
+          mode: FileMode.append, flush: true);
     }
 
     if (result.exitCode != 0) {
-      _log.fine('adb command failed (exit ${result.exitCode}): ${fullArgs.join(' ')}');
+      _log.fine(
+          'adb command failed (exit ${result.exitCode}): ${fullArgs.join(' ')}');
       _log.fine('Stderr: ${result.stderr}');
     }
 
     return result;
   }
 
-  Future<bool> connect({int retries = 3, Duration backoff = const Duration(seconds: 30)}) async {
+  Future<bool> connect(
+      {int retries = 3, Duration backoff = const Duration(seconds: 30)}) async {
     for (int i = 0; i <= retries; i++) {
       if (i > 0) {
-        _log.info('Retrying connection in ${backoff.inSeconds}s... (Attempt ${i + 1}/${retries + 1})');
-        await Future.delayed(backoff);
+        _log.info(
+            'Retrying connection in ${backoff.inSeconds}s... (Attempt ${i + 1}'
+            '/${retries + 1})');
+        await Future<void>.delayed(backoff);
       }
 
-      final result = await run(['connect', deviceAddress], useDevice: false, timeout: const Duration(seconds: 60));
+      final result = await run(['connect', deviceAddress],
+          useDevice: false, timeout: const Duration(seconds: 60));
       final stdout = result.stdout as String;
-      
-      if (result.exitCode == 0 && (stdout.contains('connected') || stdout.contains('already connected'))) {
+
+      if (result.exitCode == 0 &&
+          (stdout.contains('connected') ||
+              stdout.contains('already connected'))) {
         // Double-check with get-state
-        final stateResult = await run(['get-state'], timeout: const Duration(seconds: 10));
-        if (stateResult.exitCode == 0 && (stateResult.stdout as String).trim() == 'device') {
+        final stateResult =
+            await run(['get-state'], timeout: const Duration(seconds: 10));
+        if (stateResult.exitCode == 0 &&
+            (stateResult.stdout as String).trim() == 'device') {
           return true;
         }
-        _log.warning('adb connect succeeded but get-state failed: ${stateResult.stderr}');
+        _log.warning(
+            'adb connect succeeded but get-state failed: ${stateResult.stderr}');
       } else {
-        _log.warning('adb connect failed (exit ${result.exitCode}): ${result.stdout} ${result.stderr}');
+        _log.warning(
+            'adb connect failed (exit ${result.exitCode}): ${result.stdout} ${result.stderr}');
       }
     }
     return false;
@@ -107,7 +118,8 @@ class Adb {
 
   Future<ProcessResult> shell(String command) => run(['shell', command]);
 
-  Future<ProcessResult> install(String apkPath, {bool reinstall = true, bool grantPermissions = true}) async {
+  Future<ProcessResult> install(String apkPath,
+      {bool reinstall = true, bool grantPermissions = true}) async {
     return run([
       'install',
       if (reinstall) '-r',
@@ -116,11 +128,14 @@ class Adb {
     ]);
   }
 
-  Future<ProcessResult> uninstall(String package) => run(['uninstall', package]);
+  Future<ProcessResult> uninstall(String package) =>
+      run(['uninstall', package]);
 
-  Future<ProcessResult> pull(String remotePath, String localPath) => run(['pull', remotePath, localPath]);
+  Future<ProcessResult> pull(String remotePath, String localPath) =>
+      run(['pull', remotePath, localPath]);
 
-  Future<ProcessResult> forceStop(String package) => shell('am force-stop $package');
+  Future<ProcessResult> forceStop(String package) =>
+      shell('am force-stop $package');
 
   Future<ProcessResult> clearLogcat() => run(['logcat', '-c']);
 
@@ -135,11 +150,17 @@ class Adb {
 
     final controller = StreamController<String>.broadcast();
 
-    process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
+    process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) {
       sink.writeln(line);
       controller.add(line);
     });
-    process.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
+    process.stderr
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) {
       sink.writeln(line);
       controller.add(line);
     });

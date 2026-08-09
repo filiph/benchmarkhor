@@ -25,7 +25,7 @@ class CancelledException implements Exception {
 class Runner {
   final Config config;
   final SessionStore sessionStore;
-  
+
   static String? _runningSessionId;
   static String? statusMessage;
   static bool get isBusy => _runningSessionId != null;
@@ -54,7 +54,8 @@ class Runner {
           throw StateError(
               'Lock file exists and PID $lockPid is alive. Another runner is active.');
         } else {
-          _log.warning('Lock file belongs to dead PID $lockPid. Stealing lock.');
+          _log.warning(
+              'Lock file belongs to dead PID $lockPid. Stealing lock.');
           await lockFile.delete();
         }
       } else {
@@ -80,7 +81,7 @@ class Runner {
     _runningSessionId = sessionId;
 
     // Async execution
-    unawaited(_run(sessionId).catchError((e, st) {
+    unawaited(_run(sessionId).onError((e, st) {
       _log.severe('Session $sessionId failed with unhandled error', e, st);
     }).whenComplete(() {
       _runningSessionId = null;
@@ -92,20 +93,21 @@ class Runner {
 
   Future<void> _run(String sessionId) async {
     _log.info('Starting session $sessionId');
-    
+
     // Create lock file
     final lockFile = sessionStore.lockFile();
-    await lockFile.writeAsString('pid: $pid, session: $sessionId, at: ${DateTime.now().toUtc()}');
+    await lockFile.writeAsString(
+        'pid: $pid, session: $sessionId, at: ${DateTime.now().toUtc()}');
 
     SessionStatus status = (await sessionStore.readStatus(sessionId))!;
     SessionSpec spec = await sessionStore.readSessionSpec(sessionId);
-    
+
     status = status.transitionTo(SessionState.running);
     await sessionStore.writeStatus(status);
 
     final sessionLog = sessionStore.sessionLogFile(sessionId);
     final logSink = sessionLog.openWrite(mode: FileMode.append);
-    
+
     void log(String message) {
       final entry = '${DateTime.now().toUtc().toIso8601String()} $message';
       _log.info('[$sessionId] $message');
@@ -127,23 +129,27 @@ class Runner {
 
       log('Device state: ${await adb.getState()}');
 
-      for (int round = status.roundsCompleted + 1; round <= spec.rounds; round++) {
+      for (int round = status.roundsCompleted + 1;
+          round <= spec.rounds;
+          round++) {
         log('Starting Round $round/${spec.rounds}');
-        
+
         final variants = spec.variants.keys.toList()..shuffle();
         for (final variantName in variants) {
-          final trialId = 'trial-${(status.roundsCompleted * spec.variants.length + variants.indexOf(variantName) + 1).toString().padLeft(3, '0')}';
+          final trialId =
+              'trial-${(status.roundsCompleted * spec.variants.length + variants.indexOf(variantName) + 1).toString().padLeft(3, '0')}';
           log('Starting Trial $trialId (Variant: $variantName)');
-          
-          await _runTrial(sessionId, trialId, variantName, spec, adb, probe, log);
-          
+
+          await _runTrial(
+              sessionId, trialId, variantName, spec, adb, probe, log);
+
           // Check for cancellation between trials
           status = (await sessionStore.readStatus(sessionId))!;
           if (status.state == SessionState.cancelled) {
             throw CancelledException('Session cancelled between trials.');
           }
         }
-        
+
         status = status.transitionTo(
           SessionState.running,
           roundsCompleted: round,
@@ -153,13 +159,13 @@ class Runner {
 
       log('Session completed successfully.');
       await sessionStore.writeStatus(status.transitionTo(SessionState.done));
-
     } catch (e, st) {
       if (e is CancelledException) {
         log('Session cancelled: ${e.message}');
       } else {
         log('Error during session: $e\n$st');
-        await sessionStore.writeStatus(status.transitionTo(SessionState.failed, error: e.toString()));
+        await sessionStore.writeStatus(
+            status.transitionTo(SessionState.failed, error: e.toString()));
       }
     } finally {
       await logSink.flush();
@@ -181,7 +187,7 @@ class Runner {
   ) async {
     final trialDir = sessionStore.trialDir(sessionId, trialId);
     await trialDir.create(recursive: true);
-    
+
     final adbLogFile = sessionStore.trialAdbLogFile(sessionId, trialId);
     final trialAdb = Adb(
       adbPath: config.adbPath,
@@ -189,9 +195,9 @@ class Runner {
       adbLog: adbLogFile,
     );
     final trialProbe = DeviceProbe(trialAdb);
-    
+
     final startedAt = DateTime.now().toUtc();
-    
+
     // 1. Thermal Gate
     final warnings = <String>[];
     if (config.thermalGateCelsius != null) {
@@ -215,11 +221,12 @@ class Runner {
           break;
         }
         log('Temperature $tempC C is too high, waiting...');
-        await Future.delayed(const Duration(seconds: 10));
+        await Future<void>.delayed(const Duration(seconds: 10));
       }
 
       if (!gated) {
-        final msg = 'Thermal gate timeout after ${config.thermalGateTimeoutSeconds}s. Proceeding anyway.';
+        final msg =
+            'Thermal gate timeout after ${config.thermalGateTimeoutSeconds}s. Proceeding anyway.';
         log(msg);
         warnings.add(msg);
       }
@@ -242,9 +249,11 @@ class Runner {
     // 4. Install
     final variant = spec.variants[variantName]!;
     log('Installing APKs for $variantName...');
-    final apkPath = p.join(sessionStore.sessionDir(sessionId).path, variant.apk);
-    final testApkPath = p.join(sessionStore.sessionDir(sessionId).path, variant.testApk);
-    
+    final apkPath =
+        p.join(sessionStore.sessionDir(sessionId).path, variant.apk);
+    final testApkPath =
+        p.join(sessionStore.sessionDir(sessionId).path, variant.testApk);
+
     await trialAdb.install(apkPath);
     await trialAdb.install(testApkPath);
 
@@ -330,7 +339,8 @@ class Runner {
           consecutivePidMissing = 0;
         }
 
-        await Future.delayed(Duration(seconds: config.pollIntervalSeconds));
+        await Future<void>.delayed(
+            Duration(seconds: config.pollIntervalSeconds));
       }
 
       await logcatSub.cancel();
@@ -393,7 +403,8 @@ class Runner {
         });
       }
     }
-    final indexFile = File(p.join(resultsDir.parent.path, 'results_index.json'));
+    final indexFile =
+        File(p.join(resultsDir.parent.path, 'results_index.json'));
     await sessionStore.writeAtomic(
       indexFile,
       const JsonEncoder.withIndent('  ').convert(index),

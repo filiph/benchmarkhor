@@ -43,7 +43,8 @@ class Api {
     router.post('/api/sessions/<id>/requeue', _requeueSession);
     router.post('/api/queue/next', _queueNext);
     router.get('/api/device', _deviceProbe);
-    router.get('/api/sessions/<id>/trials/<trial>/results/<file>', _serveResult);
+    router.get(
+        '/api/sessions/<id>/trials/<trial>/results/<file>', _serveResult);
     router.get('/api/sessions/<id>/log', _sessionLog);
 
     return router;
@@ -66,23 +67,28 @@ class Api {
     final html = StringBuffer()
       ..writeln('<!DOCTYPE html>')
       ..writeln('<html><head><title>adb_server</title>')
-      ..writeln('<style>body { font-family: sans-serif; margin: 2rem; line-height: 1.5; }')
-      ..writeln('table { border-collapse: collapse; width: 100%; margin-top: 1rem; }')
-      ..writeln('th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ccc; }')
+      ..writeln(
+          '<style>body { font-family: sans-serif; margin: 2rem; line-height: 1.5; }')
+      ..writeln(
+          'table { border-collapse: collapse; width: 100%; margin-top: 1rem; }')
+      ..writeln(
+          'th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ccc; }')
       ..writeln('.state-queued { color: #666; }')
       ..writeln('.state-running { color: #007bff; font-weight: bold; }')
       ..writeln('.state-done { color: #28a745; }')
       ..writeln('.state-failed { color: #dc3545; }')
       ..writeln('</style></head><body>')
       ..writeln('<h1>adb_server</h1>')
-      ..writeln('<p>DUT: <code>${config.dutAddress}</code> | Busy: <strong>${Runner.isBusy}</strong></p>');
+      ..writeln(
+          '<p>DUT: <code>${config.dutAddress}</code> | Busy: <strong>${Runner.isBusy}</strong></p>');
 
     if (Runner.isBusy && Runner.statusMessage != null) {
       html.writeln('<p>Current state: <em>${Runner.statusMessage}</em></p>');
     }
 
     html.writeln('<h2>Recent Sessions</h2>');
-    html.writeln('<table><thead><tr><th>ID</th><th>State</th><th>Progress</th><th>Updated</th><th>Actions</th></tr></thead><tbody>');
+    html.writeln(
+        '<table><thead><tr><th>ID</th><th>State</th><th>Progress</th><th>Updated</th><th>Actions</th></tr></thead><tbody>');
 
     for (final s in sessions) {
       html.writeln('<tr>');
@@ -160,34 +166,36 @@ class Api {
     }
 
     final now = DateTime.now().toUtc();
-    final timestamp = now.toIso8601String()
+    final timestamp = now
+        .toIso8601String()
         .replaceAll(':', '-')
         .replaceAll('.', '-')
         .replaceFirst('Z', 'Z');
     // More compact timestamp: 2026-08-09T07-00-00Z
-    final compactTimestamp = timestamp.substring(0, 19).replaceAll(':', '-') + 'Z';
-    
+    final compactTimestamp =
+        '${timestamp.substring(0, 19).replaceAll(':', '-')}Z';
+
     final slug = spec.name
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
         .replaceAll(RegExp(r'^-+|-+$'), '');
-    
+
     final sessionId = '${compactTimestamp}__$slug';
-    
+
     final sessionDir = sessionStore.sessionDir(sessionId);
     if (await sessionDir.exists()) {
       return _json({'error': 'Session ID collision: $sessionId'}, status: 409);
     }
-    
+
     await sessionDir.create(recursive: true);
     await sessionStore.writeAtomic(
       sessionStore.sessionSpecFile(sessionId),
       const JsonEncoder.withIndent('  ').convert(spec.toJson()),
     );
-    
+
     await sessionStore.discoverNewSessions();
     final status = await sessionStore.readStatus(sessionId);
-    
+
     return _json({
       'session_id': sessionId,
       'status': status?.toJson(),
@@ -238,7 +246,9 @@ class Api {
         status.state == SessionState.cancelled ||
         status.state == SessionState.invalid ||
         status.state == SessionState.interrupted) {
-      return _json({'error': 'Session is already in terminal state ${status.state.name}'}, status: 409);
+      return _json({
+        'error': 'Session is already in terminal state ${status.state.name}'
+      }, status: 409);
     }
 
     await sessionStore.writeStatus(status.transitionTo(
@@ -266,7 +276,9 @@ class Api {
   Future<Response> _deviceProbe(Request request) async {
     final adb = Adb(adbPath: config.adbPath, deviceAddress: config.dutAddress);
     if (!await adb.connect()) {
-      return _json({'error': 'Failed to connect to device at ${config.dutAddress}'}, status: 503);
+      return _json(
+          {'error': 'Failed to connect to device at ${config.dutAddress}'},
+          status: 503);
     }
     final probe = DeviceProbe(adb);
     final snapshot = await probe.probe();
@@ -280,20 +292,22 @@ class Api {
     return _json(snapshot);
   }
 
-  Future<Response> _serveResult(Request request, String id, String trial, String file) async {
+  Future<Response> _serveResult(
+      Request request, String id, String trial, String file) async {
     // Basic path validation to prevent traversal
     if (file.contains('..') || file.contains('/')) {
       return Response.forbidden('Invalid filename');
     }
-    
+
     final resultsDir = sessionStore.trialResultsDir(id, trial);
     final resultFile = File(p.join(resultsDir.path, file));
-    
+
     if (!await resultFile.exists()) {
       return _json({'error': 'Result file not found'}, status: 404);
     }
-    
-    return Response.ok(resultFile.openRead(), headers: {'content-type': 'text/plain'});
+
+    return Response.ok(resultFile.openRead(),
+        headers: {'content-type': 'text/plain'});
   }
 
   Future<Response> _sessionLog(Request request, String id) async {
@@ -301,14 +315,14 @@ class Api {
     if (!await logFile.exists()) {
       return _json({'error': 'Log not found'}, status: 404);
     }
-    
+
     final linesParam = request.url.queryParameters['lines'];
     final linesCount = int.tryParse(linesParam ?? '') ?? 100;
-    
+
     final lines = await logFile.readAsLines();
     final start = (lines.length - linesCount).clamp(0, lines.length);
     final tail = lines.sublist(start).join('\n');
-    
+
     return Response.ok(tail, headers: {'content-type': 'text/plain'});
   }
 }

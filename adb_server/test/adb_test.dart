@@ -24,7 +24,8 @@ void main() {
 
     final adb = Adb(adbPath: 'sleep', deviceAddress: '127.0.0.1:5555');
     final stopwatch = Stopwatch()..start();
-    final result = await adb.run(['2'], useDevice: false, timeout: Duration(seconds: 1));
+    final result =
+        await adb.run(['2'], useDevice: false, timeout: Duration(seconds: 1));
     stopwatch.stop();
 
     expect(result.exitCode, -1);
