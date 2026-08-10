@@ -9,7 +9,9 @@ services:
     # to access the local network for Network ADB.
     network_mode: host
     environment:
-      - PORT=8080
+      # Since network_mode is 'host', this PORT is the port exposed directly
+      # on the NAS's network interface (there's no 'ports:' mapping to set).
+      - PORT=60106 # <-- EDIT THIS to your preferred external port
       - DUT_ADDRESS=192.168.86.195:5555 # <-- EDIT THIS to your DUT's IP
       - DATA_DIR=/data
       - LOG_LEVEL=fine
@@ -20,7 +22,7 @@ services:
       # Persist the ADB RSA key so you don't have to re-authorize the DUT on every container restart.
       - /volume1/docker/adb_server/adb_keys:/root/.android
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:60106/health"]
       interval: 30s
       timeout: 5s
       start_period: 10s

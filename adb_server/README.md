@@ -114,11 +114,14 @@ GitHub Packages are **private by default**. If your NAS gives an `unauthorized` 
 5. Choose **Upload docker-compose.yml** and upload the `adb_server/docker-compose.nas.yml` file.
 6. Edit the environment variables in the wizard (or via the UI later):
     - `DUT_ADDRESS`: The IP and port of your phone (e.g., `192.168.1.50:5555`).
+    - `PORT`: The port the server should listen on (e.g., `60106`). See "Networking" below for why this doubles as the *external* port.
 7. **Important volumes:** Ensure the bind mounts in `docker-compose.nas.yml` point to actual folders on your NAS (e.g., `/volume1/docker/adb_server/data`).
 
 ### 3. Networking
 
-The Synology deployment uses `network_mode: host`. This is required for the container to easily discover and connect to your Android device on the local network. 
+The Synology deployment uses `network_mode: host`. This is required for the container to easily discover and connect to your Android device on the local network.
+
+Because of `network_mode: host`, the container shares the NAS's own network interface directly -- there's no `ports:` mapping (like `"60102:3001"`) to configure, unlike bridge-networked services (e.g. Uptime Kuma). Instead, whatever value you set for the `PORT` environment variable *is* the port exposed on the NAS, so pick one that isn't already used by another service (e.g. `60106`) and access the server at `http://<nas-ip>:<PORT>`.
 
 ### 4. ADB Authorization
 
