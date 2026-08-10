@@ -27,6 +27,7 @@ RUN apt-get update \
         adb=${ADB_VERSION} \
         curl \
         ca-certificates \
+        procps \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

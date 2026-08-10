@@ -22,5 +22,8 @@ The Android device where the benchmark trials are executed. The `adb_server` com
 ### Instrumentation
 The Android system mechanism used to launch and monitor the benchmark trials. It requires a test package and an instrumentation runner.
 
+### Runner
+The process responsible for executing queued **Sessions**. Only one runner should be active at a time to prevent conflicts over the **DUT** and data directory. It uses a lock file to ensure mutual exclusion.
+
 ### Sentinel
 A file-based signaling mechanism used by the app on the DUT to inform the `adb_server` that a trial has finished (`DONE`) or failed (`FAILED`). The server polls the device for these files.

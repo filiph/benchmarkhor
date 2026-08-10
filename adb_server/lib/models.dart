@@ -281,7 +281,7 @@ class SessionStatus {
         SessionHistoryEntry(
             at: now, from: state.name, to: to.name, reason: reason),
       ],
-      error: error ?? this.error,
+      error: error,
     );
   }
 }

@@ -48,14 +48,19 @@ class Runner {
       _log.warning('Lock file exists: $content');
 
       final pidMatch = RegExp(r'pid: (\d+)').firstMatch(content);
+      final atMatch = RegExp(r'at: (.*)$').firstMatch(content);
+
       if (pidMatch != null) {
         final lockPid = int.parse(pidMatch.group(1)!);
-        if (await _isPidAlive(lockPid)) {
+        final lockTime =
+            atMatch != null ? DateTime.tryParse(atMatch.group(1)!) : null;
+
+        if (await _isPidAlive(lockPid, startedAt: lockTime)) {
           throw StateError(
               'Lock file exists and PID $lockPid is alive. Another runner is active.');
         } else {
           _log.warning(
-              'Lock file belongs to dead PID $lockPid. Stealing lock.');
+              'Lock file belongs to dead PID $lockPid or is stale. Stealing lock.');
           await lockFile.delete();
         }
       } else {
@@ -243,8 +248,10 @@ class Runner {
 
     // 3. Clean device state
     log('Cleaning device state...');
-    await trialAdb.shell('rm -rf ${spec.deviceResultDir}');
-    await trialAdb.shell('mkdir -p ${spec.deviceResultDir}');
+    await trialAdb.shell('rm -rf ${spec.deviceResultDir}',
+        timeout: const Duration(minutes: 1));
+    await trialAdb.shell('mkdir -p ${spec.deviceResultDir}',
+        timeout: const Duration(minutes: 1));
 
     // 4. Install
     final variant = spec.variants[variantName]!;
@@ -254,13 +261,14 @@ class Runner {
     final testApkPath =
         p.join(sessionStore.sessionDir(sessionId).path, variant.testApk);
 
-    await trialAdb.install(apkPath);
-    await trialAdb.install(testApkPath);
+    await trialAdb.install(apkPath, timeout: const Duration(minutes: 5));
+    await trialAdb.install(testApkPath, timeout: const Duration(minutes: 5));
 
     // 5. Precompile
     if (config.precompilePackage) {
       log('Precompiling package ${spec.package}...');
-      await trialAdb.shell('cmd package compile -m speed -f ${spec.package}');
+      await trialAdb.shell('cmd package compile -m speed -f ${spec.package}',
+          timeout: const Duration(minutes: 5));
     }
 
     // 6. Launch
@@ -284,7 +292,7 @@ class Runner {
         '-w',
         '-r',
         '${spec.testPackage}/${spec.instrumentationRunner}'
-      ]));
+      ], timeout: Duration.zero));
 
       // 7. Wait for completion (Contract)
       log('Waiting for completion...');
@@ -328,7 +336,8 @@ class Runner {
         }
 
         // Priority 3: Process gone
-        final pidof = await trialAdb.shell('pidof ${spec.package}');
+        final pidof = await trialAdb.shell('pidof ${spec.package}',
+            timeout: const Duration(seconds: 10));
         if ((pidof.stdout as String).trim().isEmpty) {
           consecutivePidMissing++;
           if (consecutivePidMissing >= 2) {
@@ -350,7 +359,8 @@ class Runner {
       log('Pulling results...');
       final resultsDir = sessionStore.trialResultsDir(sessionId, trialId);
       await resultsDir.create(recursive: true);
-      await trialAdb.pull(spec.deviceResultDir, resultsDir.path);
+      await trialAdb.pull(spec.deviceResultDir, resultsDir.path,
+          timeout: const Duration(minutes: 5));
 
       // 8b. Generate Results Index
       await _generateResultsIndex(resultsDir);
@@ -383,8 +393,10 @@ class Runner {
       }
     } finally {
       log('Uninstalling APKs...');
-      await trialAdb.uninstall(spec.package);
-      await trialAdb.uninstall(spec.testPackage);
+      await trialAdb.uninstall(spec.package,
+          timeout: const Duration(minutes: 1));
+      await trialAdb.uninstall(spec.testPackage,
+          timeout: const Duration(minutes: 1));
     }
   }
 
@@ -411,13 +423,35 @@ class Runner {
     );
   }
 
-  Future<bool> _isPidAlive(int pid) async {
+  Future<bool> _isPidAlive(int pid, {DateTime? startedAt}) async {
     if (Platform.isWindows) {
       final res = await Process.run('tasklist', ['/FI', 'PID eq $pid']);
       return res.stdout.toString().contains(pid.toString());
     } else {
       final res = await Process.run('kill', ['-0', pid.toString()]);
-      return res.exitCode == 0;
+      if (res.exitCode != 0) return false;
+      if (startedAt == null) return true;
+
+      // Robustness check: is it the SAME process?
+      // We check if the process started BEFORE the lock file was written.
+      try {
+        final psRes =
+            await Process.run('ps', ['-p', pid.toString(), '-o', 'etimes=']);
+        if (psRes.exitCode == 0) {
+          final elapsedSeconds = int.tryParse(psRes.stdout.toString().trim());
+          if (elapsedSeconds != null) {
+            final processStartedAt =
+                DateTime.now().subtract(Duration(seconds: elapsedSeconds));
+            // Give it a bit of buffer (2 seconds) to account for clock skew/timing.
+            // If the process started AFTER the lock was written, it's a reuse.
+            return processStartedAt
+                .isBefore(startedAt.add(const Duration(seconds: 2)));
+          }
+        }
+      } catch (e) {
+        _log.warning('Failed to check process age: $e');
+      }
+      return true; // Fallback to true if we can't check age
     }
   }
 }

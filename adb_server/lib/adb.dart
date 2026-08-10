@@ -24,7 +24,7 @@ class Adb {
   ///
   /// The command is automatically targeted at [deviceAddress] using `-s`.
   Future<ProcessResult> run(List<String> arguments,
-      {bool useDevice = true, Duration? timeout}) async {
+      {bool useDevice = true, Duration timeout = const Duration(minutes: 2)}) async {
     final fullArgs = [
       if (useDevice) ...['-s', deviceAddress],
       ...arguments,
@@ -32,10 +32,10 @@ class Adb {
 
     final stopwatch = Stopwatch()..start();
     ProcessResult result;
-    if (timeout != null) {
+    if (timeout != Duration.zero) {
       final process = await Process.start(adbPath, fullArgs);
-      final stdout = process.stdout.transform(utf8.decoder).join();
-      final stderr = process.stderr.transform(utf8.decoder).join();
+      final stdoutFuture = process.stdout.transform(utf8.decoder).join();
+      final stderrFuture = process.stderr.transform(utf8.decoder).join();
       final exitCode = await process.exitCode.timeout(
         timeout,
         onTimeout: () {
@@ -46,8 +46,8 @@ class Adb {
       result = ProcessResult(
         process.pid,
         exitCode,
-        exitCode == -1 ? 'Timed out after ${timeout.inSeconds}s' : await stdout,
-        exitCode == -1 ? 'Timed out after ${timeout.inSeconds}s' : await stderr,
+        exitCode == -1 ? 'Timed out after ${timeout.inSeconds}s' : await stdoutFuture,
+        exitCode == -1 ? 'Timed out after ${timeout.inSeconds}s' : await stderrFuture,
       );
     } else {
       result = await Process.run(adbPath, fullArgs);
@@ -110,34 +110,63 @@ class Adb {
     return false;
   }
 
-  Future<String?> getState() async {
-    final result = await run(['get-state']);
+  Future<String?> getState({Duration timeout = const Duration(seconds: 30)}) async {
+    final result = await run(['get-state'], timeout: timeout);
     if (result.exitCode != 0) return null;
     return (result.stdout as String).trim();
   }
 
-  Future<ProcessResult> shell(String command) => run(['shell', command]);
+  Future<ProcessResult> shell(String command,
+          {Duration timeout = const Duration(minutes: 2)}) =>
+      run(['shell', command], timeout: timeout);
 
-  Future<ProcessResult> install(String apkPath,
-      {bool reinstall = true, bool grantPermissions = true}) async {
-    return run([
-      'install',
-      if (reinstall) '-r',
-      if (grantPermissions) '-g',
-      apkPath,
-    ]);
+  Future<void> install(String apkPath,
+      {bool reinstall = true,
+      bool grantPermissions = true,
+      Duration timeout = const Duration(minutes: 5)}) async {
+    final result = await run(
+      [
+        'install',
+        if (reinstall) '-r',
+        if (grantPermissions) '-g',
+        apkPath,
+      ],
+      timeout: timeout,
+    );
+    if (result.exitCode != 0) {
+      throw Exception('Failed to install APK $apkPath: ${result.stderr}');
+    }
   }
 
-  Future<ProcessResult> uninstall(String package) =>
-      run(['uninstall', package]);
+  Future<void> uninstall(String package,
+      {Duration timeout = const Duration(minutes: 2)}) async {
+    final result = await run(['uninstall', package], timeout: timeout);
+    if (result.exitCode != 0) {
+      throw Exception('Failed to uninstall package $package: ${result.stderr}');
+    }
+  }
 
-  Future<ProcessResult> pull(String remotePath, String localPath) =>
-      run(['pull', remotePath, localPath]);
+  Future<void> pull(String remotePath, String localPath,
+      {Duration timeout = const Duration(minutes: 5)}) async {
+    final result = await run(['pull', remotePath, localPath], timeout: timeout);
+    if (result.exitCode != 0) {
+      throw Exception(
+          'Failed to pull $remotePath to $localPath: ${result.stderr}');
+    }
+  }
 
-  Future<ProcessResult> forceStop(String package) =>
-      shell('am force-stop $package');
+  Future<void> forceStop(String package,
+      {Duration timeout = const Duration(seconds: 30)}) async {
+    await shell('am force-stop $package', timeout: timeout);
+  }
 
-  Future<ProcessResult> clearLogcat() => run(['logcat', '-c']);
+  Future<void> clearLogcat(
+      {Duration timeout = const Duration(seconds: 30)}) async {
+    final result = await run(['logcat', '-c'], timeout: timeout);
+    if (result.exitCode != 0) {
+      throw Exception('Failed to clear logcat: ${result.stderr}');
+    }
+  }
 
   /// Starts capturing logcat to [outputFile].
   ///
