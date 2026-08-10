@@ -38,6 +38,7 @@ class Api {
     router.get('/health', _health);
     router.get('/api/sessions', _listSessions);
     router.post('/api/sessions', _submitSession);
+    router.post('/api/sessions/discover', _discoverSessions);
     router.get('/api/sessions/<id>', _sessionDetail);
     router.post('/api/sessions/<id>/cancel', _cancelSession);
     router.post('/api/sessions/<id>/requeue', _requeueSession);
@@ -81,6 +82,11 @@ class Api {
       ..writeln('<h1>adb_server</h1>')
       ..writeln(
           '<p>DUT: <code>${config.dutAddress}</code> | Busy: <strong>${Runner.isBusy}</strong></p>');
+
+    html.writeln(
+        '<form action="/api/sessions/discover" method="POST" style="margin-bottom: 1rem;">');
+    html.writeln('<button type="submit">Discover New Sessions</button>');
+    html.writeln('</form>');
 
     if (Runner.isBusy && Runner.statusMessage != null) {
       html.writeln('<p>Current state: <em>${Runner.statusMessage}</em></p>');
@@ -147,6 +153,14 @@ class Api {
     }
 
     return _json({'sessions': summaries});
+  }
+
+  Future<Response> _discoverSessions(Request request) async {
+    await sessionStore.discoverNewSessions();
+    if (request.headers['accept']?.contains('text/html') ?? false) {
+      return Response.seeOther('/');
+    }
+    return _json({'status': 'ok'});
   }
 
   Future<Response> _submitSession(Request request) async {

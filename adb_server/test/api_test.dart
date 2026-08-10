@@ -82,5 +82,47 @@ void main() {
     final body = await response.readAsString();
     expect(body, contains('<h1>adb_server</h1>'));
     expect(body, contains('DUT: <code>127.0.0.1:5555</code>'));
+    expect(body, contains('Discover New Sessions'));
+  });
+
+  test('POST /api/sessions/discover finds new sessions on disk', () async {
+    // 1. Manually create a session directory with a session.json but no status.json
+    final sessionId = '20260810-120000Z__manual-session';
+    final sessionDir = store.sessionDir(sessionId)..createSync(recursive: true);
+    final specFile = store.sessionSpecFile(sessionId);
+    specFile.writeAsStringSync(jsonEncode({
+      'name': 'Manual Session',
+      'variants': {
+        'v1': {'apk': 'a.apk', 'test_apk': 'at.apk'}
+      },
+      'package': 'com.example.manual',
+      'device_result_dir': '/sdcard/manual',
+      'rounds': 5,
+    }));
+
+    // 2. Call discovery via API
+    final request = Request(
+      'POST',
+      Uri.parse('http://localhost/api/sessions/discover'),
+    );
+    final response = await api.router.call(request);
+    expect(response.statusCode, 200);
+
+    // 3. Verify the session is now discovered
+    final status = await store.readStatus(sessionId);
+    expect(status, isNotNull);
+    expect(status!.state, SessionState.queued);
+    expect(status.roundsPlanned, 5);
+  });
+
+  test('POST /api/sessions/discover redirects to / for HTML requests', () async {
+    final request = Request(
+      'POST',
+      Uri.parse('http://localhost/api/sessions/discover'),
+      headers: {'accept': 'text/html'},
+    );
+    final response = await api.router.call(request);
+    expect(response.statusCode, 303); // seeOther
+    expect(response.headers['location'], '/');
   });
 }
