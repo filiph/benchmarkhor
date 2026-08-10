@@ -363,7 +363,7 @@ class Runner {
           timeout: const Duration(minutes: 5));
 
       // 8b. Generate Results Index
-      await _generateResultsIndex(resultsDir);
+      await _generateResultsIndex(resultsDir, log);
 
       // 9. Post-run snapshot
       log('Capturing post-run snapshot...');
@@ -400,13 +400,21 @@ class Runner {
     }
   }
 
-  Future<void> _generateResultsIndex(Directory resultsDir) async {
+  Future<void> _generateResultsIndex(
+      Directory resultsDir, void Function(String) log) async {
     final index = <Map<String, dynamic>>[];
     await for (final entity in resultsDir.list(recursive: true)) {
       if (entity is File) {
         final bytes = await entity.readAsBytes();
         final sha256Hash = sha256.convert(bytes).toString();
-        final lines = utf8.decode(bytes).split('\n').length;
+        int lines = 0;
+        try {
+          lines = utf8.decode(bytes, allowMalformed: true).split('\n').length;
+        } catch (e) {
+          log('Warning: Failed to decode ${p.basename(entity.path)} as UTF-8 for line count. It may be a binary file.');
+          _log.warning(
+              'Failed to decode ${entity.path} as UTF-8 for line count: $e');
+        }
         index.add({
           'filename': p.relative(entity.path, from: resultsDir.path),
           'bytes': bytes.length,
