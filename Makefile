@@ -6,8 +6,9 @@
 # see adb_server/README.md).
 
 ADB_SERVER_DIR := adb_server
+IMAGE_NAME := ghcr.io/filiph/adb_server
 
-.PHONY: help build up down restart logs ps test
+.PHONY: help build up down restart logs ps test push
 
 help:
 	@echo "Targets:"
@@ -17,6 +18,7 @@ help:
 	@echo "  make restart  Restart the adb_server container"
 	@echo "  make logs     Follow adb_server logs"
 	@echo "  make ps       Show adb_server container status"
+	@echo "  make push     Push container to GHCR"
 	@echo "  make test     Run the adb_server Dart test suite locally"
 
 $(ADB_SERVER_DIR)/.env:
@@ -44,3 +46,6 @@ ps:
 
 test:
 	cd $(ADB_SERVER_DIR) && dart test
+
+push: $(ADB_SERVER_DIR)/.env
+	docker buildx build --platform linux/amd64,linux/arm64 -t $(IMAGE_NAME):latest --push $(ADB_SERVER_DIR)

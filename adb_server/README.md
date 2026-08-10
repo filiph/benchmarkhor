@@ -87,51 +87,40 @@ Data (`sessions/`, `archive/`, `device/`, `server.log`) is bind-mounted to
 
 ## Deploying to the Synology NAS
 
-The NAS (Intel Celeron J4125) is **x86_64/amd64**. If you're building on an
-Apple Silicon Mac, cross-build explicitly:
+The recommended workflow for Synology deployment uses **GitHub Container Registry (GHCR)** for image distribution and **Network ADB** for connectivity.
+
+### 1. Build and Push to GHCR
+
+From your local development machine (e.g., Mac), run the following from the repository root:
 
 ```sh
-docker buildx build --platform linux/amd64 -t adb_server:nas adb_server
+make push
 ```
 
-Copy the `adb_server/` directory (or just the files needed to build:
-`Dockerfile`, `pubspec.yaml`, `pubspec.lock`, `bin/`, `lib/`,
-`docker-compose.yml`, `.dockerignore`) onto the NAS, create a `.env` file
-there from `.env.example`, and let Synology's **Container Manager** build
-and run it from `docker-compose.yml` (Container Manager reads Compose
-files directly -- Project > Create > "Create docker-compose.yml").
+This builds a multi-arch image (`linux/amd64` for Intel NAS and `linux/arm64` for ARM NAS) and pushes it to `ghcr.io/filiph/adb_server:latest`. 
 
-Make sure `/data` (sessions/results/logs) and `/root/.android` (adb key) are
-backed by persistent NAS volumes/paths, not ephemeral container storage --
-see the `docker-compose.yml` volumes for the exact mounts.
+*Note: You must be logged into GHCR (`docker login ghcr.io`) and have appropriate permissions.*
 
-### A note on networking
+### 2. Configure on Synology
 
-On **macOS (Docker Desktop/OrbStack)**, do NOT use `network_mode: host`. It will
-not work as expected and the container will likely fail to connect to your
-device. The default bridge mode works fine and handles Tailscale routing.
+1. Open **Container Manager** on your Synology NAS.
+2. Go to **Project** > **Create**.
+3. Set a Project Name (e.g., `adb-server`).
+4. Set the path to a folder on your NAS.
+5. Choose **Upload docker-compose.yml** and upload the `adb_server/docker-compose.nas.yml` file.
+6. Edit the environment variables in the wizard (or via the UI later):
+    - `DUT_ADDRESS`: The IP and port of your phone (e.g., `192.168.1.50:5555`).
+7. **Important volumes:** Ensure the bind mounts in `docker-compose.nas.yml` point to actual folders on your NAS (e.g., `/volume1/docker/adb_server/data`).
 
-On the **Synology NAS**, `network_mode: host` IS recommended (and often
-required) so the container can see the local network and the ADB device.
+### 3. Networking
 
-### The ADB authorisation trap
+The Synology deployment uses `network_mode: host`. This is required for the container to easily discover and connect to your Android device on the local network. 
 
-The container generates its own `adbkey` the first time it runs `adb`. The
-device under test (DUT) will report `unauthorized` and, because this rig
-is headless and unattended, **nobody is there to tap "Allow" at 2am**.
-Fix this once, before relying on unattended trials:
+### 4. ADB Authorization
 
-1. **Persist the key and authorise interactively once.** With a display
-   attached to the DUT, run the container (or `adb connect`/`adb shell`
-   from inside it) so the "Allow USB debugging?" / "Allow debugging from
-   this computer?" prompt appears, tap Allow (and "always allow from this
-   computer" if offered). As long as `/root/.android` is a persistent
-   volume (it is, by default, in `docker-compose.yml`), this survives
-   container and NAS restarts.
-2. **Or, if the DUT is rooted**, copy the container's `adbkey.pub`
-   (`docker compose exec adb_server cat /root/.android/adbkey.pub`) into
-   the device's `/data/misc/adb/adb_keys` (or `/adb_keys` depending on
-   Android version) via `adb shell` or `su`.
+When the container first connects to your phone, you will see an "Allow USB debugging?" prompt on the phone's screen. 
+1. Tap **Allow** (and check "Always allow from this computer").
+2. The RSA keys will be persisted in the `/root/.android` volume (mapped to `/volume1/docker/adb_server/adb_keys` on your NAS), so you won't need to do this again after a restart.
 
 ## Preparing the Device Under Test (DUT)
 

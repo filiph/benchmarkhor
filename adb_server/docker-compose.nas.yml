@@ -1,0 +1,24 @@
+services:
+  adb_server:
+    image: ghcr.io/filiph/adb_server:latest
+    restart: unless-stopped
+    # network_mode: host is required for the Synology NAS deployment
+    # to access the local network for Network ADB.
+    network_mode: host
+    environment:
+      - PORT=8080
+      - DUT_ADDRESS=192.168.86.195:5555 # <-- EDIT THIS to your DUT's IP
+      - DATA_DIR=/data
+      - LOG_LEVEL=fine
+    volumes:
+      # Mount to a shared folder on your NAS for easy browsing of results via SMB/File Station.
+      # Create these folders on your NAS first (e.g., in /volume1/docker/adb_server).
+      - /volume1/docker/adb_server/data:/data
+      # Persist the ADB RSA key so you don't have to re-authorize the DUT on every container restart.
+      - /volume1/docker/adb_server/adb_keys:/root/.android
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
