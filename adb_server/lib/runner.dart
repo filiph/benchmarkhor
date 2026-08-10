@@ -132,6 +132,17 @@ class Runner {
         throw Exception('Failed to connect to device');
       }
 
+      log('Elevating to root...');
+      if (await adb.root()) {
+        // Wait for adbd to restart and reconnect
+        await Future<void>.delayed(const Duration(seconds: 5));
+        if (!await adb.connect()) {
+          log('Warning: Failed to reconnect after adb root. Proceeding as non-root.');
+        }
+      } else {
+        log('Warning: adb root failed. Profiles may fail if root is required.');
+      }
+
       log('Device state: ${await adb.getState()}');
 
       for (int round = status.roundsCompleted + 1;
@@ -180,7 +191,14 @@ class Runner {
             adbPath: config.adbPath,
             deviceAddress: config.dutAddress,
           );
-          await _applyProfile(adb, config.deviceResetFile, log);
+          if (await adb.connect()) {
+            await adb.root();
+            // We don't wait as long here, _applyProfile will retry shell commands anyway
+            // but let's give it a moment.
+            await Future<void>.delayed(const Duration(seconds: 2));
+            await adb.connect();
+            await _applyProfile(adb, config.deviceResetFile, log);
+          }
         } catch (e) {
           log('Warning: Failed to apply reset profile: $e');
         }

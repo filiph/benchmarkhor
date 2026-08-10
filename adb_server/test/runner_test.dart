@@ -217,8 +217,9 @@ void main() {
     expect(adbLog, contains('echo 1200000 > /sys/cpu/speed'));
     expect(adbLog, isNot(contains('# comment')));
 
-    // 3. Verify session log contains reset application
+    // 3. Verify session log contains reset application and root elevation
     final sessionLog = await store.sessionLogFile(sessionId).readAsString();
+    expect(sessionLog, contains('Elevating to root...'));
     expect(sessionLog, contains('Applying device reset profile'));
   });
 }

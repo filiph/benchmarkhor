@@ -22,6 +22,11 @@ void main(List<String> arguments) {
     return;
   }
 
+  if (cmd.contains('root')) {
+    print('restarting adbd as root');
+    return;
+  }
+
   if (cmd.contains('getprop ro.build.fingerprint')) {
     print(
         'google/crosshatch/crosshatch:12/SP1A.210812.015/7679544:user/release-keys');

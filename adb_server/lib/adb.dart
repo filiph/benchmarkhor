@@ -116,6 +116,20 @@ class Adb {
     return (result.stdout as String).trim();
   }
 
+  /// Restarts adbd with root permissions.
+  ///
+  /// Note: This command may take a few seconds as adbd restarts.
+  Future<bool> root({Duration timeout = const Duration(seconds: 30)}) async {
+    final result = await run(['root'], timeout: timeout);
+    if (result.exitCode != 0) {
+      _log.warning('adb root failed: ${result.stderr}');
+      return false;
+    }
+    // adbd restarts, so we might need to wait a bit or just assume success
+    // if the exit code was 0.
+    return true;
+  }
+
   Future<ProcessResult> shell(String command,
           {Duration timeout = const Duration(minutes: 2)}) =>
       run(['shell', command], timeout: timeout);
