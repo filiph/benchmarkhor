@@ -1,6 +1,6 @@
 # Context: Benchmarkhor Plotting
 
-This document defines the domain terms used in the `benchmarkhor` plotting utility (`bin/plot.dart`).
+This document defines the domain terms used in the `benchmarkhor` plotting utility (`bin/plot.dart` and `lib/src/plot/`).
 
 ## Glossary
 
@@ -38,3 +38,9 @@ Each input maximum is defined as `median + (N * IQR)`, where `N` is the `max-out
 ### Outlier Exclusion
 To prevent extreme values from compressing the main visualization, outliers exceeding the **Plot Maximum** are not drawn. 
 Instead, a summary note (e.g., `+12 outliers (max 42000)`) is displayed at the top of the corresponding violin's slot.
+
+### Line Plot
+A method of plotting a single `.dat` file as a polyline, one point per line of input, in file order. The X-axis is the point's index (not a timestamp or Round number); the Y-axis is the raw value. When multiple inputs are given to `plot line`, all polylines are drawn on shared axes, colored using the same palette as violin plots, for direct comparison.
+
+### Segment
+A straight line drawn between two consecutive points of a Line Plot. No smoothing or curve-fitting is applied — a Line Plot is a plain polyline.
