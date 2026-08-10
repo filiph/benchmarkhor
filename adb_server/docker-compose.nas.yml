@@ -1,5 +1,8 @@
 services:
   adb_server:
+    # If this is a private GHCR package, ensure your NAS is logged into ghcr.io
+    # via Container Manager > Registry. Alternatively, use the 'make export' 
+    # and manual upload workflow. See README.md for details.
     image: ghcr.io/filiph/adb_server:latest
     restart: unless-stopped
     # network_mode: host is required for the Synology NAS deployment

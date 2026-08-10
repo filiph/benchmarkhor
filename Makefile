@@ -8,7 +8,7 @@
 ADB_SERVER_DIR := adb_server
 IMAGE_NAME := ghcr.io/filiph/adb_server
 
-.PHONY: help build up down restart logs ps test push
+.PHONY: help build up down restart logs ps test push export
 
 help:
 	@echo "Targets:"
@@ -19,6 +19,7 @@ help:
 	@echo "  make logs     Follow adb_server logs"
 	@echo "  make ps       Show adb_server container status"
 	@echo "  make push     Push container to GHCR"
+	@echo "  make export   Export image to .tar file for manual NAS upload"
 	@echo "  make test     Run the adb_server Dart test suite locally"
 
 $(ADB_SERVER_DIR)/.env:
@@ -49,3 +50,11 @@ test:
 
 push: $(ADB_SERVER_DIR)/.env
 	docker buildx build --platform linux/amd64,linux/arm64 -t $(IMAGE_NAME):latest --push $(ADB_SERVER_DIR)
+
+# Exports the image for manual upload to Synology (no registry needed).
+# Default to amd64 (Intel NAS). Use PLATFORM=linux/arm64 for ARM-based NAS.
+PLATFORM ?= linux/amd64
+export: $(ADB_SERVER_DIR)/.env
+	docker buildx build --platform $(PLATFORM) -t $(IMAGE_NAME):latest --load $(ADB_SERVER_DIR)
+	docker save -o adb_server.tar $(IMAGE_NAME):latest
+	@echo "Done! Upload 'adb_server.tar' to Synology Container Manager > Image > Add > From file."

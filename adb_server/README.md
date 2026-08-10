@@ -87,7 +87,7 @@ Data (`sessions/`, `archive/`, `device/`, `server.log`) is bind-mounted to
 
 ## Deploying to the Synology NAS
 
-The recommended workflow for Synology deployment uses **GitHub Container Registry (GHCR)** for image distribution and **Network ADB** for connectivity.
+The recommended workflow for Synology deployment uses **GitHub Container Registry (GHCR)** for image distribution, but you can also **manually upload** the image if GHCR authentication is problematic on your NAS.
 
 ### 1. Build and Push to GHCR
 
@@ -99,7 +99,11 @@ make push
 
 This builds a multi-arch image (`linux/amd64` for Intel NAS and `linux/arm64` for ARM NAS) and pushes it to `ghcr.io/filiph/adb_server:latest`. 
 
-*Note: You must be logged into GHCR (`docker login ghcr.io`) and have appropriate permissions.*
+**Note on Permissions:**
+GitHub Packages are **private by default**. If your NAS gives an `unauthorized` error during pull, you have three options:
+- **Option A (Recommended):** Make the package public. Go to your GitHub profile > Packages > `adb_server` > Package Settings > Danger Zone > Change visibility to **Public**.
+- **Option B:** Authenticate your NAS via SSH (see the troubleshooting guide).
+- **Option C (GUI Only):** Use the manual export/upload workflow (see [Manual Image Upload](#manual-image-upload-no-registry) below).
 
 ### 2. Configure on Synology
 
@@ -121,6 +125,40 @@ The Synology deployment uses `network_mode: host`. This is required for the cont
 When the container first connects to your phone, you will see an "Allow USB debugging?" prompt on the phone's screen. 
 1. Tap **Allow** (and check "Always allow from this computer").
 2. The RSA keys will be persisted in the `/root/.android` volume (mapped to `/volume1/docker/adb_server/adb_keys` on your NAS), so you won't need to do this again after a restart.
+
+### Manual Image Upload (No Registry)
+
+If you prefer not to use GHCR or encounter authentication issues, you can export the image from your development machine and upload it directly to the NAS:
+
+1. **Export the image locally:**
+   Run the following from the repository root on your Mac:
+   ```sh
+   make export
+   ```
+   This creates a file named `adb_server.tar` in the root directory. It defaults to `linux/amd64` (Intel NAS). If you have an ARM-based NAS, use `PLATFORM=linux/arm64 make export`.
+
+2. **Upload to Synology:**
+   - Open **Container Manager** > **Image**.
+   - Click **Add** > **From file**.
+   - Select the `adb_server.tar` file you just created.
+
+3. **Deploy the Project:**
+   Use the `docker-compose.nas.yml` as described in step 2 above. When you start the project, Container Manager will see the image is already present locally and won't try to pull it from GHCR.
+
+### GHCR Authentication on Synology (via SSH)
+
+If you keep your container image private, you must tell Synology how to log in to GHCR:
+
+1. **Create a GitHub PAT:** Go to GitHub > Settings > Developer settings > Personal access tokens > Tokens (classic). Generate a new token with the `read:packages` scope. Copy it.
+2. **Add Registry to Synology:**
+    - Open **Container Manager** > **Registry**.
+    - Click **Settings** (or **Add** > **Add Registry** depending on DSM version).
+    - Choose **Custom** / **Docker Hub** (some versions use a generic list).
+    - Click **Add**.
+    - Registry URL: `https://ghcr.io`
+    - Username: Your GitHub username.
+    - Password: The **Personal Access Token** you just created.
+3. **Re-run Project:** Go to your Project in Container Manager and click **Build** or **Action** > **Clean up & Start**.
 
 ## Preparing the Device Under Test (DUT)
 
