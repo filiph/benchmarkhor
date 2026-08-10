@@ -13,11 +13,13 @@ class Adb {
   final String adbPath;
   final String deviceAddress;
   final File? adbLog;
+  final Map<String, String>? environment;
 
   Adb({
     required this.adbPath,
     required this.deviceAddress,
     this.adbLog,
+    this.environment,
   });
 
   /// Runs an `adb` command with the given [arguments].
@@ -33,7 +35,7 @@ class Adb {
     final stopwatch = Stopwatch()..start();
     ProcessResult result;
     if (timeout != Duration.zero) {
-      final process = await Process.start(adbPath, fullArgs);
+      final process = await Process.start(adbPath, fullArgs, environment: environment);
       final stdoutFuture = process.stdout.transform(utf8.decoder).join();
       final stderrFuture = process.stderr.transform(utf8.decoder).join();
       final exitCode = await process.exitCode.timeout(
@@ -50,7 +52,7 @@ class Adb {
         exitCode == -1 ? 'Timed out after ${timeout.inSeconds}s' : await stderrFuture,
       );
     } else {
-      result = await Process.run(adbPath, fullArgs);
+      result = await Process.run(adbPath, fullArgs, environment: environment);
     }
     stopwatch.stop();
 
@@ -188,7 +190,7 @@ class Adb {
   /// logcat lines. The caller is responsible for killing the process.
   Future<LogcatProcess> startLogcat(File outputFile) async {
     final process =
-        await Process.start(adbPath, ['-s', deviceAddress, 'logcat']);
+        await Process.start(adbPath, ['-s', deviceAddress, 'logcat'], environment: environment);
     final sink = outputFile.openWrite();
 
     final controller = StreamController<String>.broadcast();

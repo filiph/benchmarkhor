@@ -25,12 +25,13 @@ class CancelledException implements Exception {
 class Runner {
   final Config config;
   final SessionStore sessionStore;
+  final Map<String, String>? environment;
 
   static String? _runningSessionId;
   static String? statusMessage;
   static bool get isBusy => _runningSessionId != null;
 
-  Runner({required this.config, required this.sessionStore});
+  Runner({required this.config, required this.sessionStore, this.environment});
 
   /// Tries to start the next queued session.
   ///
@@ -124,6 +125,7 @@ class Runner {
       final adb = Adb(
         adbPath: config.adbPath,
         deviceAddress: config.dutAddress,
+        environment: environment,
       );
       final probe = DeviceProbe(adb);
 
@@ -190,6 +192,7 @@ class Runner {
           final adb = Adb(
             adbPath: config.adbPath,
             deviceAddress: config.dutAddress,
+            environment: environment,
           );
           if (await adb.connect()) {
             await adb.root();
@@ -228,6 +231,7 @@ class Runner {
       adbPath: config.adbPath,
       deviceAddress: config.dutAddress,
       adbLog: adbLogFile,
+      environment: environment,
     );
     final trialProbe = DeviceProbe(trialAdb);
 
@@ -323,14 +327,27 @@ class Runner {
     });
 
     try {
-      unawaited(trialAdb.run([
+      ProcessResult? instrumentationResult;
+      final instrumentationFuture = trialAdb.run([
         'shell',
         'am',
         'instrument',
         '-w',
         '-r',
         '${spec.testPackage}/${spec.instrumentationRunner}'
-      ], timeout: Duration.zero));
+      ], timeout: Duration.zero).then((res) => instrumentationResult = res);
+
+      // Give it a moment to fail early (e.g. wrong runner name, package not found)
+      await Future.any([
+        instrumentationFuture,
+        Future<void>.delayed(const Duration(seconds: 2)),
+      ]);
+
+      if (instrumentationResult != null && instrumentationResult!.exitCode != 0) {
+        throw Exception(
+            'Instrumentation failed to start (exit ${instrumentationResult!.exitCode}):\n'
+            '${instrumentationResult!.stdout}\n${instrumentationResult!.stderr}');
+      }
 
       // 7. Wait for completion (Contract)
       log('Waiting for completion...');
@@ -429,7 +446,17 @@ class Runner {
       );
 
       if (!finished) {
-        throw Exception('Trial failed or timed out.');
+        if (instrumentationResult != null &&
+            instrumentationResult!.exitCode != 0) {
+          throw Exception(
+              'Instrumentation failed (exit ${instrumentationResult!.exitCode}):\n'
+              '${instrumentationResult!.stdout}\n${instrumentationResult!.stderr}');
+        }
+        if (consecutivePidMissing >= 2) {
+          throw Exception(
+              'Trial process disappeared unexpectedly without reporting completion.');
+        }
+        throw Exception('Trial failed or timed out after ${timeout}s.');
       }
     } finally {
       log('Uninstalling APKs...');
