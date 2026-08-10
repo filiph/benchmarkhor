@@ -300,6 +300,8 @@ class TrialMetadata {
   final Map<String, dynamic> deviceAfter;
   final List<String> warnings;
   final Map<String, dynamic> config;
+  final String? deviceProfile;
+  final String? deviceProfileSha256;
 
   const TrialMetadata({
     this.schemaVersion = currentSchemaVersion,
@@ -312,6 +314,8 @@ class TrialMetadata {
     this.deviceAfter = const {},
     this.warnings = const [],
     this.config = const {},
+    this.deviceProfile,
+    this.deviceProfileSha256,
   });
 
   factory TrialMetadata.fromJson(Map<String, dynamic> json) => TrialMetadata(
@@ -326,6 +330,8 @@ class TrialMetadata {
         deviceAfter: json['device_after'] as Map<String, dynamic>? ?? const {},
         warnings: (json['warnings'] as List?)?.cast<String>() ?? const [],
         config: json['config'] as Map<String, dynamic>? ?? const {},
+        deviceProfile: json['device_profile'] as String?,
+        deviceProfileSha256: json['device_profile_sha256'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -339,5 +345,8 @@ class TrialMetadata {
         'device_after': deviceAfter,
         'warnings': warnings,
         'config': config,
+        if (deviceProfile != null) 'device_profile': deviceProfile,
+        if (deviceProfileSha256 != null)
+          'device_profile_sha256': deviceProfileSha256,
       };
 }

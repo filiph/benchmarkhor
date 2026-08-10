@@ -47,6 +47,12 @@ curl http://localhost:8080/api/sessions
 All configuration is via environment variables. See `REQUIREMENTS.md` §9 for
 the full list; the only required variable is `DUT_ADDRESS`.
 
+## Device Profiles
+
+For stable benchmarks, it is recommended to lock CPU/GPU frequencies to avoid
+thermal throttling and ensure reproducibility. See [PROFILES.md](PROFILES.md)
+for pre-configured profiles for supported hardware (e.g., Orange Pi 5B).
+
 ## Testing
 
 ```sh

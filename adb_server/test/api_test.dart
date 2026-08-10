@@ -29,6 +29,7 @@ void main() {
       thermalGateCelsius: null,
       thermalGateTimeoutSeconds: 300,
       deviceProfileFile: null,
+      deviceResetFile: null,
       precompilePackage: true,
       logLevel: 'info',
     );

@@ -35,6 +35,11 @@ class Config {
   /// device profile is applied.
   final String? deviceProfileFile;
 
+  /// Path to a newline-separated file of shell commands to run on the DUT
+  /// after the entire session finishes, to restore it to defaults. If null,
+  /// no reset is performed.
+  final String? deviceResetFile;
+
   /// Whether to force `speed` AOT compilation right after install.
   final bool precompilePackage;
 
@@ -51,6 +56,7 @@ class Config {
     required this.thermalGateCelsius,
     required this.thermalGateTimeoutSeconds,
     required this.deviceProfileFile,
+    required this.deviceResetFile,
     required this.precompilePackage,
     required this.logLevel,
   });
@@ -83,6 +89,7 @@ class Config {
       thermalGateTimeoutSeconds:
           int.tryParse(env['THERMAL_GATE_TIMEOUT_SECONDS'] ?? '') ?? 300,
       deviceProfileFile: env['DEVICE_PROFILE_FILE'],
+      deviceResetFile: env['DEVICE_RESET_FILE'],
       precompilePackage:
           (env['PRECOMPILE_PACKAGE'] ?? 'true').toLowerCase() != 'false',
       logLevel: env['LOG_LEVEL'] ?? 'info',
@@ -101,6 +108,7 @@ class Config {
         'thermal_gate_celsius': thermalGateCelsius,
         'thermal_gate_timeout_seconds': thermalGateTimeoutSeconds,
         'device_profile_file': deviceProfileFile,
+        'device_reset_file': deviceResetFile,
         'precompile_package': precompilePackage,
         'log_level': logLevel,
       };

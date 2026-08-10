@@ -35,6 +35,7 @@ void main() {
       thermalGateCelsius: 40,
       thermalGateTimeoutSeconds: 5,
       deviceProfileFile: null,
+      deviceResetFile: null,
       precompilePackage: false,
       logLevel: 'info',
     );
@@ -131,6 +132,7 @@ void main() {
       thermalGateCelsius: 30, // 35C > 30C, so it will wait
       thermalGateTimeoutSeconds: 2,
       deviceProfileFile: null,
+      deviceResetFile: null,
       precompilePackage: false,
       logLevel: 'info',
     );
@@ -158,5 +160,65 @@ void main() {
         .readAsString()) as Map<String, dynamic>);
 
     expect(metadata.warnings, contains(contains('Thermal gate timeout')));
+  });
+
+  test('Runner applies device profile and reset profile', () async {
+    final profileFile = File(p.join(tempDir.path, 'profile.sh'));
+    await profileFile.writeAsString(
+        'echo performance > /sys/cpu/governor\n# comment\necho 1200000 > /sys/cpu/speed');
+
+    final resetFile = File(p.join(tempDir.path, 'reset.sh'));
+    await resetFile.writeAsString('echo schedutil > /sys/cpu/governor');
+
+    final profileConfig = Config(
+      dutAddress: '100.120.184.47:5555',
+      dataDir: tempDir.path,
+      port: 8080,
+      adbPath: fakeAdbPath,
+      pollIntervalSeconds: 1,
+      defaultTrialTimeoutSeconds: 30,
+      thermalGateCelsius: null,
+      thermalGateTimeoutSeconds: 0,
+      deviceProfileFile: profileFile.path,
+      deviceResetFile: resetFile.path,
+      precompilePackage: false,
+      logLevel: 'info',
+    );
+
+    final sessionId = '20260809__profile';
+    await setupValidSession(sessionId);
+    await store.discoverNewSessions();
+
+    final runner = Runner(config: profileConfig, sessionStore: store);
+
+    final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
+    await deviceSdcard.create(recursive: true);
+    await File(p.join(deviceSdcard.path, 'DONE')).create();
+
+    await runner.startNext();
+
+    int attempts = 0;
+    while (Runner.isBusy && attempts < 10) {
+      await Future<void>.delayed(const Duration(seconds: 1));
+      attempts++;
+    }
+
+    // 1. Verify TrialMetadata records the profile
+    final metadataFile = store.trialMetadataFile(sessionId, 'trial-001');
+    final metadata = TrialMetadata.fromJson(
+        jsonDecode(await metadataFile.readAsString()) as Map<String, dynamic>);
+
+    expect(metadata.deviceProfile, contains('performance'));
+    expect(metadata.deviceProfileSha256, isNotNull);
+
+    // 2. Verify adb.log contains the commands
+    final adbLog = await store.trialAdbLogFile(sessionId, 'trial-001').readAsString();
+    expect(adbLog, contains('echo performance > /sys/cpu/governor'));
+    expect(adbLog, contains('echo 1200000 > /sys/cpu/speed'));
+    expect(adbLog, isNot(contains('# comment')));
+
+    // 3. Verify session log contains reset application
+    final sessionLog = await store.sessionLogFile(sessionId).readAsString();
+    expect(sessionLog, contains('Applying device reset profile'));
   });
 }

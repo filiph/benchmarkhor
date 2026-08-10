@@ -173,6 +173,18 @@ class Runner {
             status.transitionTo(SessionState.failed, error: e.toString()));
       }
     } finally {
+      if (config.deviceResetFile != null) {
+        log('Applying device reset profile from ${config.deviceResetFile}...');
+        try {
+          final adb = Adb(
+            adbPath: config.adbPath,
+            deviceAddress: config.dutAddress,
+          );
+          await _applyProfile(adb, config.deviceResetFile, log);
+        } catch (e) {
+          log('Warning: Failed to apply reset profile: $e');
+        }
+      }
       await logSink.flush();
       await logSink.close();
       if (await lockFile.exists()) {
@@ -202,6 +214,14 @@ class Runner {
     final trialProbe = DeviceProbe(trialAdb);
 
     final startedAt = DateTime.now().toUtc();
+
+    // 0. Apply Device Profile
+    ({String content, String sha256})? profileResult;
+    if (config.deviceProfileFile != null) {
+      log('Applying device profile from ${config.deviceProfileFile}...');
+      profileResult =
+          await _applyProfile(trialAdb, config.deviceProfileFile, log);
+    }
 
     // 1. Thermal Gate
     final warnings = <String>[];
@@ -381,6 +401,8 @@ class Runner {
         deviceAfter: deviceAfter,
         warnings: warnings,
         config: config.toJson(),
+        deviceProfile: profileResult?.content,
+        deviceProfileSha256: profileResult?.sha256,
       );
 
       await sessionStore.writeAtomic(
@@ -398,6 +420,31 @@ class Runner {
       await trialAdb.uninstall(spec.testPackage,
           timeout: const Duration(minutes: 1));
     }
+  }
+
+  Future<({String content, String sha256})?> _applyProfile(
+      Adb adb, String? profilePath, void Function(String) log) async {
+    if (profilePath == null) return null;
+    final file = File(profilePath);
+    if (!await file.exists()) {
+      log('Warning: Profile file $profilePath not found.');
+      return null;
+    }
+
+    final content = await file.readAsString();
+    final commands = content.split('\n');
+    for (var command in commands) {
+      command = command.trim();
+      if (command.isEmpty || command.startsWith('#')) continue;
+      log('Applying device profile command: $command');
+      final res = await adb.shell(command);
+      if (res.exitCode != 0) {
+        log('Warning: Profile command failed: $command (exit ${res.exitCode})');
+      }
+    }
+
+    final hash = sha256.convert(utf8.encode(content)).toString();
+    return (content: content, sha256: hash);
   }
 
   Future<void> _generateResultsIndex(

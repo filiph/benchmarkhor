@@ -326,6 +326,7 @@ Env vars, all with sane defaults, all echoed into `/health` and into every `tria
 | `THERMAL_GATE_CELSIUS` | unset | If set, gate before each trial |
 | `THERMAL_GATE_TIMEOUT_SECONDS` | `300` | |
 | `DEVICE_PROFILE_FILE` | unset | Newline-separated shell commands run on the DUT pre-trial |
+| `DEVICE_RESET_FILE` | unset | Newline-separated shell commands run on the DUT after the session to restore defaults |
 | `PRECOMPILE_PACKAGE` | `true` | Step 8 |
 | `LOG_LEVEL` | `info` | |
 
