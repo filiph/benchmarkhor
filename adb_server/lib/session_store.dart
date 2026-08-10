@@ -7,8 +7,9 @@ import 'models.dart';
 
 /// Disk I/O and state-machine logic for sessions.
 ///
-/// All state lives under [dataDir]/sessions/<session-id>/. See `REQUIREMENTS.md`
-/// §4 for the full on-disk layout and the rules around atomic writes.
+/// All state lives under [dataDir]`/sessions/<session-id>/`.
+/// See `REQUIREMENTS.md` §4 for the full on-disk layout and the rules
+/// around atomic writes.
 class SessionStore {
   final String dataDir;
 
