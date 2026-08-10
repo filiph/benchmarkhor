@@ -21,6 +21,7 @@ FROM debian:bookworm-slim AS runtime
 # string (and re-verify against `adb version` at runtime) when upgrading.
 # Recorded in /health and in every run.json (see lib/config.dart).
 ARG ADB_VERSION=1:29.0.6-28
+ARG GIT_COMMIT=unknown
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -28,7 +29,11 @@ RUN apt-get update \
         curl \
         ca-certificates \
         procps \
+        tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+ENV TZ=Europe/Prague
+ENV GIT_COMMIT=${GIT_COMMIT}
 
 WORKDIR /app
 COPY --from=build /app/server /app/server

@@ -7,6 +7,11 @@
 
 ADB_SERVER_DIR := adb_server
 IMAGE_NAME := ghcr.io/filiph/adb_server
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+DIRTY := $(shell git status --porcelain 2>/dev/null)
+ifneq ($(DIRTY),)
+	GIT_COMMIT := $(GIT_COMMIT)-dirty
+endif
 
 .PHONY: help build up down restart logs ps test push export
 
@@ -29,10 +34,10 @@ $(ADB_SERVER_DIR)/.env:
 	fi
 
 build: $(ADB_SERVER_DIR)/.env
-	cd $(ADB_SERVER_DIR) && docker compose build
+	cd $(ADB_SERVER_DIR) && docker compose build --build-arg GIT_COMMIT=$(GIT_COMMIT)
 
 up: $(ADB_SERVER_DIR)/.env
-	cd $(ADB_SERVER_DIR) && docker compose up --build -d
+	cd $(ADB_SERVER_DIR) && docker compose up --build -d --build-arg GIT_COMMIT=$(GIT_COMMIT)
 
 down:
 	cd $(ADB_SERVER_DIR) && docker compose down
@@ -49,12 +54,12 @@ test:
 	cd $(ADB_SERVER_DIR) && dart test
 
 push: $(ADB_SERVER_DIR)/.env
-	docker buildx build --platform linux/amd64,linux/arm64 -t $(IMAGE_NAME):latest --push $(ADB_SERVER_DIR)
+	docker buildx build --platform linux/amd64,linux/arm64 -t $(IMAGE_NAME):latest --push --build-arg GIT_COMMIT=$(GIT_COMMIT) $(ADB_SERVER_DIR)
 
 # Exports the image for manual upload to Synology (no registry needed).
 # Default to amd64 (Intel NAS). Use PLATFORM=linux/arm64 for ARM-based NAS.
 PLATFORM ?= linux/amd64
 export: $(ADB_SERVER_DIR)/.env
-	docker buildx build --platform $(PLATFORM) -t $(IMAGE_NAME):latest --load $(ADB_SERVER_DIR)
+	docker buildx build --platform $(PLATFORM) -t $(IMAGE_NAME):latest --load --build-arg GIT_COMMIT=$(GIT_COMMIT) $(ADB_SERVER_DIR)
 	docker save -o adb_server.tar $(IMAGE_NAME):latest
 	@echo "Done! Upload 'adb_server.tar' to Synology Container Manager > Image > Add > From file."

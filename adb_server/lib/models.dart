@@ -258,6 +258,46 @@ class SessionStatus {
         'error': error,
       };
 
+  /// Returns the human-readable label for the primary timestamp of this session,
+  /// based on its current [state].
+  String get timestampLabel {
+    switch (state) {
+      case SessionState.queued:
+        return 'updated';
+      case SessionState.running:
+        return 'started';
+      case SessionState.failed:
+        return 'failed at';
+      case SessionState.done:
+        return 'completed at';
+      case SessionState.cancelled:
+      case SessionState.interrupted:
+      case SessionState.invalid:
+        return 'ended at';
+    }
+  }
+
+  /// Returns the primary timestamp for this session's current state, derived
+  /// from its [history] or [updatedAt] fallback.
+  DateTime get timestampValue {
+    if (state == SessionState.queued) return updatedAt;
+    if (state == SessionState.running) {
+      for (final entry in history) {
+        if (entry.to == 'running') return entry.at;
+      }
+      return updatedAt;
+    }
+    if (state == SessionState.done || state == SessionState.failed) {
+      for (final entry in history.reversed) {
+        if (entry.to == state.name) return entry.at;
+      }
+      return updatedAt;
+    }
+    // cancelled, interrupted, invalid
+    if (history.isNotEmpty) return history.last.at;
+    return updatedAt;
+  }
+
   /// Returns a copy of this status transitioned to [to], appending a
   /// [SessionHistoryEntry] recording the transition.
   SessionStatus transitionTo(

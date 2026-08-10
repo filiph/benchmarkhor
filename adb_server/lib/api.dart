@@ -46,7 +46,11 @@ class Api {
     router.get('/api/device', _deviceProbe);
     router.get(
         '/api/sessions/<id>/trials/<trial>/results/<file>', _serveResult);
+    router.get('/api/sessions/<id>/trials/<trial>/adb.log', _serveTrialArtifact);
+    router.get('/api/sessions/<id>/trials/<trial>/logcat.txt', _serveTrialArtifact);
+    router.get('/api/sessions/<id>/trials/<trial>/trial.json', _serveTrialArtifact);
     router.get('/api/sessions/<id>/log', _sessionLog);
+    router.get('/sessions/<id>', _sessionDetailPage);
 
     return router;
   }
@@ -65,6 +69,8 @@ class Api {
       if (s != null) sessions.add(s);
     }
 
+    final gitCommit = Platform.environment['GIT_COMMIT'] ?? 'unknown';
+
     final html = StringBuffer()
       ..writeln('<!DOCTYPE html>')
       ..writeln('<html><head><title>adb_server</title>')
@@ -78,6 +84,7 @@ class Api {
       ..writeln('.state-running { color: #007bff; font-weight: bold; }')
       ..writeln('.state-done { color: #28a745; }')
       ..writeln('.state-failed { color: #dc3545; }')
+      ..writeln('.footer { margin-top: 3rem; color: #666; font-size: 0.85rem; border-top: 1px solid #eee; padding-top: 1rem; }')
       ..writeln('</style></head><body>')
       ..writeln('<h1>adb_server</h1>')
       ..writeln(
@@ -94,15 +101,19 @@ class Api {
 
     html.writeln('<h2>Recent Sessions</h2>');
     html.writeln(
-        '<table><thead><tr><th>ID</th><th>State</th><th>Progress</th><th>Updated</th><th>Actions</th></tr></thead><tbody>');
+        '<table><thead><tr><th>ID</th><th>State</th><th>Progress</th><th>Timestamp</th><th>Actions</th></tr></thead><tbody>');
 
     for (final s in sessions) {
+      final tsValue = s.timestampValue.toLocal();
+      final tsLabel = s.timestampLabel;
+
       html.writeln('<tr>');
       html.writeln(
-          '<td><a href="/api/sessions/${s.sessionId}">${s.sessionId}</a></td>');
+          '<td><a href="/sessions/${s.sessionId}">${s.sessionId}</a></td>');
       html.writeln('<td class="state-${s.state.name}">${s.state.name}</td>');
       html.writeln('<td>${s.roundsCompleted}/${s.roundsPlanned} rounds</td>');
-      html.writeln('<td>${s.updatedAt.toLocal()}</td>');
+      html.writeln(
+          '<td><span title="$tsLabel">${tsValue.toString().split('.').first}</span></td>');
       html.writeln('<td>');
       if (s.state == SessionState.running) {
         html.writeln(
@@ -125,6 +136,9 @@ class Api {
     html.writeln(
         '<button type="submit" ${Runner.isBusy ? 'disabled' : ''}>Start Next Queued Session</button>');
     html.writeln('</form>');
+
+    html.writeln('<div class="footer">Version: $gitCommit</div>');
+
     html.writeln('</body></html>');
 
     return Response.ok(html.toString(), headers: {'content-type': 'text/html'});
@@ -330,13 +344,119 @@ class Api {
       return _json({'error': 'Log not found'}, status: 404);
     }
 
-    final linesParam = request.url.queryParameters['lines'];
-    final linesCount = int.tryParse(linesParam ?? '') ?? 100;
+    return Response.ok(logFile.openRead(),
+        headers: {'content-type': 'text/plain'});
+  }
 
-    final lines = await logFile.readAsLines();
-    final start = (lines.length - linesCount).clamp(0, lines.length);
-    final tail = lines.sublist(start).join('\n');
+  Future<Response> _sessionDetailPage(Request request, String id) async {
+    final status = await sessionStore.readStatus(id);
+    if (status == null) {
+      return Response.notFound('Session not found');
+    }
 
-    return Response.ok(tail, headers: {'content-type': 'text/plain'});
+    final trialsDir = sessionStore.trialsDir(id);
+    final trials = <TrialMetadata>[];
+    if (await trialsDir.exists()) {
+      final entities = await trialsDir.list().toList();
+      entities.sort((a, b) => a.path.compareTo(b.path));
+      for (final entity in entities) {
+        if (entity is Directory) {
+          final trialId = p.basename(entity.path);
+          final metadataFile = sessionStore.trialMetadataFile(id, trialId);
+          if (await metadataFile.exists()) {
+            try {
+              final json =
+                  jsonDecode(await metadataFile.readAsString());
+              trials.add(TrialMetadata.fromJson(json));
+            } catch (_) {
+              // Skip malformed trial metadata
+            }
+          }
+        }
+      }
+    }
+
+    final html = StringBuffer()
+      ..writeln('<!DOCTYPE html>')
+      ..writeln('<html><head><title>Session $id</title>')
+      ..writeln(
+          '<style>body { font-family: sans-serif; margin: 2rem; line-height: 1.5; }')
+      ..writeln(
+          'table { border-collapse: collapse; width: 100%; margin-top: 1rem; }')
+      ..writeln(
+          'th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ccc; }')
+      ..writeln('a { text-decoration: none; color: #007bff; }')
+      ..writeln('a:hover { text-decoration: underline; }')
+      ..writeln('</style></head><body>')
+      ..writeln('<h1>Session: $id</h1>')
+      ..writeln(
+          '<p><a href="/">&larr; Back to Dashboard</a> | <a href="/api/sessions/$id/log" target="_blank">Session Log</a></p>')
+      ..writeln('<h2>Trials</h2>')
+      ..writeln(
+          '<table><thead><tr><th>Trial</th><th>Variant</th><th>Started</th><th>Finished</th><th>Temp (soc-thermal)</th><th>Artifacts</th></tr></thead><tbody>');
+
+    for (final trial in trials) {
+      final beforeTemp = _getSocThermal(trial.deviceBefore);
+      final afterTemp = _getSocThermal(trial.deviceAfter);
+      final tempStr = (beforeTemp != null && afterTemp != null)
+          ? '${beforeTemp.toStringAsFixed(1)}°C &rarr; ${afterTemp.toStringAsFixed(1)}°C'
+          : 'N/A';
+
+      html.writeln('<tr>');
+      html.writeln('<td>${trial.trialId}</td>');
+      html.writeln('<td>${trial.variantName}</td>');
+      html.writeln(
+          '<td>${trial.startedAt.toLocal().toString().split('.').first}</td>');
+      html.writeln(
+          '<td>${trial.finishedAt.toLocal().toString().split('.').first}</td>');
+      html.writeln('<td>$tempStr</td>');
+      html.writeln('<td>');
+      html.writeln(
+          '<a href="/api/sessions/$id/trials/${trial.trialId}/adb.log" target="_blank">adb.log</a> | ');
+      html.writeln(
+          '<a href="/api/sessions/$id/trials/${trial.trialId}/logcat.txt" target="_blank">logcat.txt</a> | ');
+      html.writeln(
+          '<a href="/api/sessions/$id/trials/${trial.trialId}/trial.json" target="_blank">trial.json</a>');
+      html.writeln('</td>');
+      html.writeln('</tr>');
+    }
+
+    html.writeln('</tbody></table>');
+    html.writeln('</body></html>');
+
+    return Response.ok(html.toString(), headers: {'content-type': 'text/html'});
+  }
+
+  double? _getSocThermal(Map<String, dynamic> deviceData) {
+    final temps = deviceData['temperatures'] as List?;
+    if (temps == null) return null;
+    for (final t in temps) {
+      if (t is Map && t['type'] == 'soc-thermal') {
+        final val = double.tryParse(t['temp']?.toString() ?? '');
+        if (val != null) return val / 1000.0;
+      }
+    }
+    return null;
+  }
+
+  Future<Response> _serveTrialArtifact(
+      Request request, String id, String trial) async {
+    final segments = request.url.pathSegments;
+    final fileName = segments.last;
+
+    if (!['adb.log', 'logcat.txt', 'trial.json'].contains(fileName)) {
+      return Response.notFound('Not a trial artifact');
+    }
+
+    final trialDir = sessionStore.trialDir(id, trial);
+    final file = File(p.join(trialDir.path, fileName));
+
+    if (!await file.exists()) {
+      return _json({'error': 'File not found'}, status: 404);
+    }
+
+    final contentType =
+        fileName.endsWith('.json') ? 'application/json' : 'text/plain';
+    return Response.ok(file.openRead(), headers: {'content-type': contentType});
   }
 }
