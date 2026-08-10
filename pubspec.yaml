@@ -6,10 +6,10 @@ description: >
 version: 0.4.3
 repository: https://github.com/filiph/benchmarkhor
 
-executables:
-  benchcompare:
-  benchextract:
-  benchmerge:
+#executables:
+#  benchcompare:
+#  benchextract:
+#  benchmerge:
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

@@ -5,7 +5,3 @@ analyzer:
     strict-casts: true
     strict-inference: true
     strict-raw-types: true
-  exclude:
-#    - adb_server
-    - example
-    - example_adk
