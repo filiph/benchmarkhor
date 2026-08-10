@@ -6,6 +6,7 @@ import 'package:adb_server/config.dart';
 import 'package:adb_server/models.dart';
 import 'package:adb_server/runner.dart';
 import 'package:adb_server/session_store.dart';
+import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
@@ -30,6 +31,7 @@ void main() {
       thermalGateTimeoutSeconds: 300,
       deviceProfileFile: null,
       deviceResetFile: null,
+      profilesDir: p.join(tempDir.path, 'profiles'),
       precompilePackage: true,
       logLevel: 'info',
     );

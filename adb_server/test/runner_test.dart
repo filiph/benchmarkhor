@@ -36,6 +36,7 @@ void main() {
       thermalGateTimeoutSeconds: 5,
       deviceProfileFile: null,
       deviceResetFile: null,
+      profilesDir: p.join(tempDir.path, 'profiles'),
       precompilePackage: false,
       logLevel: 'info',
     );
@@ -133,6 +134,7 @@ void main() {
       thermalGateTimeoutSeconds: 2,
       deviceProfileFile: null,
       deviceResetFile: null,
+      profilesDir: p.join(tempDir.path, 'profiles'),
       precompilePackage: false,
       logLevel: 'info',
     );
@@ -181,6 +183,7 @@ void main() {
       thermalGateTimeoutSeconds: 0,
       deviceProfileFile: profileFile.path,
       deviceResetFile: resetFile.path,
+      profilesDir: p.join(tempDir.path, 'profiles'),
       precompilePackage: false,
       logLevel: 'info',
     );
@@ -221,5 +224,59 @@ void main() {
     final sessionLog = await store.sessionLogFile(sessionId).readAsString();
     expect(sessionLog, contains('Elevating to root...'));
     expect(sessionLog, contains('Applying device reset profile'));
+  });
+
+  test('Runner auto-detects device profile from model', () async {
+    // Create a profile in the temp dir under a directory matching "Pixel 3 XL"
+    // "Pixel 3 XL" cleaned -> "pixel3xl"
+    // So we can use "pixel_3_xl" or "pixel3xl"
+    final profileDir = Directory(p.join(tempDir.path, 'profiles', 'pixel_3_xl'));
+    await profileDir.create(recursive: true);
+    final profileFile = File(p.join(profileDir.path, 'performance.sh'));
+    await profileFile.writeAsString('echo auto-detected > /sys/cpu/mode');
+
+    final autoConfig = Config(
+      dutAddress: '100.120.184.47:5555',
+      dataDir: tempDir.path,
+      port: 8080,
+      adbPath: fakeAdbPath,
+      pollIntervalSeconds: 1,
+      defaultTrialTimeoutSeconds: 30,
+      thermalGateCelsius: null,
+      thermalGateTimeoutSeconds: 0,
+      deviceProfileFile: null, // No explicit profile
+      deviceResetFile: null,
+      profilesDir: p.join(tempDir.path, 'profiles'),
+      precompilePackage: false,
+      logLevel: 'info',
+    );
+
+    final sessionId = '20260809__auto';
+    await setupValidSession(sessionId);
+    await store.discoverNewSessions();
+
+    final runner = Runner(config: autoConfig, sessionStore: store);
+
+    final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
+    await deviceSdcard.create(recursive: true);
+    await File(p.join(deviceSdcard.path, 'DONE')).create();
+
+    await runner.startNext();
+
+    int attempts = 0;
+    while (Runner.isBusy && attempts < 10) {
+      await Future<void>.delayed(const Duration(seconds: 1));
+      attempts++;
+    }
+
+    final metadata = TrialMetadata.fromJson(jsonDecode(await store
+        .trialMetadataFile(sessionId, 'trial-001')
+        .readAsString()) as Map<String, dynamic>);
+
+    expect(metadata.deviceProfile, contains('auto-detected'));
+
+    final adbLog =
+        await store.trialAdbLogFile(sessionId, 'trial-001').readAsString();
+    expect(adbLog, contains('echo auto-detected > /sys/cpu/mode'));
   });
 }

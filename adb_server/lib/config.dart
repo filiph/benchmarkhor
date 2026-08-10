@@ -40,6 +40,9 @@ class Config {
   /// no reset is performed.
   final String? deviceResetFile;
 
+  /// Path to the directory containing pre-configured device profiles.
+  final String profilesDir;
+
   /// Whether to force `speed` AOT compilation right after install.
   final bool precompilePackage;
 
@@ -57,6 +60,7 @@ class Config {
     required this.thermalGateTimeoutSeconds,
     required this.deviceProfileFile,
     required this.deviceResetFile,
+    required this.profilesDir,
     required this.precompilePackage,
     required this.logLevel,
   });
@@ -90,6 +94,7 @@ class Config {
           int.tryParse(env['THERMAL_GATE_TIMEOUT_SECONDS'] ?? '') ?? 300,
       deviceProfileFile: env['DEVICE_PROFILE_FILE'],
       deviceResetFile: env['DEVICE_RESET_FILE'],
+      profilesDir: env['PROFILES_DIR'] ?? './profiles',
       precompilePackage:
           (env['PRECOMPILE_PACKAGE'] ?? 'true').toLowerCase() != 'false',
       logLevel: env['LOG_LEVEL'] ?? 'info',
@@ -109,6 +114,7 @@ class Config {
         'thermal_gate_timeout_seconds': thermalGateTimeoutSeconds,
         'device_profile_file': deviceProfileFile,
         'device_reset_file': deviceResetFile,
+        'profiles_dir': profilesDir,
         'precompile_package': precompilePackage,
         'log_level': logLevel,
       };

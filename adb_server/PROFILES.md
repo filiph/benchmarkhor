@@ -11,7 +11,10 @@ The Orange Pi 5B can experience thermal throttling at its peak frequencies (2.3G
 - Reset Profile: `profiles/orange_pi_5b/reset.sh`
 
 ### Usage
-Set the following environment variables when starting the server:
+
+By default, the `adb_server` will automatically detect the connected device model (via `ro.product.model`) and look for a matching directory in `profiles/`. For example, `orangepi5b` will match the `orange_pi_5b` directory. If a match is found, `performance.sh` will be applied before each trial and `reset.sh` will be applied after the session.
+
+To override this behavior or use a profile from a different location, set the following environment variables when starting the server:
 
 ```bash
 DEVICE_PROFILE_FILE=profiles/orange_pi_5b/performance.sh
@@ -25,3 +28,10 @@ DEVICE_RESET_FILE=profiles/orange_pi_5b/reset.sh
 
 ### Verification
 You can verify these settings are applied by checking `trial.json` metadata in the session directory or by viewing `adb.log` for each trial.
+
+## Adding New Profiles
+
+1. Create a new directory in `profiles/` named after the device model.
+2. The name matching is flexible: both the model name and directory name are cleaned (lowercase, only alphanumeric) before comparison.
+3. Create `performance.sh` for trial setup.
+4. Create `reset.sh` for session cleanup.

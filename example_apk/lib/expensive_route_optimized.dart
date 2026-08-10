@@ -3,7 +3,7 @@
 import 'package:example_apk/expensive_route.dart' as unoptimized;
 import 'package:flutter/material.dart';
 
-/// A deliberately unoptimized route, used as a measurable workload.
+/// A somewhat optimized version of [ExpensiveRoute].
 class ExpensiveRouteOptimized extends StatelessWidget {
   const ExpensiveRouteOptimized({super.key});
 

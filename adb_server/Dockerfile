@@ -32,6 +32,7 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=build /app/server /app/server
+COPY --from=build /app/profiles /app/profiles
 
 # Runs as root deliberately: the adb key persisted under /root/.android
 # must survive restarts, and the DUT-authorisation trap in the README

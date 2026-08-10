@@ -121,6 +121,8 @@ class Runner {
       statusMessage = message;
     }
 
+    String? defaultReset;
+
     try {
       final adb = Adb(
         adbPath: config.adbPath,
@@ -147,6 +149,20 @@ class Runner {
 
       log('Device state: ${await adb.getState()}');
 
+      final deviceMetadata = await probe.probe();
+      final model = deviceMetadata['model'] as String?;
+      String? defaultProfile;
+      if (model != null) {
+        defaultProfile = await _findDefaultProfile(model, 'performance');
+        defaultReset = await _findDefaultProfile(model, 'reset');
+        if (defaultProfile != null) {
+          log('Auto-detected device model "$model", using default profile $defaultProfile');
+        }
+        if (defaultReset != null) {
+          log('Auto-detected device model "$model", using default reset profile $defaultReset');
+        }
+      }
+
       for (int round = status.roundsCompleted + 1;
           round <= spec.rounds;
           round++) {
@@ -159,7 +175,8 @@ class Runner {
           log('Starting Trial $trialId (Variant: $variantName)');
 
           await _runTrial(
-              sessionId, trialId, variantName, spec, adb, probe, log);
+              sessionId, trialId, variantName, spec, adb, probe, log,
+              autoProfile: defaultProfile);
 
           // Check for cancellation between trials
           status = (await sessionStore.readStatus(sessionId))!;
@@ -186,8 +203,9 @@ class Runner {
             status.transitionTo(SessionState.failed, error: e.toString()));
       }
     } finally {
-      if (config.deviceResetFile != null) {
-        log('Applying device reset profile from ${config.deviceResetFile}...');
+      final resetFile = config.deviceResetFile ?? defaultReset;
+      if (resetFile != null) {
+        log('Applying device reset profile from $resetFile...');
         try {
           final adb = Adb(
             adbPath: config.adbPath,
@@ -200,7 +218,7 @@ class Runner {
             // but let's give it a moment.
             await Future<void>.delayed(const Duration(seconds: 2));
             await adb.connect();
-            await _applyProfile(adb, config.deviceResetFile, log);
+            await _applyProfile(adb, resetFile, log);
           }
         } catch (e) {
           log('Warning: Failed to apply reset profile: $e');
@@ -221,8 +239,9 @@ class Runner {
     SessionSpec spec,
     Adb adb,
     DeviceProbe probe,
-    void Function(String) log,
-  ) async {
+    void Function(String) log, {
+    String? autoProfile,
+  }) async {
     final trialDir = sessionStore.trialDir(sessionId, trialId);
     await trialDir.create(recursive: true);
 
@@ -239,10 +258,10 @@ class Runner {
 
     // 0. Apply Device Profile
     ({String content, String sha256})? profileResult;
-    if (config.deviceProfileFile != null) {
-      log('Applying device profile from ${config.deviceProfileFile}...');
-      profileResult =
-          await _applyProfile(trialAdb, config.deviceProfileFile, log);
+    final profileFile = config.deviceProfileFile ?? autoProfile;
+    if (profileFile != null) {
+      log('Applying device profile from $profileFile...');
+      profileResult = await _applyProfile(trialAdb, profileFile, log);
     }
 
     // 1. Thermal Gate
@@ -465,6 +484,31 @@ class Runner {
       await trialAdb.uninstall(spec.testPackage,
           timeout: const Duration(minutes: 1));
     }
+  }
+
+  Future<String?> _findDefaultProfile(String model, String type) async {
+    final modelClean = model.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final dir = Directory(config.profilesDir);
+    if (!await dir.exists()) return null;
+
+    try {
+      await for (final entity in dir.list()) {
+        if (entity is Directory) {
+          final dirName = p.basename(entity.path);
+          final dirNameClean =
+              dirName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+          if (dirNameClean == modelClean) {
+            final profileFile = File(p.join(entity.path, '$type.sh'));
+            if (await profileFile.exists()) {
+              return profileFile.path;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      _log.warning('Error listing profiles directory: $e');
+    }
+    return null;
   }
 
   Future<({String content, String sha256})?> _applyProfile(
