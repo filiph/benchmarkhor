@@ -27,7 +27,6 @@ class ExpensiveRoute extends StatelessWidget {
         children: [
           SizedBox(
             height: 200,
-            width: double.infinity,
             child: Image.asset(
               key: Key('dog_photo'),
               'assets/bond+friend.jpg',

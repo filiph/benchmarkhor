@@ -18,7 +18,6 @@ class ExpensiveRouteOptimized extends StatelessWidget {
         children: [
           SizedBox(
             height: 200,
-            width: double.infinity,
             child: Image.asset(
               key: Key('dog_photo'),
               'assets/bond+friend.jpg',
@@ -29,6 +28,7 @@ class ExpensiveRouteOptimized extends StatelessWidget {
             child: ListView.builder(
               itemCount: unoptimized.itemCount,
               itemBuilder: (c, i) => _ExpensiveItem(index: i),
+              prototypeItem: const _ExpensiveItem(index: 42),
             ),
           ),
         ],
