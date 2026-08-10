@@ -1,6 +1,9 @@
 services:
   adb_server:
-    build: .
+    build:
+      context: .
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
     image: adb_server:local
     restart: unless-stopped
     ports:

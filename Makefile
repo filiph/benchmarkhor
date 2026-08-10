@@ -37,7 +37,7 @@ build: $(ADB_SERVER_DIR)/.env
 	cd $(ADB_SERVER_DIR) && docker compose build --build-arg GIT_COMMIT=$(GIT_COMMIT)
 
 up: $(ADB_SERVER_DIR)/.env
-	cd $(ADB_SERVER_DIR) && docker compose up --build -d --build-arg GIT_COMMIT=$(GIT_COMMIT)
+	cd $(ADB_SERVER_DIR) && GIT_COMMIT=$(GIT_COMMIT) docker compose up --build -d
 
 down:
 	cd $(ADB_SERVER_DIR) && docker compose down

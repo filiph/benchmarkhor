@@ -49,6 +49,9 @@ class Config {
   /// Logging verbosity, e.g. `info`, `fine`, `warning`.
   final String logLevel;
 
+  /// The version of the adb_server (git commit hash).
+  final String gitCommit;
+
   const Config({
     required this.dutAddress,
     required this.dataDir,
@@ -63,6 +66,7 @@ class Config {
     required this.profilesDir,
     required this.precompilePackage,
     required this.logLevel,
+    required this.gitCommit,
   });
 
   /// Builds a [Config] from process environment variables.
@@ -98,6 +102,7 @@ class Config {
       precompilePackage:
           (env['PRECOMPILE_PACKAGE'] ?? 'true').toLowerCase() != 'false',
       logLevel: env['LOG_LEVEL'] ?? 'info',
+      gitCommit: env['GIT_COMMIT'] ?? 'unknown',
     );
   }
 
@@ -117,5 +122,6 @@ class Config {
         'profiles_dir': profilesDir,
         'precompile_package': precompilePackage,
         'log_level': logLevel,
+        'git_commit': gitCommit,
       };
 }

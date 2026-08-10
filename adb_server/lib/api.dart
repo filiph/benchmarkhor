@@ -69,7 +69,7 @@ class Api {
       if (s != null) sessions.add(s);
     }
 
-    final gitCommit = Platform.environment['GIT_COMMIT'] ?? 'unknown';
+    final gitCommit = config.gitCommit;
 
     final html = StringBuffer()
       ..writeln('<!DOCTYPE html>')

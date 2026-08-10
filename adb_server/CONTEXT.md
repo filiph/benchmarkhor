@@ -19,6 +19,9 @@ A specific build or configuration of the app being tested. For example, "baselin
 ### DUT (Device Under Test)
 The Android device where the benchmark trials are executed. The `adb_server` communicates with the DUT via ADB (Android Debug Bridge).
 
+### Server Version
+The specific version (Git commit hash) of the `adb_server` tool used to orchestrate a **Session**. It is recorded in every **Trial**'s metadata to ensure the infrastructure state is captured for auditability and reproducibility.
+
 ### Device Profile
 A set of shell commands applied to the **DUT** before a **Trial** to ensure a stable and reproducible environment. This typically includes pinning CPU frequencies and setting the governor to `userspace` or `performance`. The `adb_server` automatically attempts to find and apply a profile matching the **DUT**'s model from its `profiles/` directory, unless overridden by configuration.
 
