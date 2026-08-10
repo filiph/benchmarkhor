@@ -127,15 +127,41 @@ Fix this once, before relying on unattended trials:
    the device's `/data/misc/adb/adb_keys` (or `/adb_keys` depending on
    Android version) via `adb shell` or `su`.
 
-Also make sure:
+## Preparing the Device Under Test (DUT)
 
-- `adb tcpip 5555` (or `persist.adb.tcp.port` set via a build prop /
-  root) is applied on the DUT and **survives DUT reboots** -- this
-  generally requires root.
-- The DUT has a **static DHCP reservation** so `DUT_ADDRESS` stays valid
-  across reboots.
+Before the DUT is ready for unattended benchmarking, several one-time setup steps are required to ensure the environment is stable and doesn't prompt for human intervention.
+
+### 1. Networking and ADB Stability
+- **Static DHCP reservation:** Ensure the DUT has a fixed IP address so `DUT_ADDRESS` stays valid across reboots.
+- **Persistent ADB over TCP/IP:** `adb tcpip 5555` (or setting `persist.adb.tcp.port` via a build prop / root) must be applied and **survive DUT reboots**. This generally requires root.
+
+### 2. The ADB Authorisation Trap
+See the [The ADB authorisation trap](#the-adb-authorisation-trap) section above for details on how to handle the initial "Allow USB debugging?" prompt.
+
+### 3. Disabling Play Protect Prompts
+Google Play Protect will often block unknown APKs (like your benchmark trials) and show a "Send app for a security check?" prompt. This will hang the automated trial indefinitely.
+
+To permanently disable this, run the following command once from your workstation while the device is connected via ADB:
+
+```sh
+adb shell settings put global package_verifier_user_consent -1
+```
+
+### 4. Developer Options
+You may have to enable Developer Mode by going to Settings > About and clicking the Build number several times.
+In the device's **Developer Options**, ensure the following are set:
+- **Verify apps over USB:** OFF (This is the GUI equivalent of the command above, but verify it's off).
+- **Stay awake:** ON (Screen will never sleep while charging).
+- **Disable adb authorization timeout:** ON
+
+
+### 5. Disable System Updates and Notifications
+To minimize background interference during trials:
+- Disable automatic system updates in Developer Options or System settings.
+- Enable "Do Not Disturb" mode.
+- (Optional) Uninstall or disable unnecessary background apps.
 
 Per `REQUIREMENTS.md` §10, once the trial lifecycle is implemented, an
 `unauthorized` `adb get-state` must surface verbatim in the API response
-and `session.log` (not a generic non-zero exit code) and point back to this
-section.
+and `session.log` (not a generic non-zero exit code) and point back to the
+authorisation section.
