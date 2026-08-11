@@ -175,7 +175,7 @@ class Runner {
           log('Starting Trial $trialId (Variant: $variantName)');
 
           await _runTrial(
-              sessionId, trialId, variantName, spec, adb, probe, log,
+              sessionId, trialId, variantName, round, spec, adb, probe, log,
               autoProfile: defaultProfile);
 
           // Check for cancellation between trials
@@ -236,6 +236,7 @@ class Runner {
     String sessionId,
     String trialId,
     String variantName,
+    int round,
     SessionSpec spec,
     Adb adb,
     DeviceProbe probe,
@@ -449,6 +450,7 @@ class Runner {
         sessionId: sessionId,
         variantName: variantName,
         trialId: trialId,
+        round: round,
         startedAt: startedAt,
         finishedAt: finishedAt,
         deviceBefore: deviceBefore,

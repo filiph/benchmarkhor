@@ -366,7 +366,7 @@ class Api {
           if (await metadataFile.exists()) {
             try {
               final json =
-                  jsonDecode(await metadataFile.readAsString());
+                  jsonDecode(await metadataFile.readAsString()) as Map<String, dynamic>;
               trials.add(TrialMetadata.fromJson(json));
             } catch (_) {
               // Skip malformed trial metadata

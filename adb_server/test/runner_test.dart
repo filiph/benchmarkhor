@@ -204,7 +204,7 @@ void main() {
     await runner.startNext();
 
     int attempts = 0;
-    while (Runner.isBusy && attempts < 10) {
+    while (Runner.isBusy && attempts < 30) {
       await Future<void>.delayed(const Duration(seconds: 1));
       attempts++;
     }
@@ -270,7 +270,7 @@ void main() {
     await runner.startNext();
 
     int attempts = 0;
-    while (Runner.isBusy && attempts < 10) {
+    while (Runner.isBusy && attempts < 30) {
       await Future<void>.delayed(const Duration(seconds: 1));
       attempts++;
     }

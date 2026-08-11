@@ -8,10 +8,13 @@
 /// superquantile), for both the build and the raster timing. When frames carry
 /// a `phase` tag, the metrics are also written per phase. It also writes
 /// `temperature.dat` with the device temperature at the end of each round.
+/// It also writes change .dat files relative to the baseline variant (the first
+/// variant listed in session.json).
 library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
@@ -44,9 +47,36 @@ void main(List<String> arguments) async {
     exit(1);
   }
 
+  final sessionJsonFile = File(p.join(sessionPath, 'session.json'));
+  if (!sessionJsonFile.existsSync()) {
+    stderr.writeln('Error: session.json not found at ${sessionJsonFile.path}');
+    exit(1);
+  }
+
+  Map<String, dynamic> sessionJson;
+  try {
+    sessionJson =
+        jsonDecode(sessionJsonFile.readAsStringSync()) as Map<String, dynamic>;
+  } catch (e) {
+    stderr.writeln(
+        'Error: Failed to parse session.json at ${sessionJsonFile.path}: $e');
+    exit(1);
+  }
+
+  final variantsMap = sessionJson['variants'] as Map<String, dynamic>?;
+  if (variantsMap == null || variantsMap.isEmpty) {
+    stderr.writeln('Error: "variants" map missing or empty in session.json');
+    exit(1);
+  }
+
+  final variantNames = variantsMap.keys.toList();
+  final baselineVariant = variantNames.first;
+  final variantCount = variantNames.length;
+
   print('Extracting data from $sessionPath to ${outputDir.path}...');
 
   final variantTrials = <String, List<TrialData>>{};
+  final roundTrials = <int, Map<String, TrialData>>{};
 
   // The temperature at the end of each Trial, in the order the Trials ran.
   final endTemperatures = <double?>[];
@@ -63,6 +93,18 @@ void main(List<String> arguments) async {
         jsonDecode(trialJsonFile.readAsStringSync()) as Map<String, dynamic>;
     final variantName = trialJson['variant_name'] as String;
     final trialId = trialJson['trial_id'] as String;
+
+    final trialNumber = _parseTrialNumber(trialId);
+    final calculatedRound = (trialNumber - 1) ~/ variantCount + 1;
+
+    if (trialJson.containsKey('round') && trialJson['round'] != null) {
+      final recordedRound = trialJson['round'] as int;
+      if (recordedRound != calculatedRound) {
+        stderr.writeln(
+            'Error: Trial $trialId recorded round ($recordedRound) does not match calculated round ($calculatedRound).');
+        exit(1);
+      }
+    }
 
     endTemperatures.add(_endTemperature(trialJson));
 
@@ -110,6 +152,7 @@ void main(List<String> arguments) async {
     final trialData = TrialData(trialId, buildTimes, rasterTimes,
         buildTimesByPhase, rasterTimesByPhase);
     variantTrials.putIfAbsent(variantName, () => []).add(trialData);
+    roundTrials.putIfAbsent(calculatedRound, () => {})[variantName] = trialData;
 
     // Write per-trial files
     _writeDat(p.join(outputDir.path, 'build_${variantName}_$trialId.dat'),
@@ -148,10 +191,74 @@ void main(List<String> arguments) async {
     }
   }
 
-  _writeRoundTemperatures(
-      outputDir.path, endTemperatures, variantTrials.length);
+  _writeRoundTemperatures(outputDir.path, endTemperatures, variantCount);
+
+  // Validate missing trials/rounds
+  final maxRound = roundTrials.keys.isEmpty ? 0 : roundTrials.keys.reduce(max);
+  for (var r = 1; r <= maxRound; r++) {
+    for (final v in variantNames) {
+      if (roundTrials[r]?[v] == null) {
+        stderr.writeln('Warning: Round $r missing trial for variant $v');
+      }
+    }
+  }
+
+  // Write change aggregate files for non-baseline variants
+  final nonBaselineVariants = variantNames.sublist(1);
+  final allTrialsList = variantTrials.values.expand((t) => t).toList();
+  final phases = _phasesOf(allTrialsList);
+
+  for (final v in nonBaselineVariants) {
+    // All-phases change aggregates
+    _writeChangeAggregatesForTiming(
+      outputDirPath: outputDir.path,
+      timing: 'build',
+      baselineVariant: baselineVariant,
+      variantName: v,
+      maxRound: maxRound,
+      roundTrials: roundTrials,
+    );
+    _writeChangeAggregatesForTiming(
+      outputDirPath: outputDir.path,
+      timing: 'raster',
+      baselineVariant: baselineVariant,
+      variantName: v,
+      maxRound: maxRound,
+      roundTrials: roundTrials,
+    );
+
+    // Per-phase change aggregates
+    for (final phase in phases) {
+      _writeChangeAggregatesForTiming(
+        outputDirPath: outputDir.path,
+        timing: 'build',
+        baselineVariant: baselineVariant,
+        variantName: v,
+        maxRound: maxRound,
+        roundTrials: roundTrials,
+        phase: phase,
+      );
+      _writeChangeAggregatesForTiming(
+        outputDirPath: outputDir.path,
+        timing: 'raster',
+        baselineVariant: baselineVariant,
+        variantName: v,
+        maxRound: maxRound,
+        roundTrials: roundTrials,
+        phase: phase,
+      );
+    }
+  }
 
   print('Done! Files created in ${outputDir.path}');
+}
+
+int _parseTrialNumber(String trialId) {
+  final match = RegExp(r'trial-(\d+)').firstMatch(trialId);
+  if (match != null) {
+    return int.parse(match.group(1)!);
+  }
+  return int.tryParse(trialId.replaceAll(RegExp(r'\D'), '')) ?? 0;
 }
 
 /// All phase tags seen in [trials], sorted for stable output.
@@ -260,6 +367,99 @@ void _writeAggregates(String outputDirPath, String timing, String variantName,
   _writeDat(
       p.join(outputDirPath, '${timing}_p95superquantile_$variantName.dat'),
       p95Superquantiles);
+}
+
+Map<String, double>? _computeMetrics(List<num> data) {
+  if (data.isEmpty) return null;
+  final first = data.first.toDouble();
+  final sorted = List<num>.from(data)..sort();
+  final p95sq = superquantile(sorted, 0.95);
+  if (data.length == 1) {
+    final only = data.single.toDouble();
+    return {
+      'first': first,
+      'mean': only,
+      'min': only,
+      'max': only,
+      'p95': only,
+      'p99': only,
+      'p95superquantile': p95sq,
+    };
+  }
+  final doubleList = data.map((e) => e.toDouble()).toList();
+  final stats = Statistic.from(doubleList);
+  return {
+    'first': first,
+    'mean': stats.mean.toDouble(),
+    'min': stats.min.toDouble(),
+    'max': stats.max.toDouble(),
+    'p95': percentile(sorted, 0.95),
+    'p99': percentile(sorted, 0.99),
+    'p95superquantile': p95sq,
+  };
+}
+
+void _writeChangeAggregatesForTiming({
+  required String outputDirPath,
+  required String timing,
+  required String baselineVariant,
+  required String variantName,
+  required int maxRound,
+  required Map<int, Map<String, TrialData>> roundTrials,
+  String? phase,
+}) {
+  final metricNames = [
+    'first',
+    'mean',
+    'min',
+    'max',
+    'p95',
+    'p99',
+    'p95superquantile'
+  ];
+  final changeLists = {for (final m in metricNames) m: <double>[]};
+
+  for (var r = 1; r <= maxRound; r++) {
+    final baseTrial = roundTrials[r]?[baselineVariant];
+    final varTrial = roundTrials[r]?[variantName];
+    if (baseTrial == null || varTrial == null) continue;
+
+    List<num> baseData;
+    List<num> varData;
+    if (timing == 'build') {
+      baseData = phase == null
+          ? baseTrial.buildTimes
+          : (baseTrial.buildTimesByPhase[phase] ?? const <num>[]);
+      varData = phase == null
+          ? varTrial.buildTimes
+          : (varTrial.buildTimesByPhase[phase] ?? const <num>[]);
+    } else {
+      baseData = phase == null
+          ? baseTrial.rasterTimes
+          : (baseTrial.rasterTimesByPhase[phase] ?? const <num>[]);
+      varData = phase == null
+          ? varTrial.rasterTimes
+          : (varTrial.rasterTimesByPhase[phase] ?? const <num>[]);
+    }
+
+    final baseMetrics = _computeMetrics(baseData);
+    final varMetrics = _computeMetrics(varData);
+    if (baseMetrics == null || varMetrics == null) continue;
+
+    for (final m in metricNames) {
+      final change = varMetrics[m]! - baseMetrics[m]!;
+      changeLists[m]!.add(change);
+    }
+  }
+
+  final suffix = phase == null ? variantName : '${variantName}_$phase';
+  for (final m in metricNames) {
+    final values = changeLists[m]!;
+    if (values.isNotEmpty) {
+      _writeDat(
+          p.join(outputDirPath, '${timing}_${m}_change_$suffix.dat'), values);
+    }
+  }
 }
 
 double percentile(List<num> sorted, double p) {

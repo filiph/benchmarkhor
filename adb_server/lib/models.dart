@@ -334,6 +334,7 @@ class TrialMetadata {
   final String sessionId;
   final String variantName;
   final String trialId;
+  final int? round;
   final DateTime startedAt;
   final DateTime finishedAt;
   final Map<String, dynamic> deviceBefore;
@@ -348,6 +349,7 @@ class TrialMetadata {
     required this.sessionId,
     required this.variantName,
     required this.trialId,
+    this.round,
     required this.startedAt,
     required this.finishedAt,
     this.deviceBefore = const {},
@@ -363,6 +365,7 @@ class TrialMetadata {
         sessionId: json['session_id'] as String,
         variantName: json['variant_name'] as String,
         trialId: json['trial_id'] as String,
+        round: json['round'] as int?,
         startedAt: DateTime.parse(json['started_at'] as String),
         finishedAt: DateTime.parse(json['finished_at'] as String),
         deviceBefore:
@@ -379,6 +382,7 @@ class TrialMetadata {
         'session_id': sessionId,
         'variant_name': variantName,
         'trial_id': trialId,
+        if (round != null) 'round': round,
         'started_at': startedAt.toIso8601String(),
         'finished_at': finishedAt.toIso8601String(),
         'device_before': deviceBefore,
