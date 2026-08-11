@@ -1,30 +1,30 @@
-import 'dart:io';
+import 'dart:math';
 
 import 'package:benchmarkhor/src/plot/dat_parser.dart';
+import 'package:benchmarkhor/src/plot/svg.dart';
 import 'package:benchmarkhor/src/plot/violin/violin_data.dart';
 import 'package:benchmarkhor/src/plot/violin/violin_renderer.dart';
 import 'package:test/test.dart';
 
+const plotBottom = marginTop + plotHeight;
+
+/// The y coordinate of the highlighted y=0 line, if drawn.
+double? zeroLineY(String svg) {
+  final match = RegExp(r'<line x1="[\d.]+" y1="([\d.]+)" x2="[\d.]+" '
+          r'y2="[\d.]+" stroke="#eee"')
+      .firstMatch(svg);
+  return match == null ? null : double.parse(match.group(1)!);
+}
+
+/// The y coordinates of all outlier circles.
+List<double> outlierYs(String svg) =>
+    RegExp(r'<circle cx="[-\d.]+" cy="([-\d.]+)"')
+        .allMatches(svg)
+        .map((m) => double.parse(m.group(1)!))
+        .toList();
+
 void main() {
   group('buildViolinSvg', () {
-    test('output is unchanged from pre-refactor behavior (regression)', () {
-      final paths = [
-        'test/fixtures/sample_a.dat',
-        'test/fixtures/sample_b.dat',
-      ];
-      final violins = paths.map((path) {
-        final values = parseDat(path);
-        final label =
-            path.split(Platform.pathSeparator).last.replaceAll('.dat', '');
-        return ViolinData.compute(label, values);
-      }).toList();
-
-      final svg = buildViolinSvg(violins);
-      final golden = File('test/fixtures/violin_golden.svg').readAsStringSync();
-
-      expect(svg, golden);
-    });
-
     test('output starts with valid SVG header', () {
       final values = parseDat('test/fixtures/sample_a.dat');
       final violin = ViolinData.compute('sample_a', values);
@@ -32,6 +32,114 @@ void main() {
 
       expect(svg, startsWith('<?xml'));
       expect(svg, contains('<svg'));
+    });
+
+    test('renders the sample fixtures on shared axes', () {
+      final violins = [
+        'test/fixtures/sample_a.dat',
+        'test/fixtures/sample_b.dat'
+      ].map((path) => ViolinData.compute(path, parseDat(path))).toList();
+
+      final svg = buildViolinSvg(violins);
+
+      expect(RegExp('<polygon').allMatches(svg).length, 2);
+      expect(svg, endsWith('</svg>\n'));
+    });
+
+    test('all-positive data puts the zero line at the very bottom', () {
+      final violin =
+          ViolinData.compute('a', [100, 110, 120, 130, 140, 150, 160]);
+      final svg = buildViolinSvg([violin]);
+
+      expect(zeroLineY(svg), closeTo(plotBottom, 1e-9));
+    });
+
+    test('all-negative data puts the zero line at the very top', () {
+      final violin =
+          ViolinData.compute('a', [-100, -110, -120, -130, -140, -150, -160]);
+      final svg = buildViolinSvg([violin]);
+
+      expect(zeroLineY(svg), closeTo(marginTop, 1e-9));
+    });
+
+    test('data straddling zero puts the zero line inside the plot', () {
+      final violin =
+          ViolinData.compute('a', [-30, -20, -10, 0, 10, 20, 30, 40, 50]);
+      final svg = buildViolinSvg([violin]);
+
+      final y0 = zeroLineY(svg)!;
+      expect(y0, greaterThan(marginTop));
+      expect(y0, lessThan(plotBottom));
+    });
+
+    test('negative data is drawn below the zero line', () {
+      final violin =
+          ViolinData.compute('a', [-30, -20, -10, 0, 10, 20, 30, 40, 50]);
+      final svg = buildViolinSvg([violin]);
+
+      final y0 = zeroLineY(svg)!;
+      final polygonYs = RegExp(r'<polygon points="([^"]*)"')
+          .firstMatch(svg)!
+          .group(1)!
+          .trim()
+          .split(' ')
+          .map((p) => double.parse(p.split(',')[1]));
+
+      // Larger pixel y means lower on the canvas.
+      expect(polygonYs.reduce(max), greaterThan(y0));
+    });
+
+    test('outliers far below the plot minimum are summarised, not drawn', () {
+      // A tight distribution plus one extreme low value.
+      final values = <num>[
+        for (var i = 0; i < 40; i++) 100 + i % 5,
+        -100000,
+      ];
+      final violin = ViolinData.compute('a', values);
+      final svg = buildViolinSvg([violin]);
+
+      expect(svg, contains('outliers (min -100000)'));
+      // Nothing is drawn outside the plot area.
+      for (final y in outlierYs(svg)) {
+        expect(y, lessThanOrEqualTo(plotBottom + 1e-9));
+        expect(y, greaterThanOrEqualTo(marginTop - 1e-9));
+      }
+    });
+
+    test('outliers far above the plot maximum are still summarised', () {
+      final values = <num>[
+        for (var i = 0; i < 40; i++) 100 + i % 5,
+        100000,
+      ];
+      final violin = ViolinData.compute('a', values);
+      final svg = buildViolinSvg([violin]);
+
+      expect(svg, contains('outliers (max 100000)'));
+    });
+  });
+
+  group('ViolinData', () {
+    test('input range is symmetric around median when straddling zero', () {
+      final data = ViolinData.compute('a', [-20, -10, 0, 10, 20]);
+
+      expect(data.inputMax - data.median,
+          closeTo(data.median - data.inputMin, 1e-9));
+    });
+
+    test('input range is bounded at zero for all-positive data', () {
+      final data = ViolinData.compute('a', [10, 20, 30, 40, 50]);
+
+      expect(data.inputMin, 0.0);
+    });
+
+    test('all-positive data with large IQR keeps zero line at plot bottom', () {
+      // Median ~2200, IQR ~1500 -> med - 3*iqr would be negative (-2300)
+      final data = ViolinData.compute('a', [200, 500, 2200, 3700, 5000]);
+      expect(data.inputMin, 0.0);
+
+      final svg = buildViolinSvg([data]);
+      expect(zeroLineY(svg), closeTo(plotBottom, 1e-9));
+      expect(svg, isNot(contains('-1000')));
     });
   });
 }

@@ -25,6 +25,9 @@ class ViolinData {
   /// The maximum value this input wants to show on the y-axis.
   final double inputMax;
 
+  /// The minimum value this input wants to show on the y-axis.
+  final double inputMin;
+
   ViolinData({
     required this.label,
     required this.sorted,
@@ -39,6 +42,7 @@ class ViolinData {
     required this.kdePoints,
     required this.maxDensity,
     required this.inputMax,
+    required this.inputMin,
   });
 
   factory ViolinData.compute(
@@ -57,7 +61,14 @@ class ViolinData {
     final q3 = percentile(sorted, 0.75);
     final iqr = q3 - q1;
 
-    final inputMax = med + maxOutlierCoefficient * iqr;
+    var inputMax = med + maxOutlierCoefficient * iqr;
+    var inputMin = med - maxOutlierCoefficient * iqr;
+    if (sorted.isNotEmpty && sorted.first >= 0) {
+      inputMin = max(0.0, inputMin);
+    }
+    if (sorted.isNotEmpty && sorted.last <= 0) {
+      inputMax = min(0.0, inputMax);
+    }
 
     final fenceLo = q1 - 1.5 * iqr;
     final fenceHi = q3 + 1.5 * iqr;
@@ -92,6 +103,7 @@ class ViolinData {
       kdePoints: kdePoints,
       maxDensity: maxDensity,
       inputMax: inputMax,
+      inputMin: inputMin,
     );
   }
 }

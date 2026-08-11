@@ -2,43 +2,28 @@ import 'dart:math';
 
 import 'package:benchmarkhor/src/plot/svg.dart';
 import 'package:benchmarkhor/src/plot/violin/violin_data.dart';
+import 'package:benchmarkhor/src/plot/y_axis.dart';
 
 // ---------------------------------------------------------------------------
 // SVG rendering
 // ---------------------------------------------------------------------------
 
 String buildViolinSvg(List<ViolinData> violins) {
-  // Global y range: 0 to max of all data (including outliers and KDE tails)
+  // Plot range: the span of values the plot commits to showing. Values
+  // outside of it are excluded (and summarised in a note instead).
   double plotMaximum = 0;
+  double plotMinimum = 0;
   for (final v in violins) {
     if (v.sorted.isEmpty) continue;
     plotMaximum = max(plotMaximum, v.inputMax);
+    plotMinimum = min(plotMinimum, v.inputMin);
   }
 
-  double globalYMax = plotMaximum;
-  double globalYMin = double.infinity;
-  for (final v in violins) {
-    if (v.sorted.isEmpty) continue;
-    // Also consider raw data for safety (though KDE usually spans it)
-    globalYMin = min(globalYMin, v.sorted.first.toDouble());
-  }
-  // Always include 0
-  globalYMin = min(globalYMin, 0);
-  // Add 5% padding on top
-  final yRange = globalYMax - globalYMin;
-  final yAxisMax = globalYMax + yRange * 0.05;
-  final yAxisMin = globalYMin;
-
-  // Ticks
-  final ticks = niceTicks(yAxisMin, yAxisMax, targetCount: 7);
-  // Extend axis to encompass last tick
-  final axisMax = max(yAxisMax, ticks.last);
-  final axisMin = min(yAxisMin, ticks.first);
-
-  // Map a data-y value to SVG pixel y (inverted: larger y → smaller pixel y)
-  double toSvgY(double y) {
-    return marginTop + plotHeight * (1 - (y - axisMin) / (axisMax - axisMin));
-  }
+  final axis = YAxis.forRange(plotMinimum, plotMaximum);
+  final ticks = axis.ticks;
+  final axisMin = axis.min;
+  final axisMax = axis.max;
+  final toSvgY = axis.toSvgY;
 
   // Horizontal spacing for violins
   final count = violins.length;
@@ -125,7 +110,7 @@ String buildViolinSvg(List<ViolinData> violins) {
       final rightPoints = StringBuffer();
       final leftPoints = StringBuffer();
       for (final (y, density) in v.kdePoints) {
-        if (y > plotMaximum) continue;
+        if (y < plotMinimum || y > plotMaximum) continue;
         final svgY = toSvgY(y);
         final halfW = (density / globalMaxDensity) * maxHalfPx;
         rightPoints.write('${slotCenterX + halfW},$svgY ');
@@ -201,12 +186,19 @@ String buildViolinSvg(List<ViolinData> violins) {
     );
 
     // --- Outliers ---
-    int excludedCount = 0;
-    double excludedMax = 0;
+    int excludedAboveCount = 0;
+    double? excludedMax;
+    int excludedBelowCount = 0;
+    double? excludedMin;
     for (final o in v.outliers) {
       if (o > plotMaximum) {
-        excludedCount++;
-        excludedMax = max(excludedMax, o);
+        excludedAboveCount++;
+        excludedMax = excludedMax == null ? o : max(excludedMax, o);
+        continue;
+      }
+      if (o < plotMinimum) {
+        excludedBelowCount++;
+        excludedMin = excludedMin == null ? o : min(excludedMin, o);
         continue;
       }
       final oy = toSvgY(o);
@@ -216,12 +208,21 @@ String buildViolinSvg(List<ViolinData> violins) {
       );
     }
 
-    // --- Outlier note ---
-    if (excludedCount > 0) {
-      final formattedMax = formatTick(excludedMax);
-      final note = '+$excludedCount outliers (max $formattedMax)';
+    // --- Outlier notes ---
+    if (excludedAboveCount > 0) {
+      final formattedMax = formatTick(excludedMax!);
+      final note = '+$excludedAboveCount outliers (max $formattedMax)';
       buf.writeln(
         '<text x="$slotCenterX" y="${marginTop - 10}" '
+        'text-anchor="middle" font-family="Arial,sans-serif" '
+        'font-size="11" fill="#aaa">$note</text>',
+      );
+    }
+    if (excludedBelowCount > 0) {
+      final formattedMin = formatTick(excludedMin!);
+      final note = '+$excludedBelowCount outliers (min $formattedMin)';
+      buf.writeln(
+        '<text x="$slotCenterX" y="${marginTop + plotHeight + 12}" '
         'text-anchor="middle" font-family="Arial,sans-serif" '
         'font-size="11" fill="#aaa">$note</text>',
       );

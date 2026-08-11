@@ -31,16 +31,16 @@ void main() {
 
     test('is never below the p95 it complements', () {
       final frames = [for (var i = 1; i <= 703; i++) i * i];
-      expect(superquantile(frames, 0.95),
-          greaterThan(percentile(frames, 0.95)));
+      expect(
+          superquantile(frames, 0.95), greaterThan(percentile(frames, 0.95)));
     });
 
     test('reacts to how bad the worst frames are, unlike p95', () {
       final mild = [for (var i = 1; i <= 99; i++) 10, 100];
       final severe = [for (var i = 1; i <= 99; i++) 10, 10000];
       expect(percentile(mild, 0.95), equals(percentile(severe, 0.95)));
-      expect(superquantile(severe, 0.95),
-          greaterThan(superquantile(mild, 0.95)));
+      expect(
+          superquantile(severe, 0.95), greaterThan(superquantile(mild, 0.95)));
     });
 
     test('is zero for no frames', () {

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:benchmarkhor/src/plot/line/line_data.dart';
 import 'package:benchmarkhor/src/plot/svg.dart';
+import 'package:benchmarkhor/src/plot/y_axis.dart';
 
 // ---------------------------------------------------------------------------
 // SVG rendering
@@ -16,8 +17,9 @@ String buildLineSvg(List<LineData> lines) {
     maxIndex = max(maxIndex, l.values.length - 1);
   }
 
-  // Y range: min/max across all values, with 5% padding on top (same
-  // convention as the violin plot's y-axis).
+  // Y range: min/max across all values. Unlike the violin plot, a line plot
+  // never discards data, so nothing is clipped here; zero anchoring and axis
+  // padding are handled by [YAxis].
   double globalYMin = double.infinity;
   double globalYMax = double.negativeInfinity;
   for (final l in nonEmptyLines) {
@@ -31,22 +33,12 @@ String buildLineSvg(List<LineData> lines) {
     globalYMin = 0;
     globalYMax = 0;
   }
-  // Always include 0
-  globalYMin = min(globalYMin, 0);
-  globalYMax = max(globalYMax, 0);
-  final yRange = globalYMax - globalYMin;
-  final yAxisMax = globalYMax + yRange * 0.05;
-  final yAxisMin = globalYMin;
 
-  // Ticks
-  final ticks = niceTicks(yAxisMin, yAxisMax, targetCount: 7);
-  final axisMax = max(yAxisMax, ticks.last);
-  final axisMin = min(yAxisMin, ticks.first);
-
-  // Map a data-y value to SVG pixel y (inverted: larger y → smaller pixel y)
-  double toSvgY(double y) {
-    return marginTop + plotHeight * (1 - (y - axisMin) / (axisMax - axisMin));
-  }
+  final axis = YAxis.forRange(globalYMin, globalYMax);
+  final ticks = axis.ticks;
+  final axisMin = axis.min;
+  final axisMax = axis.max;
+  final toSvgY = axis.toSvgY;
 
   // Map a point index to SVG pixel x.
   double toSvgX(int index) {
@@ -95,21 +87,14 @@ String buildLineSvg(List<LineData> lines) {
     );
   }
 
-  // --- y=0 axis line (highlighted) ---
-  if (axisMin <= 0 && 0 <= axisMax) {
+  // --- X axis line (at y=0, not necessarily at the bottom of the plot) ---
+  if (axis.containsZero) {
     final y0 = toSvgY(0);
     buf.writeln(
       '<line x1="$axisX" y1="$y0" x2="${axisX + plotWidth}" y2="$y0" '
       'stroke="#eee" stroke-width="1.5"/>',
     );
   }
-
-  // --- X axis line ---
-  buf.writeln(
-    '<line x1="$axisX" y1="${marginTop + plotHeight}" '
-    'x2="${axisX + plotWidth}" y2="${marginTop + plotHeight}" '
-    'stroke="#ccc" stroke-width="1.5"/>',
-  );
 
   // --- Lines ---
   for (int i = 0; i < lines.length; i++) {
