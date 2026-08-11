@@ -46,9 +46,12 @@ class Api {
     router.get('/api/device', _deviceProbe);
     router.get(
         '/api/sessions/<id>/trials/<trial>/results/<file>', _serveResult);
-    router.get('/api/sessions/<id>/trials/<trial>/adb.log', _serveTrialArtifact);
-    router.get('/api/sessions/<id>/trials/<trial>/logcat.txt', _serveTrialArtifact);
-    router.get('/api/sessions/<id>/trials/<trial>/trial.json', _serveTrialArtifact);
+    router.get(
+        '/api/sessions/<id>/trials/<trial>/adb.log', _serveTrialArtifact);
+    router.get(
+        '/api/sessions/<id>/trials/<trial>/logcat.txt', _serveTrialArtifact);
+    router.get(
+        '/api/sessions/<id>/trials/<trial>/trial.json', _serveTrialArtifact);
     router.get('/api/sessions/<id>/log', _sessionLog);
     router.get('/sessions/<id>', _sessionDetailPage);
 
@@ -84,7 +87,8 @@ class Api {
       ..writeln('.state-running { color: #007bff; font-weight: bold; }')
       ..writeln('.state-done { color: #28a745; }')
       ..writeln('.state-failed { color: #dc3545; }')
-      ..writeln('.footer { margin-top: 3rem; color: #666; font-size: 0.85rem; border-top: 1px solid #eee; padding-top: 1rem; }')
+      ..writeln(
+          '.footer { margin-top: 3rem; color: #666; font-size: 0.85rem; border-top: 1px solid #eee; padding-top: 1rem; }')
       ..writeln('</style></head><body>')
       ..writeln('<h1>adb_server</h1>')
       ..writeln(
@@ -365,8 +369,8 @@ class Api {
           final metadataFile = sessionStore.trialMetadataFile(id, trialId);
           if (await metadataFile.exists()) {
             try {
-              final json =
-                  jsonDecode(await metadataFile.readAsString()) as Map<String, dynamic>;
+              final json = jsonDecode(await metadataFile.readAsString())
+                  as Map<String, dynamic>;
               trials.add(TrialMetadata.fromJson(json));
             } catch (_) {
               // Skip malformed trial metadata

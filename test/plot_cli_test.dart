@@ -10,8 +10,7 @@ void main() {
       expect(result.stderr, contains('Missing subcommand'));
     });
 
-    test('violin with a missing file exits 1 with expected message',
-        () async {
+    test('violin with a missing file exits 1 with expected message', () async {
       final result = await Process.run(
           'dart', ['run', 'bin/plot.dart', 'violin', '/tmp/nope_a.dat']);
       expect(result.exitCode, 1);
@@ -31,8 +30,7 @@ void main() {
       expect(result.exitCode, 64);
     });
 
-    test('line with a valid file exits 0 and produces SVG on stdout',
-        () async {
+    test('line with a valid file exits 0 and produces SVG on stdout', () async {
       final result = await Process.run('dart',
           ['run', 'bin/plot.dart', 'line', 'test/fixtures/sample_a.dat']);
       expect(result.exitCode, 0);

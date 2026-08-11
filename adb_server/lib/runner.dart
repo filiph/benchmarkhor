@@ -363,7 +363,8 @@ class Runner {
         Future<void>.delayed(const Duration(seconds: 2)),
       ]);
 
-      if (instrumentationResult != null && instrumentationResult!.exitCode != 0) {
+      if (instrumentationResult != null &&
+          instrumentationResult!.exitCode != 0) {
         throw Exception(
             'Instrumentation failed to start (exit ${instrumentationResult!.exitCode}):\n'
             '${instrumentationResult!.stdout}\n${instrumentationResult!.stderr}');

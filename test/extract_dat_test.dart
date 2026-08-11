@@ -32,7 +32,8 @@ void main() {
       expect(result.stderr, contains('session.json not found'));
     });
 
-    test('extracts change .dat files comparing non-baseline to baseline variant',
+    test(
+        'extracts change .dat files comparing non-baseline to baseline variant',
         () async {
       final sessionDir = Directory(p.join(tempDir.path, 'session'));
       final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
@@ -201,8 +202,8 @@ void main() {
       );
 
       expect(result.exitCode, equals(0));
-      expect(
-          result.stderr, contains('Warning: Round 2 missing trial for variant alt'));
+      expect(result.stderr,
+          contains('Warning: Round 2 missing trial for variant alt'));
 
       final changeMeanFile =
           File(p.join(outDir.path, 'build_mean_change_alt.dat'));

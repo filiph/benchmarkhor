@@ -26,7 +26,8 @@ class Adb {
   ///
   /// The command is automatically targeted at [deviceAddress] using `-s`.
   Future<ProcessResult> run(List<String> arguments,
-      {bool useDevice = true, Duration timeout = const Duration(minutes: 2)}) async {
+      {bool useDevice = true,
+      Duration timeout = const Duration(minutes: 2)}) async {
     final fullArgs = [
       if (useDevice) ...['-s', deviceAddress],
       ...arguments,
@@ -35,7 +36,8 @@ class Adb {
     final stopwatch = Stopwatch()..start();
     ProcessResult result;
     if (timeout != Duration.zero) {
-      final process = await Process.start(adbPath, fullArgs, environment: environment);
+      final process =
+          await Process.start(adbPath, fullArgs, environment: environment);
       final stdoutFuture = process.stdout.transform(utf8.decoder).join();
       final stderrFuture = process.stderr.transform(utf8.decoder).join();
       final exitCode = await process.exitCode.timeout(
@@ -48,8 +50,12 @@ class Adb {
       result = ProcessResult(
         process.pid,
         exitCode,
-        exitCode == -1 ? 'Timed out after ${timeout.inSeconds}s' : await stdoutFuture,
-        exitCode == -1 ? 'Timed out after ${timeout.inSeconds}s' : await stderrFuture,
+        exitCode == -1
+            ? 'Timed out after ${timeout.inSeconds}s'
+            : await stdoutFuture,
+        exitCode == -1
+            ? 'Timed out after ${timeout.inSeconds}s'
+            : await stderrFuture,
       );
     } else {
       result = await Process.run(adbPath, fullArgs, environment: environment);
@@ -112,7 +118,8 @@ class Adb {
     return false;
   }
 
-  Future<String?> getState({Duration timeout = const Duration(seconds: 30)}) async {
+  Future<String?> getState(
+      {Duration timeout = const Duration(seconds: 30)}) async {
     final result = await run(['get-state'], timeout: timeout);
     if (result.exitCode != 0) return null;
     return (result.stdout as String).trim();
@@ -189,8 +196,9 @@ class Adb {
   /// Returns a [LogcatProcess] which contains the [Process] and a [Stream] of
   /// logcat lines. The caller is responsible for killing the process.
   Future<LogcatProcess> startLogcat(File outputFile) async {
-    final process =
-        await Process.start(adbPath, ['-s', deviceAddress, 'logcat'], environment: environment);
+    final process = await Process.start(
+        adbPath, ['-s', deviceAddress, 'logcat'],
+        environment: environment);
     final sink = outputFile.openWrite();
 
     final controller = StreamController<String>.broadcast();
