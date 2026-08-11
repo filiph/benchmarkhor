@@ -39,6 +39,7 @@ void main() {
       profilesDir: p.join(tempDir.path, 'profiles'),
       precompilePackage: false,
       logLevel: 'info',
+      gitCommit: 'abdabdabd',
     );
   });
 
@@ -137,6 +138,7 @@ void main() {
       profilesDir: p.join(tempDir.path, 'profiles'),
       precompilePackage: false,
       logLevel: 'info',
+      gitCommit: 'abdabdabd',
     );
 
     final sessionId = '20260809__thermal';
@@ -186,6 +188,7 @@ void main() {
       profilesDir: p.join(tempDir.path, 'profiles'),
       precompilePackage: false,
       logLevel: 'info',
+      gitCommit: 'abdabdabd',
     );
 
     final sessionId = '20260809__profile';
@@ -215,7 +218,8 @@ void main() {
     expect(metadata.deviceProfileSha256, isNotNull);
 
     // 2. Verify adb.log contains the commands
-    final adbLog = await store.trialAdbLogFile(sessionId, 'trial-001').readAsString();
+    final adbLog =
+        await store.trialAdbLogFile(sessionId, 'trial-001').readAsString();
     expect(adbLog, contains('echo performance > /sys/cpu/governor'));
     expect(adbLog, contains('echo 1200000 > /sys/cpu/speed'));
     expect(adbLog, isNot(contains('# comment')));
@@ -230,7 +234,8 @@ void main() {
     // Create a profile in the temp dir under a directory matching "Pixel 3 XL"
     // "Pixel 3 XL" cleaned -> "pixel3xl"
     // So we can use "pixel_3_xl" or "pixel3xl"
-    final profileDir = Directory(p.join(tempDir.path, 'profiles', 'pixel_3_xl'));
+    final profileDir =
+        Directory(p.join(tempDir.path, 'profiles', 'pixel_3_xl'));
     await profileDir.create(recursive: true);
     final profileFile = File(p.join(profileDir.path, 'performance.sh'));
     await profileFile.writeAsString('echo auto-detected > /sys/cpu/mode');
@@ -249,6 +254,7 @@ void main() {
       profilesDir: p.join(tempDir.path, 'profiles'),
       precompilePackage: false,
       logLevel: 'info',
+      gitCommit: 'abdabdabd',
     );
 
     final sessionId = '20260809__auto';

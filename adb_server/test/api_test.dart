@@ -34,6 +34,7 @@ void main() {
       profilesDir: p.join(tempDir.path, 'profiles'),
       precompilePackage: true,
       logLevel: 'info',
+      gitCommit: 'abdabdabd',
     );
     runner = Runner(config: config, sessionStore: store);
     api = Api(config: config, sessionStore: store, runner: runner);
@@ -115,7 +116,8 @@ void main() {
     expect(status.roundsPlanned, 5);
   });
 
-  test('POST /api/sessions/discover redirects to / for HTML requests', () async {
+  test('POST /api/sessions/discover redirects to / for HTML requests',
+      () async {
     final request = Request(
       'POST',
       Uri.parse('http://localhost/api/sessions/discover'),
