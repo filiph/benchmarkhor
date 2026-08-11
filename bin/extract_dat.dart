@@ -218,6 +218,7 @@ void _writeDat(String path, List<num> values) {
 /// `raster`) of one variant.
 void _writeAggregates(String outputDirPath, String timing, String variantName,
     List<List<num>> trialsData) {
+  final firsts = <double>[];
   final means = <double>[];
   final mins = <double>[];
   final maxs = <double>[];
@@ -227,6 +228,7 @@ void _writeAggregates(String outputDirPath, String timing, String variantName,
 
   for (final data in trialsData) {
     if (data.isEmpty) continue;
+    firsts.add(data.first.toDouble());
     final sorted = List<num>.from(data)..sort();
     p95Superquantiles.add(superquantile(sorted, 0.95));
     if (data.length == 1) {
@@ -249,6 +251,7 @@ void _writeAggregates(String outputDirPath, String timing, String variantName,
     p99s.add(percentile(sorted, 0.99));
   }
 
+  _writeDat(p.join(outputDirPath, '${timing}_first_$variantName.dat'), firsts);
   _writeDat(p.join(outputDirPath, '${timing}_mean_$variantName.dat'), means);
   _writeDat(p.join(outputDirPath, '${timing}_min_$variantName.dat'), mins);
   _writeDat(p.join(outputDirPath, '${timing}_max_$variantName.dat'), maxs);

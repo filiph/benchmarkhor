@@ -78,6 +78,13 @@ nothing about *which* timing of a Frame is being summarised; build timing and
 raster timing are each summarised by the full set of Metrics.
 _Avoid_: Statistic, aggregate, measure, score
 
+**Firsts**:
+The frame time measurement harness (e.g., in `example_apk`) makes sure that
+the first frame just after `addTimingsCallback()` is recorded.
+In many experiments, this might be the only important measurement,
+such as an expensive route change. For that reason, one of the **Metrics**
+simply selects the first measurement in the series, discarding others.
+
 **Superquantile**:
 The **Metric** that averages the worst tail of a **Trial**'s **Frames**. The p95
 superquantile is the mean of the worst 5% of Frames, so unlike the p95 it is
