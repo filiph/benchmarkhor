@@ -131,7 +131,7 @@ Design a minimal schema, roughly:
   },
   "package": "com.example.example_apk",
   "test_package": "com.example.example_apk.test",
-  "instrumentation_runner": "dev.flutter.plugins.integration_test.FlutterTestRunner",
+  "instrumentation_runner": "androidx.test.runner.AndroidJUnitRunner",
   "rounds": 3,
   "trial_timeout_seconds": 1800,
   "expected_result_files": ["frames.jsonl"],
@@ -139,6 +139,8 @@ Design a minimal schema, roughly:
   "tags": { "flutter": "3.41", "git_commit": "abc123", "notes": "..." }
 }
 ```
+
+`instrumentation_runner` is the `android:name` of the `<instrumentation>` element in the **test APK**'s manifest, which for a Flutter `androidTest` APK is `androidx.test.runner.AndroidJUnitRunner`. It is *not* `dev.flutter.plugins.integration_test.FlutterTestRunner`: that is a JUnit runner named in a `@RunWith` annotation inside the test APK (see `example_apk/android/app/src/androidTest/.../MainActivityTest.java`), not an `android.app.Instrumentation`, and `am instrument` fails outright if handed it.
 
 `rounds` = how many **Rounds** the server executes. Each Round involves running every **Variant** once, in random order, with a fresh install/uninstall cycle per **Trial**.
 
@@ -233,7 +235,7 @@ For each **Round** (up to `rounds`):
     5. **Optional thermal gate.** If configured, poll SoC temperature until below a threshold or a timeout expires **before every Trial**. In v1, on timeout: proceed but record a `warnings: ["thermal_gate_timeout"]` entry.
     6. **Clean device state.** Remove the on-device result directory. By default, the next step uses `adb install -r` (replace), but provide a config/job flag to perform a full `uninstall` before each Trial for maximum isolation. Note that uninstalling wipes `/sdcard/Android/data/<pkg>/`.
     7. **Install:** `adb install -r -g <variant_apk>`, then `adb install -r -g <variant_test_apk>`.
-    8. **Optional AOT settle:** `adb shell cmd package compile -m speed -f <pkg>`.
+    8. **Optional AOT settle:** `adb shell cmd package compile -m speed -f <pkg>`. This is a no-op while the app APK is `debuggable`, which Flutter's `profile` buildType leaves it -- ART pins debuggable packages to the `verify` filter. Even otherwise it only affects the Java/Kotlin embedding; the Dart side is already AOT in a profile build.
     9. **Keep the device awake.**
     10. **Clear logcat** (`adb logcat -c`), then start capturing logcat to `logcat.txt`.
     11. **Launch:** `adb shell am instrument -w -r <test_package>/<instrumentation_runner>` (plus any extras).

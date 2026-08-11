@@ -11,6 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  # A real dependency, not a dev one: the Trial *is* this APK's `main()`, so
+  # `frame_recorder.dart` runs inside the shipped app and needs the plugin's
+  # native side. Flutter strips dev-dependency plugins from non-debug builds.
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -18,7 +22,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   integration_test:
     sdk: flutter
-  path_provider: ^2.1.5
 
 flutter:
   uses-material-design: true

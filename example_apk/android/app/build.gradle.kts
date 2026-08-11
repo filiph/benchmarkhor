@@ -25,6 +25,15 @@ android {
         versionName = flutter.versionName
     }
 
+    // The `androidTest` APK is the bridge that `am instrument` uses to launch a
+    // Trial. AGP builds it against `debug` unless told otherwise, which pulls a
+    // whole debug app build along for the ride and leaves an `app-debug.apk`
+    // next to the `app-profile.apk` the rig actually wants. It also only
+    // happens to install because Flutter's `profile` buildType inherits the
+    // debug signing key; a real signing config would break `am instrument`
+    // with a signature mismatch.
+    testBuildType = "profile"
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
