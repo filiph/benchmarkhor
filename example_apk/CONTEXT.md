@@ -24,6 +24,24 @@ a lot of frame time. Its slowness is its purpose; it is a fixture, not a screen
 to be improved.
 _Avoid_: Heavy route, dog page, slow screen
 
+**Variant APK**:
+The installable **App Under Measurement** carrying exactly one **Variant**. A
+Variant is chosen at build time, not at run time, so comparing two Variants means
+building two Variant APKs.
+_Avoid_: App APK, main APK, the real APK
+
+**Bridge APK**:
+The companion package that lets the outside world start a **Trial**. It knows no
+**Variant** — it only names an activity to launch — so the same Bridge APK pairs
+with any **Variant APK** of the **App Under Measurement**.
+_Avoid_: Test APK, androidTest APK, instrumentation APK
+
+**APK Pair**:
+A **Variant APK** and a **Bridge APK** installed together. A Pair is the smallest
+thing that can produce a **Trial** on a device; a **Session** comparing two
+**Variants** needs two Pairs.
+_Avoid_: APK set, bundle
+
 **Threshold**:
 The count at which the **Counter** opens the **Expensive Route**. Reaching a
 multiple of the threshold re-arms the trigger, so one launch of the app can yield

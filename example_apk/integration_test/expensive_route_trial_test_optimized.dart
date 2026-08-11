@@ -25,62 +25,71 @@ void main() {
 
       final recorder = FrameRecorder();
 
-      await tester.pumpWidget(const MyApp());
-      await _settleForReal(tester);
-
-      for (var i = 0; i < 9; i++) {
-        await tester.tap(find.byIcon(Icons.add));
+      // Anything thrown in here — a finder that times out, a fling that misses,
+      // a route that never opens — must still be reported, or the server waits
+      // out `trial_timeout_seconds` and calls it a crash. See
+      // `adb_server/CONTRACT.md`.
+      try {
+        await tester.pumpWidget(const MyApp());
         await _settleForReal(tester);
+
+        for (var i = 0; i < 9; i++) {
+          await tester.tap(find.byIcon(Icons.add));
+          await _settleForReal(tester);
+        }
+        expect(
+          find.byType(ExpensiveRouteOptimized),
+          findsNothing,
+          reason: 'nine taps must not reach the Threshold',
+        );
+
+        await _settleForReal(tester, const Duration(seconds: 2));
+
+        // Discards Frames belonging to app start-up and up to the final tap,
+        // which are not part of the Trial.
+        await recorder.start();
+        recorder.phase = 'route_build';
+        await tester.tap(find.byIcon(Icons.add));
+        await _settleForReal(tester, const Duration(seconds: 1));
+        await _waitFor(tester, find.byType(ExpensiveRouteOptimized));
+
+        await _settleForReal(tester, const Duration(seconds: 2));
+
+        recorder.phase = 'scroll';
+        final listFinder = find.byType(ListView);
+        final screenHeight = tester.getSize(listFinder).height;
+        final position = tester
+            .state<ScrollableState>(find.byType(Scrollable))
+            .position;
+
+        for (var i = 0; i < screensToScroll; i++) {
+          await tester.fling(listFinder, Offset(0, -screenHeight), flingSpeed);
+          await _settleForReal(tester, const Duration(milliseconds: 900));
+        }
+
+        await _settleForReal(tester, const Duration(seconds: 2));
+
+        recorder.phase = 'rest';
+        await _settleForReal(tester, const Duration(milliseconds: 500));
+        await recorder.stop();
+
+        expect(
+          position.pixels,
+          greaterThan(screenHeight * screensToScroll / 2),
+          reason: 'the flings must have moved the list a long way down',
+        );
+        expect(
+          recorder.frameCount,
+          greaterThan(0),
+          reason: 'a Trial that records no Frames is not a measurement',
+        );
+
+        final directory = await recorder.writeResults();
+        debugPrint('Wrote ${recorder.frameCount} Frames to ${directory.path}');
+      } catch (error, stackTrace) {
+        await recorder.writeFailure(error, stackTrace);
+        rethrow;
       }
-      expect(
-        find.byType(ExpensiveRouteOptimized),
-        findsNothing,
-        reason: 'nine taps must not reach the Threshold',
-      );
-
-      await _settleForReal(tester, const Duration(seconds: 2));
-
-      // Discards Frames belonging to app start-up and up to the final tap,
-      // which are not part of the Trial.
-      await recorder.start();
-      recorder.phase = 'route_build';
-      await tester.tap(find.byIcon(Icons.add));
-      await _settleForReal(tester, const Duration(seconds: 1));
-      await _waitFor(tester, find.byType(ExpensiveRouteOptimized));
-
-      await _settleForReal(tester, const Duration(seconds: 2));
-
-      recorder.phase = 'scroll';
-      final listFinder = find.byType(ListView);
-      final screenHeight = tester.getSize(listFinder).height;
-      final position = tester
-          .state<ScrollableState>(find.byType(Scrollable))
-          .position;
-
-      for (var i = 0; i < screensToScroll; i++) {
-        await tester.fling(listFinder, Offset(0, -screenHeight), flingSpeed);
-        await _settleForReal(tester, const Duration(milliseconds: 900));
-      }
-
-      await _settleForReal(tester, const Duration(seconds: 2));
-
-      recorder.phase = 'rest';
-      await _settleForReal(tester, const Duration(milliseconds: 500));
-      await recorder.stop();
-
-      expect(
-        position.pixels,
-        greaterThan(screenHeight * screensToScroll / 2),
-        reason: 'the flings must have moved the list a long way down',
-      );
-      expect(
-        recorder.frameCount,
-        greaterThan(0),
-        reason: 'a Trial that records no Frames is not a measurement',
-      );
-
-      final directory = await recorder.writeResults();
-      debugPrint('Wrote ${recorder.frameCount} Frames to ${directory.path}');
     },
   );
 }

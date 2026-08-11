@@ -74,9 +74,31 @@ class FrameRecorder {
 
     // Only once every result file is closed and flushed.
     await File('${directory.path}/DONE').writeAsString('');
-    stdout.writeln('BENCH_DONE 0 ${file.path} ${_frames.length} frames');
-    await stdout.flush();
+    // `print`, not `stdout.writeln`: on Android an app process's file
+    // descriptor 1 goes nowhere, while `print` is routed to logcat by the
+    // engine. The marker is detection priority 2 in `adb_server/CONTRACT.md`,
+    // so writing it to a dead fd would silently cost the server its only
+    // fallback when the sentinel file is missing.
+    // ignore: avoid_print — this line *is* the log output the contract names.
+    print('BENCH_DONE 0 ${file.path} ${_frames.length} frames');
     return directory;
+  }
+
+  /// Signals an unrecoverable error the way `adb_server/CONTRACT.md` requires:
+  /// a `FAILED` file carrying the reason, in place of `DONE`, plus a matching
+  /// `BENCH_FAILED` marker in logcat.
+  ///
+  /// Without this a Trial that throws writes nothing at all, leaving the server
+  /// to infer a crash from a vanished process or to wait out
+  /// `trial_timeout_seconds` — up to half an hour to learn nothing.
+  Future<void> writeFailure(Object reason, [StackTrace? stackTrace]) async {
+    final directory = await _resultDirectory();
+    final details = stackTrace == null ? '$reason' : '$reason\n$stackTrace';
+    await File('${directory.path}/FAILED').writeAsString('$details\n');
+    // The marker must stay on one line for the server's logcat scan, so only
+    // the first line of the reason goes into it; the file holds the rest.
+    // ignore: avoid_print — this line *is* the log output the contract names.
+    print('BENCH_FAILED ${'$reason'.split('\n').first}');
   }
 
   /// On Android this is `/sdcard/Android/data/<pkg>/files`, which `adb pull`

@@ -16,6 +16,36 @@ Vocabulary (Trial, Frame, Variant, Session) lives in
 | `test/` | Widget tests on the synthetic clock. Correctness only, never timing. |
 | `integration_test/` | One **Trial** on a real device: ten taps on the Counter, then ten screens of flinging down the Expensive Route, recording every **Frame**. |
 
+### The four moving parts
+
+Four files with confusingly similar names are involved in running a Trial, and
+they are not alternatives to each other:
+
+| File | Role | Needed by |
+|---|---|---|
+| `integration_test/expensive_route_trial_test.dart` | The Trial itself, baseline **Variant**. Becomes the **Variant APK**'s entrypoint. | both flows |
+| `integration_test/expensive_route_trial_test_optimized.dart` | The same Trial against the optimised **Variant**. A Variant is chosen at build time, so a second Variant needs a second file and a second APK. | both flows |
+| `test_driver/integration_test.dart` | Empty by design. `flutter drive` demands a `--driver` argument; this satisfies it and does nothing else. See [ADR 0002](../doc/adr/0002-the-app-measures-itself.md). | `flutter drive` only |
+| `build/app/outputs/apk/androidTest/profile/app-profile-androidTest.apk` | The **Bridge APK**. Contains no Dart and no Variant — just `MainActivityTest.java`, which launches `MainActivity` so the bundled Trial runs. | `am instrument` only |
+
+So there are two flows sharing one workload:
+
+```
+flutter drive (local dev loop)          am instrument (the rig)
+  test_driver/integration_test.dart       Bridge APK -> MainActivityTest
+            |                                   |
+            +--------> MainActivity <-----------+
+                            |
+              the Trial compiled into the Variant APK
+                            |
+                   frames.jsonl + DONE
+```
+
+`flutter drive` builds its own throwaway Bridge APK and never touches the staged
+one. The two Dart Trial files are near-identical on purpose; if you change the
+workload in one, change it in the other, or the **Variants** stop being
+comparable and nothing will warn you.
+
 ## Running the Trial
 
 ```sh
@@ -35,23 +65,54 @@ you're checking that the Trial *runs*, not what it measures.
 
 ## Building for `adb_server`
 
-To generate the APK pair (app + `androidTest`) for the benchmarking rig:
+To generate the **APK Pair** (a **Variant APK** plus a **Bridge APK**) for the
+benchmarking rig:
 
 ```sh
 # Baseline
-flutter build apk --profile -t integration_test/expensive_route_trial_test.dart
-cd android && ./gradlew app:assembleAndroidTest && cd ..
+flutter clean
+flutter build apk --profile --target-platform android-arm64 \
+    -t integration_test/expensive_route_trial_test.dart
+cd android && ./gradlew app:assembleProfileAndroidTest && cd ..
 cp build/app/outputs/flutter-apk/app-profile.apk staging/baseline.apk
-cp build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk staging/baseline-test.apk
+cp build/app/outputs/apk/androidTest/profile/app-profile-androidTest.apk staging/baseline-test.apk
 
 # Optimized
-flutter build apk --profile -t integration_test/expensive_route_trial_test_optimized.dart
-cd android && ./gradlew app:assembleAndroidTest && cd ..
+flutter clean
+flutter build apk --profile --target-platform android-arm64 \
+    -t integration_test/expensive_route_trial_test_optimized.dart
+cd android && ./gradlew app:assembleProfileAndroidTest && cd ..
 cp build/app/outputs/flutter-apk/app-profile.apk staging/improved.apk
-cp build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk staging/improved-test.apk
+cp build/app/outputs/apk/androidTest/profile/app-profile-androidTest.apk staging/improved-test.apk
 ```
 
-The `androidTest` APK is a generic bridge (via `MainActivityTest.java`) that triggers the `target` Dart file bundled in the main APK.
+The **Bridge APK** is Variant-agnostic (via `MainActivityTest.java`): it launches
+`MainActivity`, and whichever Trial was bundled into the **Variant APK** by `-t`
+is what runs. It is copied twice above only so each Variant directory is
+self-contained — the two files are byte-identical.
+
+Three details in there are not decoration:
+
+**`flutter clean` first.** Gradle packages the APK incrementally, rewriting the
+zip in place and leaving the previous build's entries behind as dead space. An
+arm64 APK rebuilt over a universal one measured 66 MB on disk while holding only
+26 MB of entries. The rig installs the pair before *every* Trial, so that slack
+is paid for on every install.
+
+**`--target-platform android-arm64`.** Without it you get a universal APK with
+`arm64-v8a`, `armeabi-v7a` and `x86_64` payloads (66 MB of entries), of which the
+DUT uses one (26 MB). Drop the flag to go back to universal if you ever want to
+smoke-test the pair on an x86_64 emulator, or switch to `--split-per-abi` to keep
+both options at the cost of ABI-suffixed filenames in the `cp` lines above.
+
+**`assembleProfileAndroidTest`, not `assembleAndroidTest`.** `testBuildType =
+"profile"` in `android/app/build.gradle.kts` moves the Bridge APK onto the
+profile buildType. Under the old `debug` default, Gradle also built an entire
+debug app APK as a side effect and dropped `app-debug.apk` next to the
+`app-profile.apk` you are copying — and the pair only installed at all because
+Flutter's profile buildType inherits the debug signing key. The Bridge APK's
+build type cannot affect measurements (it holds no Dart and no native code), but
+the mismatch was a signing accident waiting to happen.
 
 A sample `session.json` is provided in `staging/`.
 
@@ -59,7 +120,8 @@ A sample `session.json` is provided in `staging/`.
 
 One JSON object per Frame, newline-delimited, honouring
 [`adb_server/CONTRACT.md`](../adb_server/CONTRACT.md) — including the `DONE`
-sentinel and the `BENCH_DONE` log line:
+sentinel and the `BENCH_DONE` log line, and, if the Trial throws, a `FAILED` file
+carrying the reason plus a `BENCH_FAILED` log line instead:
 
 ```json
 {"phase":"scroll","frameNumber":615,"vsyncStart":1809551368,"buildStart":...,
@@ -88,6 +150,18 @@ which floods the raster thread and makes `rasterDuration`, `vsyncOverhead` and
 the scroll extent is approximate, so the Trial asserts on `ScrollPosition.pixels`
 rather than assuming an exact offset.
 
+**A profile build is still `debuggable`.** Flutter's `profile` buildType is
+`initWith(debug)`, so the **Variant APK** ships `android:debuggable="true"` and a
+`libvmservice_snapshot.so`. This is deliberate — it is what lets `flutter attach`
+and the local `flutter drive` loop work — and both Variants carry it equally, so
+it is common-mode and cancels in a baseline-versus-improved comparison. Two
+consequences worth knowing: absolute numbers here are not release-grade, and
+`adb shell cmd package compile -m speed` is a no-op, because ART pins debuggable
+packages to the `verify` compiler filter. The Dart workload is AOT regardless,
+which you can confirm by finding `lib/*/libapp.so` and no `kernel_blob.bin`
+inside the APK. See
+[ADR 0004](../doc/adr/0004-profile-builds-are-measured-as-debuggable.md).
+
 **Two seconds of patience at each end.** The engine batches `FrameTiming`s and
 may only deliver them once per second, so the recorder waits before it starts
 (discarding start-up Frames) and polls until deliveries stop before it writes.
@@ -96,7 +170,13 @@ For the same reason a Frame carries whichever phase was current when its timing
 
 ## Not done yet
 
-The two-APK `am instrument` flow — `testBuildType = "profile"`,
-`assembleProfileAndroidTest`, and a `FlutterTestRunner` shell class — is the
-actual target (`adb_server/REQUIREMENTS.md` §6). `flutter drive` is only the
-local dev loop.
+The two-APK `am instrument` flow is now buildable: `testBuildType = "profile"`,
+`assembleProfileAndroidTest` and the `MainActivityTest.java` shell class are all
+in place, and that flow is the actual target (`adb_server/REQUIREMENTS.md` §6).
+What remains untested is the flow itself — no Trial has yet been launched via
+`adb shell am instrument` end to end. `flutter drive` is still the local dev loop.
+
+When that first `am instrument` run happens, check that the `BENCH_DONE` line
+reaches `adb logcat`. It is emitted with `print` rather than `stdout.writeln`
+precisely because an Android app's file descriptor 1 goes nowhere, but that has
+not been verified on a device.
