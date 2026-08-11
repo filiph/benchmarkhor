@@ -3,9 +3,10 @@
 /// Usage:
 ///   dart bin/extract_dat.dart <session_path> [--output <dir>]
 ///
-/// This script creates .dat files for each trial and aggregated metrics
-/// (mean, min, max, p95, p99) for each variant. When frames carry a `phase`
-/// tag, the aggregates are also written per phase. It also writes
+/// This script creates .dat files for each trial and, for each variant, one
+/// value per trial for every metric (mean, min, max, p95, p99, p95
+/// superquantile), for both the build and the raster timing. When frames carry
+/// a `phase` tag, the metrics are also written per phase. It also writes
 /// `temperature.dat` with the device temperature at the end of each round.
 library;
 
@@ -213,17 +214,21 @@ void _writeDat(String path, List<num> values) {
   file.writeAsStringSync('${values.join('\n')}\n');
 }
 
-void _writeAggregates(String outputDirPath, String metric, String variantName,
+/// Writes one value per trial for each metric, for one [timing] (`build` or
+/// `raster`) of one variant.
+void _writeAggregates(String outputDirPath, String timing, String variantName,
     List<List<num>> trialsData) {
   final means = <double>[];
   final mins = <double>[];
   final maxs = <double>[];
   final p95s = <double>[];
   final p99s = <double>[];
+  final p95Superquantiles = <double>[];
 
   for (final data in trialsData) {
     if (data.isEmpty) continue;
     final sorted = List<num>.from(data)..sort();
+    p95Superquantiles.add(superquantile(sorted, 0.95));
     if (data.length == 1) {
       // A phase can consist of a single frame, which Statistic refuses.
       final only = data.single.toDouble();
@@ -244,11 +249,14 @@ void _writeAggregates(String outputDirPath, String metric, String variantName,
     p99s.add(percentile(sorted, 0.99));
   }
 
-  _writeDat(p.join(outputDirPath, '${metric}_mean_$variantName.dat'), means);
-  _writeDat(p.join(outputDirPath, '${metric}_min_$variantName.dat'), mins);
-  _writeDat(p.join(outputDirPath, '${metric}_max_$variantName.dat'), maxs);
-  _writeDat(p.join(outputDirPath, '${metric}_p95_$variantName.dat'), p95s);
-  _writeDat(p.join(outputDirPath, '${metric}_p99_$variantName.dat'), p99s);
+  _writeDat(p.join(outputDirPath, '${timing}_mean_$variantName.dat'), means);
+  _writeDat(p.join(outputDirPath, '${timing}_min_$variantName.dat'), mins);
+  _writeDat(p.join(outputDirPath, '${timing}_max_$variantName.dat'), maxs);
+  _writeDat(p.join(outputDirPath, '${timing}_p95_$variantName.dat'), p95s);
+  _writeDat(p.join(outputDirPath, '${timing}_p99_$variantName.dat'), p99s);
+  _writeDat(
+      p.join(outputDirPath, '${timing}_p95superquantile_$variantName.dat'),
+      p95Superquantiles);
 }
 
 double percentile(List<num> sorted, double p) {
@@ -260,6 +268,32 @@ double percentile(List<num> sorted, double p) {
   if (lo == hi) return sorted[lo].toDouble();
   final frac = index - lo;
   return sorted[lo] * (1 - frac) + sorted[hi] * frac;
+}
+
+/// The mean of the worst `1 - p` of [sorted], which must be sorted ascending.
+///
+/// The tail rarely contains a whole number of values: with 703 values, the
+/// worst 5% are 35.15 of them. The 35 worst count in full and the next one
+/// counts for the remaining 0.15, so the result doesn't jump when a single
+/// value crosses the tail boundary. See
+/// `doc/adr/0004-superquantile-tail-is-interpolated.md`.
+///
+/// When the tail is thinner than one value — 20 values or fewer, at p95 — this
+/// is the largest value.
+double superquantile(List<num> sorted, double p) {
+  if (sorted.isEmpty) return 0;
+  final tailWeight = sorted.length * (1 - p);
+  if (tailWeight <= 0) return sorted.last.toDouble();
+  final whole = tailWeight.floor();
+  var sum = 0.0;
+  for (var i = sorted.length - whole; i < sorted.length; i++) {
+    sum += sorted[i].toDouble();
+  }
+  final fraction = tailWeight - whole;
+  if (fraction > 0) {
+    sum += sorted[sorted.length - whole - 1].toDouble() * fraction;
+  }
+  return sum / tailWeight;
 }
 
 class TrialData {

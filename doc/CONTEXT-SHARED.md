@@ -68,11 +68,36 @@ A frame. The rig records each one's build and raster timing, so a **Trial**
 yields many Frames, each different from the last.
 _Avoid_: Sample, tick, data point
 
+### The measurements
+
+**Metric**:
+One number summarising all the **Frames** of a single **Trial** — a mean, a
+minimum, a maximum, a percentile, a **Superquantile**. A Metric turns a Trial
+into a point that can be compared with the same Metric of another Trial. It says
+nothing about *which* timing of a Frame is being summarised; build timing and
+raster timing are each summarised by the full set of Metrics.
+_Avoid_: Statistic, aggregate, measure, score
+
+**Superquantile**:
+The **Metric** that averages the worst tail of a **Trial**'s **Frames**. The p95
+superquantile is the mean of the worst 5% of Frames, so unlike the p95 it is
+sensitive to *how* bad the bad Frames are, and it varies far less from Trial to
+Trial than the single Frame a percentile happens to land on. Where a percentile
+answers "how bad is the frame at the edge of the tail", a Superquantile answers
+"how bad is the tail".
+_Avoid_: CVaR, expected shortfall, tail mean, average excess
+
 ## Flagged ambiguities
 
 **"Sample"** is banned. It was used for both a **Trial** (in
 `example_apk/CONTEXT.md`) and a **Frame** timing (in `adb_server/CONTRACT.md`),
 one word at two granularities. Use **Trial** or **Frame**.
+
+**"Temperature"** is not a **Metric**. The device temperature recorded at the
+end of each **Round** is an observation of the **Treatment** drifting over a
+**Session** — a covariate, something to check the Experiment against, not a
+result of it. It is written alongside the Metrics and plotted with them, but it
+summarises no **Frames** and it belongs to a Round rather than a **Trial**.
 
 **"Run"** is resolved. `adb_server`'s on-disk layout used to spend it on
 `runs/run-NNN/` and its `job.json` had a `repetitions` field meaning "how many
