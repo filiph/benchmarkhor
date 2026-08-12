@@ -135,6 +135,28 @@ void main() {
     });
   });
 
+  group('writeAtomic', () {
+    test('writes content successfully', () async {
+      final file = File(p.join(tempDir.path, 'atomic.txt'));
+      await store.writeAtomic(file, 'hello world');
+      expect(await file.readAsString(), 'hello world');
+    });
+
+    test('replaces existing file', () async {
+      final file = File(p.join(tempDir.path, 'atomic.txt'));
+      await file.writeAsString('old');
+      await store.writeAtomic(file, 'new');
+      expect(await file.readAsString(), 'new');
+    });
+
+    test('does not leave tmp file on success', () async {
+      final file = File(p.join(tempDir.path, 'atomic.txt'));
+      await store.writeAtomic(file, 'data');
+      final tmpFile = File('${file.path}.tmp');
+      expect(await tmpFile.exists(), isFalse);
+    });
+  });
+
   group('listSessionIds', () {
     test('returns session ids in lexicographic order', () async {
       await writeSessionSpec('2026-01-02__b', {

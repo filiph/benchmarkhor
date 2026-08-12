@@ -27,9 +27,10 @@ class Runner {
   final SessionStore sessionStore;
   final Map<String, String>? environment;
 
-  static String? _runningSessionId;
-  static String? statusMessage;
-  static bool get isBusy => _runningSessionId != null;
+  String? _runningSessionId;
+  String? get runningSessionId => _runningSessionId;
+  String? statusMessage;
+  bool get isBusy => _runningSessionId != null;
 
   Runner({required this.config, required this.sessionStore, this.environment});
 

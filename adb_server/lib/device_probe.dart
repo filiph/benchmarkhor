@@ -85,7 +85,6 @@ class DeviceProbe {
     }
   }
 
-  /// Captures a comprehensive snapshot of the device state.
   Future<Map<String, dynamic>> probe() async {
     final metadata = <String, dynamic>{};
     final warnings = <String>[];
@@ -162,5 +161,27 @@ class DeviceProbe {
     }
 
     return metadata;
+  }
+
+  /// Returns the temperature of the first 'soc-thermal' or 'cpu-thermal' zone,
+  /// or null if not found or offline.
+  Future<double?> getSocTemp() async {
+    for (var i = 0; i < 20; i++) {
+      final typeRes =
+          await adb.shell('cat /sys/class/thermal/thermal_zone$i/type');
+      if (typeRes.exitCode != 0) break;
+      final type = (typeRes.stdout as String).trim();
+      if (type == 'soc-thermal' || type == 'cpu-thermal') {
+        final tempRes =
+            await adb.shell('cat /sys/class/thermal/thermal_zone$i/temp');
+        if (tempRes.exitCode == 0) {
+          final val = double.tryParse((tempRes.stdout as String).trim());
+          if (val != null) {
+            return val > 1000 ? val / 1000.0 : val;
+          }
+        }
+      }
+    }
+    return null;
   }
 }

@@ -62,7 +62,62 @@ void main(List<String> arguments) {
     return;
   }
 
+  if (cmd.contains('uninstall')) {
+    print('Success');
+    return;
+  }
+
+  if (cmd.contains('logcat -c')) {
+    return;
+  }
+
+  if (cmd.contains('logcat')) {
+    // Check if we should simulate a benchmark completion
+    final simulateDone =
+        Platform.environment['FAKE_ADB_SIMULATE_DONE'] == 'true';
+    if (simulateDone) {
+      print('INSTRUMENTATION_STATUS: class=com.example.app.MainActivityTest');
+      print('INSTRUMENTATION_STATUS: test=testMethod');
+      print('INSTRUMENTATION_STATUS_CODE: 1');
+      print('BENCH_DONE 0');
+    }
+    // Stay alive until killed if it's a streaming logcat
+    if (!cmd.contains('-d')) {
+      // Keep process alive by waiting for a signal or just sleeping
+      // We don't want to drain stdin as it might hang differently.
+      // Just sleep for a long time.
+      sleep(const Duration(hours: 1));
+      return;
+    }
+    return;
+  }
+
+  if (cmd.contains('shell rm -rf')) {
+    final path = cmd.split(' ').last;
+    final dir = Directory(path);
+    if (dir.existsSync()) dir.deleteSync(recursive: true);
+    return;
+  }
+
+  if (cmd.contains('shell mkdir -p')) {
+    final path = cmd.split(' ').last;
+    Directory(path).createSync(recursive: true);
+    return;
+  }
+
+  if (cmd.contains('shell cmd package compile')) {
+    print('Success');
+    return;
+  }
+
   if (cmd.contains('am instrument')) {
+    // Simulate creating the DONE file after a short delay
+    final resultDirMatch = RegExp(r'device_result_dir=([^\s]+)').firstMatch(cmd);
+    // In our test, the result dir is passed via environment or hardcoded in spec.
+    // But the runner cleans it.
+    // For simplicity, let's just create it in the hardcoded test path if it's am instrument.
+    // Actually, we can just rely on the test to create it, but we need to wait for the runner to finish cleaning.
+    
     print(
         'INSTRUMENTATION_STATUS: class=dev.flutter.plugins.integration_test.FlutterTestRunner');
     print('INSTRUMENTATION_STATUS: test=sample_test');
@@ -73,10 +128,18 @@ void main(List<String> arguments) {
   }
 
   if (cmd.contains('test -f')) {
-    // Check if the file was created by the test
-    final path = cmd.split(' ').lastWhere((s) => s.contains('/'));
-    if (File(path).existsSync()) {
-      print('YES');
+    stderr.writeln('DEBUG: test -f command: $cmd');
+    // Extract the path from 'test -f <path>'
+    final match = RegExp(r'test -f\s+([^\s&]+)').firstMatch(cmd);
+    if (match != null) {
+      final path = match.group(1)!;
+      stderr.writeln('DEBUG: extracted path: $path');
+      if (File(path).existsSync()) {
+        stderr.writeln('DEBUG: path exists!');
+        print('YES');
+      } else {
+        stderr.writeln('DEBUG: path does NOT exist');
+      }
     }
     return;
   }
@@ -100,7 +163,12 @@ void main(List<String> arguments) {
   }
 
   if (cmd.contains('pidof')) {
-    // By default return nothing (process gone) so the runner proceeds
+    // Return a fake PID by default so the runner thinks the process is alive.
+    // If FAKE_ADB_PROCESS_GONE is true, return nothing.
+    if (Platform.environment['FAKE_ADB_PROCESS_GONE'] == 'true') {
+      return;
+    }
+    print('1234');
     return;
   }
 }

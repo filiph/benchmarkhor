@@ -82,8 +82,49 @@ void main() {
 
     final body = await response.readAsString();
     expect(body, contains('<h1>adb_server</h1>'));
-    expect(body, contains('DUT: <code>127.0.0.1:5555</code>'));
+    expect(body, contains('DUT: <strong>127.0.0.1:5555</strong>'));
     expect(body, contains('Discover New Sessions'));
+  });
+
+  test('POST /api/queue/next enforces mutual exclusion', () async {
+    // 1. Setup a queued session
+    final sessionId = '20260810-120000Z__exclusion-test';
+    final sessionDir = store.sessionDir(sessionId)..createSync(recursive: true);
+    final specFile = store.sessionSpecFile(sessionId);
+    specFile.writeAsStringSync(jsonEncode({
+      'name': 'Exclusion Test',
+      'variants': {
+        'v1': {'apk': 'a.apk', 'test_apk': 'at.apk'}
+      },
+      'package': 'com.example.exclusion',
+      'device_result_dir': '/sdcard/exclusion',
+      'rounds': 1,
+    }));
+    await store.discoverNewSessions();
+
+    // 2. Mock a long-running startNext by making it async
+    // In the real Runner, startNext kicks off _run asynchronously.
+    // We can just call it twice.
+
+    final req1 = Request('POST', Uri.parse('http://localhost/api/queue/next'));
+    final req2 = Request('POST', Uri.parse('http://localhost/api/queue/next'));
+
+    // We use Future.wait but req1 will definitely start first in the event loop
+    // if we await them in sequence or even in parallel because shelf_router
+    // handles them one by one.
+    // However, the requirement is about the mutual exclusion.
+
+    final res1 = await api.router.call(req1);
+    final res2 = await api.router.call(req2);
+
+    expect(res1.statusCode, 202);
+    expect(res2.statusCode, 409);
+
+    final body1 = jsonDecode(await res1.readAsString());
+    expect(body1['started'], sessionId);
+
+    final body2 = jsonDecode(await res2.readAsString());
+    expect(body2['error'], contains('already running'));
   });
 
   test('POST /api/sessions/discover finds new sessions on disk', () async {

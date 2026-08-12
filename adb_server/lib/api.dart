@@ -65,6 +65,11 @@ class Api {
       );
 
   Future<Response> _statusPage(Request request) async {
+    final adb = Adb(adbPath: config.adbPath, deviceAddress: config.dutAddress);
+    final deviceState = await adb.getState() ?? 'offline';
+    final probe = DeviceProbe(adb);
+    final temp = deviceState == 'device' ? await probe.getSocTemp() : null;
+
     final sessionIds = (await sessionStore.listSessionIds()).reversed.take(20);
     final sessions = <SessionStatus>[];
     for (final id in sessionIds) {
@@ -78,6 +83,8 @@ class Api {
       ..writeln('<!DOCTYPE html>')
       ..writeln('<html><head><title>adb_server</title>')
       ..writeln(
+          '<meta http-equiv="refresh" content="${runner.isBusy ? '5' : '30'}">')
+      ..writeln(
           '<style>body { font-family: sans-serif; margin: 2rem; line-height: 1.5; }')
       ..writeln(
           'table { border-collapse: collapse; width: 100%; margin-top: 1rem; }')
@@ -89,18 +96,34 @@ class Api {
       ..writeln('.state-failed { color: #dc3545; }')
       ..writeln(
           '.footer { margin-top: 3rem; color: #666; font-size: 0.85rem; border-top: 1px solid #eee; padding-top: 1rem; }')
+      ..writeln('.device-status { padding: 0.5rem; border-radius: 4px; }')
+      ..writeln('.status-online { background: #d4edda; color: #155724; }')
+      ..writeln('.status-offline { background: #f8d7da; color: #721c24; }')
       ..writeln('</style></head><body>')
       ..writeln('<h1>adb_server</h1>')
+      ..writeln('<div style="margin-bottom: 2rem;">')
       ..writeln(
-          '<p>DUT: <code>${config.dutAddress}</code> | Busy: <strong>${Runner.isBusy}</strong></p>');
+          '<span class="device-status ${deviceState == 'device' ? 'status-online' : 'status-offline'}">')
+      ..writeln(
+          'DUT: <strong>${config.dutAddress}</strong> is <strong>$deviceState</strong>')
+      ..writeln(
+          '${temp != null ? ' | Temp: <strong>${temp.toStringAsFixed(1)}°C</strong>' : ''}')
+      ..writeln('</span>')
+      ..writeln(' | Busy: <strong>${runner.isBusy}</strong>');
+
+    if (runner.isBusy) {
+      html.writeln(
+          ' | Session: <strong><a href="/sessions/${runner.runningSessionId}">${runner.runningSessionId}</a></strong>');
+    }
+    html.writeln('</div>');
 
     html.writeln(
         '<form action="/api/sessions/discover" method="POST" style="margin-bottom: 1rem;">');
     html.writeln('<button type="submit">Discover New Sessions</button>');
     html.writeln('</form>');
 
-    if (Runner.isBusy && Runner.statusMessage != null) {
-      html.writeln('<p>Current state: <em>${Runner.statusMessage}</em></p>');
+    if (runner.isBusy && runner.statusMessage != null) {
+      html.writeln('<p>Current state: <em>${runner.statusMessage}</em></p>');
     }
 
     html.writeln('<h2>Recent Sessions</h2>');
@@ -138,7 +161,7 @@ class Api {
     html.writeln(
         '<form action="/api/queue/next" method="POST" style="margin-top: 2rem;">');
     html.writeln(
-        '<button type="submit" ${Runner.isBusy ? 'disabled' : ''}>Start Next Queued Session</button>');
+        '<button type="submit" ${runner.isBusy ? 'disabled' : ''}>Start Next Queued Session</button>');
     html.writeln('</form>');
 
     html.writeln('<div class="footer">Version: $gitCommit</div>');
@@ -152,7 +175,7 @@ class Api {
         'status': 'ok',
         'uptime_seconds':
             DateTime.now().toUtc().difference(startedAt).inSeconds,
-        'busy': Runner.isBusy,
+        'busy': runner.isBusy,
         'config': config.toJson(),
       });
 

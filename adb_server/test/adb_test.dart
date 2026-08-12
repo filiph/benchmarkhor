@@ -7,7 +7,8 @@ void main() {
   late String fakeAdbPath;
 
   setUpAll(() {
-    fakeAdbPath = p.absolute('test/fixtures/fake_adb/adb');
+    final adbName = Platform.isWindows ? 'adb.exe' : 'adb';
+    fakeAdbPath = p.absolute('test/fixtures/fake_adb/$adbName');
   });
 
   test('Adb.connect handles success', () async {

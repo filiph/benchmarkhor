@@ -15,7 +15,8 @@ void main() {
   late String fakeAdbPath;
 
   setUpAll(() {
-    fakeAdbPath = p.absolute('test/fixtures/fake_adb/adb');
+    final adbName = Platform.isWindows ? 'adb.exe' : 'adb';
+    fakeAdbPath = p.absolute('test/fixtures/fake_adb/$adbName');
     if (!File(fakeAdbPath).existsSync()) {
       throw StateError(
           'Fake ADB not found at $fakeAdbPath. Run make to build it.');
@@ -65,6 +66,25 @@ void main() {
     await File(p.join(dir.path, 'test.apk')).create();
   }
 
+  Future<void> simulateAppFinishing(String sessionId, Directory deviceSdcard) async {
+    final logFile = store.sessionLogFile(sessionId);
+    int logAttempts = 0;
+    while (logAttempts < 30) {
+      if (await logFile.exists()) {
+        final content = await logFile.readAsString();
+        if (content.contains('Waiting for completion...')) {
+          break;
+        }
+      }
+      await Future<void>.delayed(const Duration(seconds: 1));
+      logAttempts++;
+    }
+
+    await File(p.join(deviceSdcard.path, 'result.txt'))
+        .writeAsString('bench results');
+    await File(p.join(deviceSdcard.path, 'DONE')).create();
+  }
+
   test('Runner executes a session and produces results', () async {
     final sessionId = '20260809__test';
     await setupValidSession(sessionId);
@@ -72,37 +92,50 @@ void main() {
 
     final runner = Runner(config: config, sessionStore: store);
 
-    // Create the device result dir and the DONE file so fake_adb "sees" it
+    // Create the device result dir
     final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
     await deviceSdcard.create(recursive: true);
 
     // Start the runner
     final startedId = await runner.startNext();
     expect(startedId, sessionId);
-    expect(Runner.isBusy, isTrue);
+    expect(runner.isBusy, isTrue);
 
-    // In a background loop, we wait for the runner to start the trial,
-    // then we create the DONE file.
-    // Since we are using fake_adb, it will respond to `test -f` based on this.
-
-    // We wait a bit for the runner to start _run().
-    await Future<void>.delayed(const Duration(seconds: 2));
-
-    // Simulate app finishing
-    await File(p.join(deviceSdcard.path, 'result.txt'))
-        .writeAsString('bench results');
-    await File(p.join(deviceSdcard.path, 'DONE')).create();
+    await simulateAppFinishing(sessionId, deviceSdcard);
 
     // Wait for the runner to finish
     int attempts = 0;
-    while (Runner.isBusy && attempts < 10) {
+    while (runner.isBusy && attempts < 10) {
       await Future<void>.delayed(const Duration(seconds: 2));
       attempts++;
     }
 
-    expect(Runner.isBusy, isFalse);
+    if (runner.isBusy) {
+      final sessionLog = await store.sessionLogFile(sessionId).readAsString();
+      print('--- Session Log (Busy) ---');
+      print(sessionLog);
+
+      final adbLogFile = store.trialAdbLogFile(sessionId, 'trial-001');
+      if (await adbLogFile.exists()) {
+        print('--- ADB Log (trial-001, Busy) ---');
+        print(await adbLogFile.readAsString());
+      }
+    }
+    expect(runner.isBusy, isFalse);
     final status = await store.readStatus(sessionId);
-    expect(status!.state, SessionState.done);
+    if (status!.state != SessionState.done) {
+      final sessionLog = await store.sessionLogFile(sessionId).readAsString();
+      print('--- Session Log ---');
+      print(sessionLog);
+
+      final adbLogFile = store.trialAdbLogFile(sessionId, 'trial-001');
+      if (await adbLogFile.exists()) {
+        print('--- ADB Log (trial-001) ---');
+        print(await adbLogFile.readAsString());
+      }
+    }
+
+    expect(status.state, SessionState.done);
 
     // Verify artifacts
     final trialDir = store.trialDir(sessionId, 'trial-001');
@@ -149,12 +182,13 @@ void main() {
 
     final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
     await deviceSdcard.create(recursive: true);
-    await File(p.join(deviceSdcard.path, 'DONE')).create();
 
     await runner.startNext();
 
+    await simulateAppFinishing(sessionId, deviceSdcard);
+
     int attempts = 0;
-    while (Runner.isBusy && attempts < 10) {
+    while (runner.isBusy && attempts < 10) {
       await Future<void>.delayed(const Duration(seconds: 2));
       attempts++;
     }
@@ -183,12 +217,13 @@ void main() {
 
     final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
     await deviceSdcard.create(recursive: true);
-    await File(p.join(deviceSdcard.path, 'DONE')).create();
 
     await runner.startNext();
 
+    await simulateAppFinishing(sessionId, deviceSdcard);
+
     int attempts = 0;
-    while (Runner.isBusy && attempts < 10) {
+    while (runner.isBusy && attempts < 10) {
       await Future<void>.delayed(const Duration(seconds: 1));
       attempts++;
     }
@@ -238,12 +273,13 @@ void main() {
 
     final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
     await deviceSdcard.create(recursive: true);
-    await File(p.join(deviceSdcard.path, 'DONE')).create();
 
     await runner.startNext();
 
+    await simulateAppFinishing(sessionId, deviceSdcard);
+
     int attempts = 0;
-    while (Runner.isBusy && attempts < 30) {
+    while (runner.isBusy && attempts < 30) {
       await Future<void>.delayed(const Duration(seconds: 1));
       attempts++;
     }
@@ -304,12 +340,13 @@ void main() {
 
     final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
     await deviceSdcard.create(recursive: true);
-    await File(p.join(deviceSdcard.path, 'DONE')).create();
 
     await runner.startNext();
 
+    await simulateAppFinishing(sessionId, deviceSdcard);
+
     int attempts = 0;
-    while (Runner.isBusy && attempts < 30) {
+    while (runner.isBusy && attempts < 30) {
       await Future<void>.delayed(const Duration(seconds: 1));
       attempts++;
     }
