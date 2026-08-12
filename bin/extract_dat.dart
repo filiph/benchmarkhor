@@ -17,6 +17,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:args/args.dart';
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:t_stats/t_stats.dart';
 
@@ -24,9 +25,27 @@ void main(List<String> arguments) async {
   final parser = ArgParser()
     ..addOption('output',
         abbr: 'o', help: 'Output directory', defaultsTo: 'extracted_dat')
+    ..addFlag('verbose', help: 'Verbose logging.')
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Show help');
 
   final argResults = parser.parse(arguments);
+
+  if (argResults.flag('verbose')) {
+    Logger.root.level = Level.ALL;
+  } else {
+    Logger.root.level = Level.INFO;
+  }
+
+  Logger.root.onRecord.listen((record) {
+    final strBuf = StringBuffer();
+    if (record.level != Level.INFO) {
+      strBuf.write(record.level.name);
+      strBuf.write(': ');
+    }
+    strBuf.write(record.message);
+    stdout.writeln(strBuf.toString());
+  });
+  final log = Logger('extract_dat');
 
   if (argResults['help'] as bool || argResults.rest.isEmpty) {
     print('Usage: dart bin/extract_dat.dart <session_path> [options]');
@@ -73,7 +92,7 @@ void main(List<String> arguments) async {
   final baselineVariant = variantNames.first;
   final variantCount = variantNames.length;
 
-  print('Extracting data from $sessionPath to ${outputDir.path}...');
+  log.info('Extracting data from $sessionPath to ${outputDir.path}...');
 
   final variantTrials = <String, List<TrialData>>{};
   final roundTrials = <int, Map<String, TrialData>>{};
@@ -217,6 +236,7 @@ void main(List<String> arguments) async {
       variantName: v,
       maxRound: maxRound,
       roundTrials: roundTrials,
+      log: log,
     );
     _writeChangeAggregatesForTiming(
       outputDirPath: outputDir.path,
@@ -225,6 +245,7 @@ void main(List<String> arguments) async {
       variantName: v,
       maxRound: maxRound,
       roundTrials: roundTrials,
+      log: log,
     );
 
     // Per-phase change aggregates
@@ -237,6 +258,7 @@ void main(List<String> arguments) async {
         maxRound: maxRound,
         roundTrials: roundTrials,
         phase: phase,
+        log: log,
       );
       _writeChangeAggregatesForTiming(
         outputDirPath: outputDir.path,
@@ -246,11 +268,12 @@ void main(List<String> arguments) async {
         maxRound: maxRound,
         roundTrials: roundTrials,
         phase: phase,
+        log: log,
       );
     }
   }
 
-  print('Done! Files created in ${outputDir.path}');
+  log.info('Done! Files created in ${outputDir.path}');
 }
 
 int _parseTrialNumber(String trialId) {
@@ -369,34 +392,83 @@ void _writeAggregates(String outputDirPath, String timing, String variantName,
       p95Superquantiles);
 }
 
-Map<String, double>? _computeMetrics(List<num> data) {
+Metrics? _computeMetrics(List<num> data) {
   if (data.isEmpty) return null;
   final first = data.first.toDouble();
   final sorted = List<num>.from(data)..sort();
   final p95sq = superquantile(sorted, 0.95);
   if (data.length == 1) {
     final only = data.single.toDouble();
-    return {
-      'first': first,
-      'mean': only,
-      'min': only,
-      'max': only,
-      'p95': only,
-      'p99': only,
-      'p95superquantile': p95sq,
-    };
+    return Metrics(
+      first: only,
+      mean: only,
+      min: only,
+      max: only,
+      p95: only,
+      p99: only,
+      p95superquantile: p95sq,
+    );
   }
   final doubleList = data.map((e) => e.toDouble()).toList();
   final stats = Statistic.from(doubleList);
-  return {
-    'first': first,
-    'mean': stats.mean.toDouble(),
-    'min': stats.min.toDouble(),
-    'max': stats.max.toDouble(),
-    'p95': percentile(sorted, 0.95),
-    'p99': percentile(sorted, 0.99),
-    'p95superquantile': p95sq,
-  };
+  return Metrics(
+    first: first,
+    mean: stats.mean.toDouble(),
+    min: stats.min.toDouble(),
+    max: stats.max.toDouble(),
+    p95: percentile(sorted, 0.95),
+    p99: percentile(sorted, 0.99),
+    p95superquantile: p95sq,
+  );
+}
+
+final class Metrics {
+  final double first;
+  final double mean;
+  final double min;
+  final double max;
+  final double p95;
+  final double p99;
+  final double p95superquantile;
+
+  const Metrics({
+    required this.first,
+    required this.mean,
+    required this.min,
+    required this.max,
+    required this.p95,
+    required this.p99,
+    required this.p95superquantile,
+  });
+
+  double getMetric(MetricType type) {
+    switch (type) {
+      case MetricType.first:
+        return first;
+      case MetricType.mean:
+        return mean;
+      case MetricType.min:
+        return min;
+      case MetricType.max:
+        return max;
+      case MetricType.p95:
+        return p95;
+      case MetricType.p99:
+        return p99;
+      case MetricType.p95superquantile:
+        return p95superquantile;
+    }
+  }
+}
+
+enum MetricType {
+  first,
+  mean,
+  min,
+  max,
+  p95,
+  p99,
+  p95superquantile,
 }
 
 void _writeChangeAggregatesForTiming({
@@ -407,17 +479,11 @@ void _writeChangeAggregatesForTiming({
   required int maxRound,
   required Map<int, Map<String, TrialData>> roundTrials,
   String? phase,
+  required Logger log,
 }) {
-  final metricNames = [
-    'first',
-    'mean',
-    'min',
-    'max',
-    'p95',
-    'p99',
-    'p95superquantile'
-  ];
-  final changeLists = {for (final m in metricNames) m: <double>[]};
+  final changeLists = {for (final m in MetricType.values) m: <double>[]};
+  final baseMetricsList = <Metrics>[];
+  final varMetricsList = <Metrics>[];
 
   for (var r = 1; r <= maxRound; r++) {
     final baseTrial = roundTrials[r]?[baselineVariant];
@@ -446,18 +512,48 @@ void _writeChangeAggregatesForTiming({
     final varMetrics = _computeMetrics(varData);
     if (baseMetrics == null || varMetrics == null) continue;
 
-    for (final m in metricNames) {
-      final change = varMetrics[m]! - baseMetrics[m]!;
+    baseMetricsList.add(baseMetrics);
+    varMetricsList.add(varMetrics);
+
+    for (final m in MetricType.values) {
+      final change = varMetrics.getMetric(m) - baseMetrics.getMetric(m);
       changeLists[m]!.add(change);
     }
   }
 
   final suffix = phase == null ? variantName : '${variantName}_$phase';
-  for (final m in metricNames) {
-    final values = changeLists[m]!;
+  for (final metric in MetricType.values) {
+    final designation = '${timing}_${metric.name}_change_$suffix';
+    final values = changeLists[metric]!;
     if (values.isNotEmpty) {
-      _writeDat(
-          p.join(outputDirPath, '${timing}_${m}_change_$suffix.dat'), values);
+      _writeDat(p.join(outputDirPath, '$designation.dat'), values);
+    }
+
+    // Show statistical difference.
+    final baseData = baseMetricsList.map((m) => m.getMetric(metric));
+    final varData = varMetricsList.map((met) => met.getMetric(metric));
+    if (baseData.length < 2 || varData.length < 2) {
+      log.fine('$designation data length is less than 2, cannot create stats');
+    } else {
+      final baseStats = Statistic.from(baseData, name: '$designation baseline');
+      final varStats = Statistic.from(varData, name: '$designation variant');
+      final changeStats =
+          Statistic.from(changeLists[metric]!, name: designation);
+
+      final medianIsDifferent = varStats.isDifferentFrom(baseStats);
+      final meanIsDifferent = (varStats.lowerBound < baseStats.lowerBound &&
+              varStats.upperBound < baseStats.lowerBound) ||
+          (varStats.lowerBound > baseStats.upperBound &&
+              varStats.upperBound > baseStats.upperBound);
+
+      final significanceMarker = (medianIsDifferent && meanIsDifferent)
+          ? 'BOTH'
+          : medianIsDifferent
+              ? 'medi'
+              : meanIsDifferent
+                  ? 'mean'
+                  : '    ';
+      log.info('$significanceMarker ${changeStats.toString()}');
     }
   }
 }
