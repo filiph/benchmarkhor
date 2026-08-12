@@ -65,3 +65,9 @@ A method of plotting a single `.dat` file as a polyline, one point per line of i
 
 ### Segment
 A straight line drawn between two consecutive points of a Line Plot. No smoothing or curve-fitting is applied — a Line Plot is a plain polyline.
+
+### SESOI (Smallest Effect Size of Interest)
+The minimal magnitude of change (expressed as a percentage or fraction of baseline) that is engineering-relevant or meaningful to detect.
+
+### Bootstrap Sample Size
+The estimated minimum number of trials or rounds required per variant to achieve a target statistical power and significance level ($\alpha$), determined via noise resampling and simulated 1-sample t-tests.

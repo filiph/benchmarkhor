@@ -17,6 +17,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:args/args.dart';
+import 'package:benchmarkhor/bootstrap_sample_size.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:t_stats/t_stats.dart';
@@ -25,6 +26,15 @@ void main(List<String> arguments) async {
   final parser = ArgParser()
     ..addOption('output',
         abbr: 'o', help: 'Output directory', defaultsTo: 'extracted_dat')
+    ..addOption('bootstrap-sesoi',
+        help: 'Smallest effect size of interest for sample size calculation',
+        defaultsTo: '0.05')
+    ..addOption('bootstrap-alpha',
+        help: 'Alpha level for sample size calculation',
+        defaultsTo: '0.05')
+    ..addOption('bootstrap-power',
+        help: 'Target power for sample size calculation',
+        defaultsTo: '0.80')
     ..addFlag('verbose', help: 'Verbose logging.')
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Show help');
 
@@ -55,6 +65,16 @@ void main(List<String> arguments) async {
 
   final sessionPath = argResults.rest.first;
   final outputDir = Directory(argResults['output'] as String);
+
+  final bootstrapSesoi =
+      double.tryParse(argResults['bootstrap-sesoi'] as String? ?? '0.05') ??
+          0.05;
+  final bootstrapAlpha =
+      double.tryParse(argResults['bootstrap-alpha'] as String? ?? '0.05') ??
+          0.05;
+  final bootstrapPower =
+      double.tryParse(argResults['bootstrap-power'] as String? ?? '0.80') ??
+          0.80;
 
   if (!outputDir.existsSync()) {
     outputDir.createSync(recursive: true);
@@ -236,6 +256,9 @@ void main(List<String> arguments) async {
       variantName: v,
       maxRound: maxRound,
       roundTrials: roundTrials,
+      bootstrapSesoi: bootstrapSesoi,
+      bootstrapAlpha: bootstrapAlpha,
+      bootstrapPower: bootstrapPower,
       log: log,
     );
     _writeChangeAggregatesForTiming(
@@ -245,6 +268,9 @@ void main(List<String> arguments) async {
       variantName: v,
       maxRound: maxRound,
       roundTrials: roundTrials,
+      bootstrapSesoi: bootstrapSesoi,
+      bootstrapAlpha: bootstrapAlpha,
+      bootstrapPower: bootstrapPower,
       log: log,
     );
 
@@ -258,6 +284,9 @@ void main(List<String> arguments) async {
         maxRound: maxRound,
         roundTrials: roundTrials,
         phase: phase,
+        bootstrapSesoi: bootstrapSesoi,
+        bootstrapAlpha: bootstrapAlpha,
+        bootstrapPower: bootstrapPower,
         log: log,
       );
       _writeChangeAggregatesForTiming(
@@ -268,6 +297,9 @@ void main(List<String> arguments) async {
         maxRound: maxRound,
         roundTrials: roundTrials,
         phase: phase,
+        bootstrapSesoi: bootstrapSesoi,
+        bootstrapAlpha: bootstrapAlpha,
+        bootstrapPower: bootstrapPower,
         log: log,
       );
     }
@@ -479,6 +511,9 @@ void _writeChangeAggregatesForTiming({
   required int maxRound,
   required Map<int, Map<String, TrialData>> roundTrials,
   String? phase,
+  required double bootstrapSesoi,
+  required double bootstrapAlpha,
+  required double bootstrapPower,
   required Logger log,
 }) {
   final changeLists = {for (final m in MetricType.values) m: <double>[]};
@@ -554,6 +589,17 @@ void _writeChangeAggregatesForTiming({
                   ? 'mean'
                   : '    ';
       log.info('$significanceMarker ${changeStats.toString()}');
+
+      final baseMean = baseStats.mean.toDouble();
+      final sampleSize = calculateBootstrapSampleSize(
+        diffs: changeLists[metric]!,
+        baseMean: baseMean,
+        sesoi: bootstrapSesoi,
+        alpha: bootstrapAlpha,
+        power: bootstrapPower,
+      );
+      log.info(
+          'Bootstrap suggested minimum sample size for $designation: $sampleSize');
     }
   }
 }

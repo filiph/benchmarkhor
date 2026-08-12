@@ -217,6 +217,79 @@ void main() {
       // Only Round 1 change is present: 8.0 - 10.0 = -2.0
       expect(changeValues, equals([-2.0]));
     });
+
+    test('logs bootstrap suggested minimum sample size', () async {
+      final sessionDir = Directory(p.join(tempDir.path, 'session'));
+      final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
+      await trialsDir.create(recursive: true);
+
+      final sessionJson = File(p.join(sessionDir.path, 'session.json'));
+      await sessionJson.writeAsString(jsonEncode({
+        'schema_version': 1,
+        'variants': {
+          'base': {'apk': 'base.apk'},
+          'alt': {'apk': 'alt.apk'},
+        },
+      }));
+
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-001',
+        variantName: 'base',
+        round: 1,
+        buildTimes: [46.2, 51.8],
+        rasterTimes: [20.0, 22.0],
+      );
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-002',
+        variantName: 'alt',
+        round: 1,
+        buildTimes: [44.1, 48.9],
+        rasterTimes: [19.0, 21.0],
+      );
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-003',
+        variantName: 'alt',
+        round: 2,
+        buildTimes: [43.7, 46.0],
+        rasterTimes: [18.0, 20.0],
+      );
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-004',
+        variantName: 'base',
+        round: 2,
+        buildTimes: [44.0, 49.5],
+        rasterTimes: [19.0, 21.0],
+      );
+
+      final outDir = Directory(p.join(tempDir.path, 'out'));
+
+      final result = await Process.run(
+        'dart',
+        [
+          'run',
+          'bin/extract_dat.dart',
+          sessionDir.path,
+          '-o',
+          outDir.path,
+          '--bootstrap-sesoi',
+          '0.07',
+          '--bootstrap-alpha',
+          '0.05',
+          '--bootstrap-power',
+          '0.80'
+        ],
+      );
+
+      expect(result.exitCode, equals(0));
+      expect(
+        result.stdout,
+        contains('Bootstrap suggested minimum sample size for build_mean_change_alt:'),
+      );
+    });
   });
 }
 
