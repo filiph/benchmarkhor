@@ -106,6 +106,8 @@ end of each **Round** is an observation of the **Treatment** drifting over a
 result of it. It is written alongside the Metrics and plotted with them, but it
 summarises no **Frames** and it belongs to a Round rather than a **Trial**.
 
+**"Thermal Throttling"**: A state where the device's thermal management reduces clock speeds or performance to prevent overheating (`IsThrottling: true` or elevated thermal status level in `dumpsys thermalservice`). Like **Temperature**, it is an observation of **Treatment** conditions during a **Trial**. It is recorded in **Trial** metadata as a warning to identify trials executed under degraded thermal conditions.
+
 **"Run"** is resolved. `adb_server`'s on-disk layout used to spend it on
 `runs/run-NNN/` and its `job.json` had a `repetitions` field meaning "how many
 times the server executes the whole APK" — which was close to, but not the same

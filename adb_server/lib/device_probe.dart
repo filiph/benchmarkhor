@@ -1,11 +1,89 @@
 import 'dart:async';
 import 'adb.dart';
 
+/// Represents thermal throttling status parsed from `dumpsys thermalservice`.
+class ThermalServiceStatus {
+  final bool isThrottling;
+  final int? statusLevel;
+  final String rawOutput;
+  final String? error;
+
+  ThermalServiceStatus({
+    required this.isThrottling,
+    this.statusLevel,
+    required this.rawOutput,
+    this.error,
+  });
+
+  static ThermalServiceStatus parse(String output) {
+    bool isThrottling = false;
+    int? statusLevel;
+
+    final throttlingMatch = RegExp(
+      r'IsThrottling:\s*(true|false)',
+      caseSensitive: false,
+    ).firstMatch(output);
+    if (throttlingMatch != null) {
+      isThrottling = throttlingMatch.group(1)!.toLowerCase() == 'true';
+    }
+
+    final statusMatch = RegExp(
+      r'(?:Thermal|HAL)\s+Status:\s*(\d+)',
+      caseSensitive: false,
+    ).firstMatch(output);
+    if (statusMatch != null) {
+      statusLevel = int.tryParse(statusMatch.group(1)!);
+      if (statusLevel != null && statusLevel > 0) {
+        if (throttlingMatch == null) {
+          isThrottling = true;
+        }
+      }
+    }
+
+    return ThermalServiceStatus(
+      isThrottling: isThrottling,
+      statusLevel: statusLevel,
+      rawOutput: output,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'is_throttling': isThrottling,
+        if (statusLevel != null) 'status_level': statusLevel,
+        if (rawOutput.isNotEmpty) 'raw': rawOutput,
+        if (error != null) 'error': error,
+      };
+}
+
 /// Collects device metadata as specified in `REQUIREMENTS.md` §7.
 class DeviceProbe {
   final Adb adb;
 
   DeviceProbe(this.adb);
+
+  /// Checks `dumpsys thermalservice` specifically.
+  Future<ThermalServiceStatus> checkThermalService() async {
+    try {
+      final result = await adb.shell('dumpsys thermalservice');
+      if (result.exitCode == 0) {
+        final output = (result.stdout as String).trim();
+        return ThermalServiceStatus.parse(output);
+      } else {
+        return ThermalServiceStatus(
+          isThrottling: false,
+          rawOutput: '',
+          error:
+              'Command failed: dumpsys thermalservice (exit ${result.exitCode})',
+        );
+      }
+    } catch (e) {
+      return ThermalServiceStatus(
+        isThrottling: false,
+        rawOutput: '',
+        error: 'Error running dumpsys thermalservice: $e',
+      );
+    }
+  }
 
   /// Captures a comprehensive snapshot of the device state.
   Future<Map<String, dynamic>> probe() async {
@@ -65,6 +143,13 @@ class DeviceProbe {
       }
     }
     if (temperatures.isNotEmpty) metadata['temperatures'] = temperatures;
+
+    // Thermal service metadata
+    final thermalStatus = await checkThermalService();
+    metadata['thermalservice'] = thermalStatus.toJson();
+    if (thermalStatus.error != null) {
+      warnings.add(thermalStatus.error!);
+    }
 
     // Build metadata (only once ideally, but probe() serves all cases)
     await capture('fingerprint', 'getprop ro.build.fingerprint');
