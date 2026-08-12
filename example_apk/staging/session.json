@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "name": "upside-of-const-pilot",
-  "description": "Compare baseline (no const anywhere) with a proper const version (pilot)",
+  "name": "upside-of-const-n150",
+  "description": "Compare baseline (no const anywhere) with a proper const version (n = 150)",
   "variants": {
     "baseline": {
       "apk": "baseline.apk",
@@ -15,7 +15,7 @@
   "package": "com.example.example_apk",
   "test_package": "com.example.example_apk.test",
   "instrumentation_runner": "androidx.test.runner.AndroidJUnitRunner",
-  "rounds": 10,
+  "rounds": 150,
   "trial_timeout_seconds": 1800,
   "expected_result_files": ["frames.jsonl"],
   "device_result_dir": "/sdcard/Android/data/com.example.example_apk/files",
