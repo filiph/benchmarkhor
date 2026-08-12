@@ -140,10 +140,13 @@ String buildViolinSvg(List<ViolinData> violins) {
     // --- Box plot ---
     // Box dimensions
     const boxHalfWidth = 18.0;
+    const notchHalfWidth = boxHalfWidth * 0.6;
 
     final yQ1 = toSvgY(v.q1);
     final yQ3 = toSvgY(v.q3);
     final yMedian = toSvgY(v.median);
+    final yNotchLo = toSvgY(v.notchLo);
+    final yNotchHi = toSvgY(v.notchHi);
     final yWhiskerLo = toSvgY(v.whiskerLo);
     final yWhiskerHi = toSvgY(v.whiskerHi);
 
@@ -171,17 +174,26 @@ String buildViolinSvg(List<ViolinData> violins) {
       'stroke="white" stroke-width="1.5"/>',
     );
 
-    // IQR box
+    // Notched IQR box polygon
+    final xLeft = slotCenterX - boxHalfWidth;
+    final xRight = slotCenterX + boxHalfWidth;
+    final xNotchLeft = slotCenterX - notchHalfWidth;
+    final xNotchRight = slotCenterX + notchHalfWidth;
+
+    final notchBoxPoints = '$xLeft,$yQ3 $xRight,$yQ3 '
+        '$xRight,$yNotchHi $xNotchRight,$yMedian $xRight,$yNotchLo '
+        '$xRight,$yQ1 $xLeft,$yQ1 '
+        '$xLeft,$yNotchLo $xNotchLeft,$yMedian $xLeft,$yNotchHi';
+
     buf.writeln(
-      '<rect x="${slotCenterX - boxHalfWidth}" y="$yQ3" '
-      'width="${boxHalfWidth * 2}" height="${yQ1 - yQ3}" '
+      '<polygon points="$notchBoxPoints" '
       'fill="none" stroke="white" stroke-width="2"/>',
     );
 
-    // Median line
+    // Median line across notch waist
     buf.writeln(
-      '<line x1="${slotCenterX - boxHalfWidth}" y1="$yMedian" '
-      'x2="${slotCenterX + boxHalfWidth}" y2="$yMedian" '
+      '<line x1="$xNotchLeft" y1="$yMedian" '
+      'x2="$xNotchRight" y2="$yMedian" '
       'stroke="white" stroke-width="2.5"/>',
     );
 

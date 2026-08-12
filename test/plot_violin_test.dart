@@ -42,7 +42,8 @@ void main() {
 
       final svg = buildViolinSvg(violins);
 
-      expect(RegExp('<polygon').allMatches(svg).length, 2);
+      // Each violin renders 1 polygon for KDE shape + 1 polygon for notched box
+      expect(RegExp('<polygon').allMatches(svg).length, 4);
       expect(svg, endsWith('</svg>\n'));
     });
 
@@ -89,6 +90,17 @@ void main() {
       expect(polygonYs.reduce(max), greaterThan(y0));
     });
 
+    test('renders notched box plot polygon and median line across waist', () {
+      final violin =
+          ViolinData.compute('a', [100, 110, 120, 130, 140, 150, 160]);
+      final svg = buildViolinSvg([violin]);
+
+      // Box plot rendered as a polygon with points
+      expect(svg, contains('<polygon points="'));
+      // Median line rendered across notch waist (width 21.6 = 2 * 10.8)
+      expect(svg, contains('stroke-width="2.5"'));
+    });
+
     test('outliers far below the plot minimum are summarised, not drawn', () {
       // A tight distribution plus one extreme low value.
       final values = <num>[
@@ -119,6 +131,20 @@ void main() {
   });
 
   group('ViolinData', () {
+    test('computes notch bounds using McGill formula', () {
+      final values = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+      final data = ViolinData.compute('a', values);
+
+      // IQR = Q3 (77.5) - Q1 (32.5) = 45.0
+      // med = 55.0
+      // notchDelta = 1.58 * 45.0 / sqrt(10) = 71.1 / 3.16227766... = 22.4837...
+      expect(data.iqr, closeTo(45.0, 1e-9));
+      expect(data.median, closeTo(55.0, 1e-9));
+      final expectedDelta = 1.58 * 45.0 / sqrt(10);
+      expect(data.notchLo, closeTo(55.0 - expectedDelta, 1e-9));
+      expect(data.notchHi, closeTo(55.0 + expectedDelta, 1e-9));
+    });
+
     test('input range is symmetric around median when straddling zero', () {
       final data = ViolinData.compute('a', [-20, -10, 0, 10, 20]);
 

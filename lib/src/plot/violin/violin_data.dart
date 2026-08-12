@@ -15,6 +15,7 @@ class ViolinData {
 
   /// Box plot stats
   final double q1, median, q3, iqr;
+  final double notchLo, notchHi;
   final double whiskerLo, whiskerHi;
   final List<double> outliers;
 
@@ -36,6 +37,8 @@ class ViolinData {
     required this.median,
     required this.q3,
     required this.iqr,
+    required this.notchLo,
+    required this.notchHi,
     required this.whiskerLo,
     required this.whiskerHi,
     required this.outliers,
@@ -60,6 +63,11 @@ class ViolinData {
     final med = percentile(sorted, 0.50);
     final q3 = percentile(sorted, 0.75);
     final iqr = q3 - q1;
+
+    final notchDelta =
+        sorted.isEmpty ? 0.0 : (1.58 * iqr / sqrt(sorted.length));
+    final notchLo = med - notchDelta;
+    final notchHi = med + notchDelta;
 
     var inputMax = med + maxOutlierCoefficient * iqr;
     var inputMin = med - maxOutlierCoefficient * iqr;
@@ -97,6 +105,8 @@ class ViolinData {
       median: med,
       q3: q3,
       iqr: iqr,
+      notchLo: notchLo,
+      notchHi: notchHi,
       whiskerLo: whiskerLo,
       whiskerHi: whiskerHi,
       outliers: outliers,

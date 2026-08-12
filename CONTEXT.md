@@ -25,7 +25,12 @@ The tool divides the available `plotWidth` into equal slots based on the number 
 
 ### Box Plot
 A standardized way of displaying the distribution of data based on a five-number summary: minimum, first quartile (Q1), median, third quartile (Q3), and maximum.
-In `benchmarkhor`, the box plot is drawn on top of the violin, including whiskers and outliers. It uses light-colored outlines and a transparent fill to ensure visibility on dark backgrounds.
+In `benchmarkhor`, the box plot is drawn on top of the violin as a notched box plot, including whiskers and outliers. It uses light-colored outlines and a transparent fill to ensure visibility on dark backgrounds.
+
+### Notch
+A visual narrowing of the box plot around the median indicating the 95% confidence interval for the median.
+The bounds of the notch are calculated as $\text{median} \pm 1.58 \times \frac{\text{IQR}}{\sqrt{n}}$, narrowing down to 60% of the full box width at the median position. If the notch bounds extend beyond Q1 or Q3 (e.g., due to small sample size or high variability), the notch lines are allowed to extend beyond the box, creating a flipped/flared shape.
+_Avoid_: Waist, confidence interval cutoff
 
 ### Whisker
 The lines extending from the box plot.
