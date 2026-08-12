@@ -112,12 +112,13 @@ void main(List<String> arguments) {
 
   if (cmd.contains('am instrument')) {
     // Simulate creating the DONE file after a short delay
-    final resultDirMatch = RegExp(r'device_result_dir=([^\s]+)').firstMatch(cmd);
+    final resultDirMatch =
+        RegExp(r'device_result_dir=([^\s]+)').firstMatch(cmd);
     // In our test, the result dir is passed via environment or hardcoded in spec.
     // But the runner cleans it.
     // For simplicity, let's just create it in the hardcoded test path if it's am instrument.
     // Actually, we can just rely on the test to create it, but we need to wait for the runner to finish cleaning.
-    
+
     print(
         'INSTRUMENTATION_STATUS: class=dev.flutter.plugins.integration_test.FlutterTestRunner');
     print('INSTRUMENTATION_STATUS: test=sample_test');

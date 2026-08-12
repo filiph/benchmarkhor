@@ -16,18 +16,20 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # Note: This workflow uses the latest stable version of the Dart SDK.
-      # You can specify other versions if desired, see documentation here:
-      # https://github.com/dart-lang/setup-dart/blob/main/README.md
-      # - uses: dart-lang/setup-dart@v1
-      - uses: dart-lang/setup-dart@v1
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
 
       - name: Install dependencies (root)
-        run: dart pub get
+        run: flutter pub get
 
       - name: Install dependencies (adb_server)
         working-directory: adb_server
-        run: dart pub get
+        run: flutter pub get
+
+      - name: Install dependencies (example_apk)
+        working-directory: example_apk
+        run: flutter pub get
 
       - name: Build fake_adb
         working-directory: adb_server/test/fixtures/fake_adb
@@ -39,9 +41,17 @@ jobs:
       - name: Analyze project source
         run: dart analyze --fatal-infos
 
+      - name: Analyze example_apk
+        working-directory: example_apk
+        run: flutter analyze --fatal-infos
+
       - name: Run tests (root)
-        run: dart test
+        run: flutter test
 
       - name: Run tests (adb_server)
         working-directory: adb_server
-        run: dart test
+        run: flutter test
+
+      - name: Run tests (example_apk)
+        working-directory: example_apk
+        run: flutter test

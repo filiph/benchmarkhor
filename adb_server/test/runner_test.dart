@@ -66,7 +66,8 @@ void main() {
     await File(p.join(dir.path, 'test.apk')).create();
   }
 
-  Future<void> simulateAppFinishing(String sessionId, Directory deviceSdcard) async {
+  Future<void> simulateAppFinishing(
+      String sessionId, Directory deviceSdcard) async {
     final logFile = store.sessionLogFile(sessionId);
     int logAttempts = 0;
     while (logAttempts < 30) {
