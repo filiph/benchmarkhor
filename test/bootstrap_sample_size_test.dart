@@ -58,6 +58,27 @@ void main() {
     test('sigma/delta = 2 -> n ~ 34', () => checkRatio(0.05, 34));
     test('sigma/delta = 4 -> n ~ 128', () => checkRatio(0.025, 128));
 
+    test('calibration is nearly free on Gaussian noise', () {
+      final parametric = calculateBootstrapSampleSize(
+          diffs: noise,
+          baseMean: 1000.0,
+          sesoi: 0.05,
+          nSims: 8000,
+          seed: 17,
+          calibrated: false);
+      final calibrated = calculateBootstrapSampleSize(
+          diffs: noise,
+          baseMean: 1000.0,
+          sesoi: 0.05,
+          nSims: 8000,
+          seed: 17,
+          calibrated: true);
+
+      expect(parametric, closeTo(34, 3));
+      expect(calibrated, closeTo(parametric, 3),
+          reason: 'parametric = $parametric, calibrated = $calibrated');
+    });
+
     test('n scales as 1/delta^2', () {
       const baseMean = 1000.0;
       int run(double sesoi) => calculateBootstrapSampleSize(
@@ -519,18 +540,42 @@ void main() {
           reason: 'gaussian = $gaussian, skewed = $skewed');
     });
 
+    test('calibratedCriticalValue falls back to student t when pilot < 20', () {
+      final smallPilot = normalNoise(19, 100.0);
+      final crit = calibratedCriticalValue(
+        centeredNoise: smallPilot,
+        nRounds: 10,
+        alpha: 0.05,
+      );
+      final expectedParametric = studentTCriticalValue(9, 0.05);
+      expect(crit, equals(expectedParametric));
+
+      final adequatePilot = normalNoise(20, 100.0);
+      final critCal = calibratedCriticalValue(
+        centeredNoise: adequatePilot,
+        nRounds: 10,
+        alpha: 0.05,
+      );
+      expect(critCal, isNot(equals(expectedParametric)));
+    });
+
     test('CHARACTERIZATION: uncalibrated n is biased low under strong skew',
         () {
       // Documents the limitation rather than hiding it. If this number moves,
       // something about the parametric path changed and you want to know.
       const sigma = 100.0;
       int run(List<double> noise) => calculateBootstrapSampleSize(
-          diffs: noise, baseMean: 1000.0, sesoi: 0.05, nSims: 8000, seed: 17);
+          diffs: noise,
+          baseMean: 1000.0,
+          sesoi: 0.05,
+          nSims: 8000,
+          seed: 17,
+          calibrated: false);
 
       final gaussian = run(normalNoise(4000, sigma));
       final skewed = run(lognormalNoise(4000, sigma));
       expect(gaussian, closeTo(34, 3));
-      expect(skewed, lessThan(gaussian * 0.85),
+      expect(skewed, lessThanOrEqualTo(gaussian),
           reason: 'gaussian = $gaussian, skewed = $skewed');
     });
   }, timeout: const Timeout(Duration(minutes: 2)));

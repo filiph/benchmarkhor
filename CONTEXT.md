@@ -71,3 +71,6 @@ The minimal magnitude of change (expressed as a percentage or fraction of baseli
 
 ### Bootstrap Sample Size
 The estimated minimum number of trials or rounds required per variant to achieve a target statistical power and significance level ($\alpha$), determined via noise resampling and simulated 1-sample t-tests.
+
+### Calibrated Bootstrap
+An empirical critical value calculation (studentized bootstrap-t resampling) that holds the false-positive rate at $\alpha$ under skewed noise distributions. It is enabled by default for sample size estimation, falling back to the parametric Student's t critical value when the pilot observation count is small ($n < 20$).

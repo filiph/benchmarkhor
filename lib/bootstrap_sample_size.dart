@@ -23,10 +23,22 @@ const kDefaultMinN = 6;
 
 const kDefaultMaxN = 10000;
 
-/// Below this many distinct values in the noise library,
-/// [calibratedCriticalValue] is estimating a quantile
-/// from too few underlying points to be trustworthy.
-const _minDistinctForCalibration = 8;
+/// Minimum pilot size for [calibratedCriticalValue] to be trusted. Below
+/// this, the empirical quantile is noisier than the parametric bias it
+/// corrects, so we fall back. Between 20 and ~50 the calibration is
+/// directionally right but the exact n is still soft.
+///
+/// Keyed on observation count, NOT distinct values: 300 rounds of a metric
+/// quantized to whole milliseconds may hold only a handful of distinct
+/// diffs, and that is precisely the case where calibration helps most.
+const _minPilotForCalibration = 20;
+
+/// Total resampled draws per calibration pass. Keeps cost flat in nRounds.
+/// At n = 6 this yields the full 20k sims; at n = 500 it yields 4k, whose
+/// quantile carries ~+/-0.5% error on alpha - acceptable, since large n is
+/// also where the parametric value was nearly right anyway.
+int _calibrationSimsFor(int nRounds, int requested) =>
+    max(4000, min(requested, 2000000 ~/ max(nRounds, 1)));
 
 /// Two-tailed Student's t critical value for [df] degrees of freedom
 /// at significance level [alpha].
@@ -147,10 +159,9 @@ double _absT(List<double> sample) {
 ///
 /// Three limits worth knowing:
 ///
-/// * It cannot outrun a small pilot. With 10 pilot rounds the library has 10
-///   distinct values and the quantile is itself noisy. This corrects shape
-///   misspecification, not insufficient data. Below
-///   [_minDistinctForCalibration] distinct values it declines and falls back.
+/// * It cannot outrun a small pilot. With fewer than [_minPilotForCalibration]
+///   pilot rounds, the empirical quantile is noisier than the parametric bias
+///   it corrects, so it declines and falls back to studentTCriticalValue.
 /// * The symmetric |t| region is still an approximation under skew. An
 ///   equal-tailed version (separate quantiles of the *signed* t) is more
 ///   accurate if you want to push further.
@@ -173,9 +184,9 @@ double calibratedCriticalValue({
     throw ArgumentError.value(alpha, 'alpha', 'must be in (0, 1)');
   }
 
-  // Too few distinct values to estimate a tail quantile from. Fall back to
+  // Too few pilot observations to estimate a tail quantile from. Fall back to
   // the parametric value rather than returning a confidently wrong number.
-  if (centeredNoise.toSet().length < _minDistinctForCalibration) {
+  if (centeredNoise.length < _minPilotForCalibration) {
     return studentTCriticalValue(nRounds - 1, alpha);
   }
 
@@ -236,12 +247,13 @@ double estimatePowerAt({
   if (nRounds < 2) return 0.0;
   final rng = Random(seed * 1000003 + nRounds);
 
+  final actualCalSims = _calibrationSimsFor(nRounds, nCalibrationSims);
   final tCrit = calibrated
       ? calibratedCriticalValue(
           centeredNoise: centeredNoise,
           nRounds: nRounds,
           alpha: alpha,
-          nSims: nCalibrationSims,
+          nSims: actualCalSims,
           seed: seed,
         )
       : studentTCriticalValue(nRounds - 1, alpha);

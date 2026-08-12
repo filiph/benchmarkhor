@@ -592,14 +592,12 @@ void _writeChangeAggregatesForTiming({
       int? sampleSize;
       String? unavailableBecause;
       try {
-        final shouldCalibrate = skewness(changes) > 0.5;
         sampleSize = calculateBootstrapSampleSize(
           diffs: changes,
           baseMean: baseMean,
           sesoi: bootstrapSesoi,
           alpha: bootstrapAlpha,
           power: bootstrapPower,
-          calibrated: shouldCalibrate,
         );
       } on ArgumentError catch (e) {
         // The library refuses degenerate pilots (fewer than 2 diffs, or zero
@@ -609,15 +607,19 @@ void _writeChangeAggregatesForTiming({
         unavailableBecause = e.message?.toString() ?? e.toString();
       }
 
+      final usedCalibration = changes.length >= 20;
+      final calibrationSuffix =
+          usedCalibration ? '' : ' (parametric; pilot too small to calibrate)';
+
       if (sampleSize == null) {
         log.info('Bootstrap suggested minimum sample size for $designation: '
             'unavailable ($unavailableBecause)');
       } else if (sampleSize >= kDefaultMaxN) {
         log.info('Bootstrap suggested minimum sample size for $designation: '
-            '>10000 (effect too small to detect within budget)');
+            '>10000 (effect too small to detect within budget)$calibrationSuffix');
       } else {
         log.info('Bootstrap suggested minimum sample size for $designation: '
-            '$sampleSize');
+            '$sampleSize$calibrationSuffix');
       }
     }
   }
