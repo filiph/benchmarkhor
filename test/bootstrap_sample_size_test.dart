@@ -15,163 +15,159 @@ void main() {
   // Tolerances are asymmetric on purpose. The z-formula is a floor; the
   // t-based truth sits 0 to 4 rounds above it, more at small n.
   // ------------------------------------------------------------------
-  group(
-    'closed-form agreement on Gaussian noise',
-    () {
-      // Monte-Carlo jitter in the returned n is smallest at small n, because
-      // power rises steeply there. At n ~ 34 with nSims = 10000 it is well
-      // under one round; at n ~ 128 it is about 1.5 rounds.
-      const sigma = 100.0;
-      const nSims = 10000;
+  group('closed-form agreement on Gaussian noise', () {
+    // Monte-Carlo jitter in the returned n is smallest at small n, because
+    // power rises steeply there. At n ~ 34 with nSims = 10000 it is well
+    // under one round; at n ~ 128 it is about 1.5 rounds.
+    const sigma = 100.0;
+    const nSims = 10000;
 
-      late List<double> noise;
-      setUp(() => noise = normalNoise(4000, sigma));
+    late List<double> noise;
+    setUp(() => noise = normalNoise(4000, sigma));
 
-      /// sigma/delta -> (expected exact n, computed offline from the
-      /// noncentral-t power function)
-      ///   ratio 1 -> 10      (z-formula:   8)
-      ///   ratio 2 -> 34      (z-formula:  32)
-      ///   ratio 4 -> 128     (z-formula: 126)
-      void checkRatio(double sesoi, int expectedExact) {
-        const baseMean = 1000.0;
-        final delta = baseMean * sesoi;
-        final floor = zApproxN(
-          sigma: sigma,
-          delta: delta,
-          zAlpha: zAlpha05,
-          zPower: zPower80,
-        );
+    /// sigma/delta -> (expected exact n, computed offline from the
+    /// noncentral-t power function)
+    ///   ratio 1 -> 10      (z-formula:   8)
+    ///   ratio 2 -> 34      (z-formula:  32)
+    ///   ratio 4 -> 128     (z-formula: 126)
+    void checkRatio(double sesoi, int expectedExact) {
+      const baseMean = 1000.0;
+      final delta = baseMean * sesoi;
+      final floor = zApproxN(
+        sigma: sigma,
+        delta: delta,
+        zAlpha: zAlpha05,
+        zPower: zPower80,
+      );
 
-        final n = calculateBootstrapSampleSize(
-          diffs: noise,
-          baseMean: baseMean,
-          sesoi: sesoi,
-          nSims: nSims,
-          seed: 1,
-        );
+      final n = calculateBootstrapSampleSize(
+        diffs: noise,
+        baseMean: baseMean,
+        sesoi: sesoi,
+        nSims: nSims,
+        seed: 1,
+      );
 
-        expect(
-          n,
-          greaterThanOrEqualTo(floor),
-          reason: 'simulation must not beat the z-formula floor of $floor',
-        );
-        expect(
-          n,
-          closeTo(expectedExact, max(2, expectedExact * 0.08)),
-          reason: 'noncentral-t truth is $expectedExact, z-formula is $floor',
-        );
-      }
+      expect(
+        n,
+        greaterThanOrEqualTo(floor),
+        reason: 'simulation must not beat the z-formula floor of $floor',
+      );
+      expect(
+        n,
+        closeTo(expectedExact, max(2, expectedExact * 0.08)),
+        reason: 'noncentral-t truth is $expectedExact, z-formula is $floor',
+      );
+    }
 
-      test('sigma/delta = 1 -> n ~ 10', () => checkRatio(0.10, 10));
-      test('sigma/delta = 2 -> n ~ 34', () => checkRatio(0.05, 34));
-      test('sigma/delta = 4 -> n ~ 128', () => checkRatio(0.025, 128));
+    test('sigma/delta = 1 -> n ~ 10', () => checkRatio(0.10, 10));
+    test('sigma/delta = 2 -> n ~ 34', () => checkRatio(0.05, 34));
+    test('sigma/delta = 4 -> n ~ 128', () => checkRatio(0.025, 128));
 
-      test('calibration is nearly free on Gaussian noise', () {
-        final parametric = calculateBootstrapSampleSize(
-          diffs: noise,
-          baseMean: 1000.0,
-          sesoi: 0.05,
-          nSims: 8000,
-          seed: 17,
-          calibrated: false,
-        );
-        final calibrated = calculateBootstrapSampleSize(
-          diffs: noise,
-          baseMean: 1000.0,
-          sesoi: 0.05,
-          nSims: 8000,
-          seed: 17,
-          calibrated: true,
-        );
+    test('calibration is nearly free on Gaussian noise', () {
+      final parametric = calculateBootstrapSampleSize(
+        diffs: noise,
+        baseMean: 1000.0,
+        sesoi: 0.05,
+        nSims: 8000,
+        seed: 17,
+        calibrated: false,
+      );
+      final calibrated = calculateBootstrapSampleSize(
+        diffs: noise,
+        baseMean: 1000.0,
+        sesoi: 0.05,
+        nSims: 8000,
+        seed: 17,
+        calibrated: true,
+      );
 
-        expect(parametric, closeTo(34, 3));
-        expect(
-          calibrated,
-          closeTo(parametric, 3),
-          reason: 'parametric = $parametric, calibrated = $calibrated',
-        );
-      });
+      expect(parametric, closeTo(34, 3));
+      expect(
+        calibrated,
+        closeTo(parametric, 3),
+        reason: 'parametric = $parametric, calibrated = $calibrated',
+      );
+    });
 
-      test('n scales as 1/delta^2', () {
-        const baseMean = 1000.0;
-        int run(double sesoi) => calculateBootstrapSampleSize(
-          diffs: noise,
-          baseMean: baseMean,
-          sesoi: sesoi,
-          nSims: nSims,
-          seed: 1,
-        );
+    test('n scales as 1/delta^2', () {
+      const baseMean = 1000.0;
+      int run(double sesoi) => calculateBootstrapSampleSize(
+        diffs: noise,
+        baseMean: baseMean,
+        sesoi: sesoi,
+        nSims: nSims,
+        seed: 1,
+      );
 
-        // Halving the effect twice should multiply n by roughly 16.
-        final big = run(0.10); // ~10
-        final small = run(0.025); // ~128
-        expect(
-          small / big,
-          closeTo(13, 4),
-          reason: 'quadratic scaling, damped by the +2 offset at small n',
-        );
-      });
+      // Halving the effect twice should multiply n by roughly 16.
+      final big = run(0.10); // ~10
+      final small = run(0.025); // ~128
+      expect(
+        small / big,
+        closeTo(13, 4),
+        reason: 'quadratic scaling, damped by the +2 offset at small n',
+      );
+    });
 
-      test('tighter alpha and higher power both increase n', () {
-        const baseMean = 1000.0;
-        const sesoi = 0.05;
-        final base = calculateBootstrapSampleSize(
-          diffs: noise,
-          baseMean: baseMean,
-          sesoi: sesoi,
-          nSims: nSims,
-          seed: 1,
-        ); // ~34
+    test('tighter alpha and higher power both increase n', () {
+      const baseMean = 1000.0;
+      const sesoi = 0.05;
+      final base = calculateBootstrapSampleSize(
+        diffs: noise,
+        baseMean: baseMean,
+        sesoi: sesoi,
+        nSims: nSims,
+        seed: 1,
+      ); // ~34
 
-        final tighterAlpha = calculateBootstrapSampleSize(
-          diffs: noise,
-          baseMean: baseMean,
-          sesoi: sesoi,
-          alpha: 0.01,
-          nSims: nSims,
-          seed: 1,
-        ); // ~49
-        final morePower = calculateBootstrapSampleSize(
-          diffs: noise,
-          baseMean: baseMean,
-          sesoi: sesoi,
-          power: 0.95,
-          nSims: nSims,
-          seed: 1,
-        ); // ~54
+      final tighterAlpha = calculateBootstrapSampleSize(
+        diffs: noise,
+        baseMean: baseMean,
+        sesoi: sesoi,
+        alpha: 0.01,
+        nSims: nSims,
+        seed: 1,
+      ); // ~49
+      final morePower = calculateBootstrapSampleSize(
+        diffs: noise,
+        baseMean: baseMean,
+        sesoi: sesoi,
+        power: 0.95,
+        nSims: nSims,
+        seed: 1,
+      ); // ~54
 
-        expect(tighterAlpha, greaterThan(base));
-        expect(morePower, greaterThan(base));
+      expect(tighterAlpha, greaterThan(base));
+      expect(morePower, greaterThan(base));
 
-        // And they should land near their own closed forms.
-        expect(
-          tighterAlpha,
-          closeTo(
-            zApproxN(
-              sigma: sigma,
-              delta: 50.0,
-              zAlpha: zAlpha01,
-              zPower: zPower80,
-            ),
-            6,
+      // And they should land near their own closed forms.
+      expect(
+        tighterAlpha,
+        closeTo(
+          zApproxN(
+            sigma: sigma,
+            delta: 50.0,
+            zAlpha: zAlpha01,
+            zPower: zPower80,
           ),
-        );
-        expect(
-          morePower,
-          closeTo(
-            zApproxN(
-              sigma: sigma,
-              delta: 50.0,
-              zAlpha: zAlpha05,
-              zPower: zPower95,
-            ),
-            6,
+          6,
+        ),
+      );
+      expect(
+        morePower,
+        closeTo(
+          zApproxN(
+            sigma: sigma,
+            delta: 50.0,
+            zAlpha: zAlpha05,
+            zPower: zPower95,
           ),
-        );
-      });
-    },
-    timeout: const Timeout(Duration(minutes: 2)),
-  );
+          6,
+        ),
+      );
+    });
+  }, timeout: const Timeout(Duration(minutes: 2)));
 
   // ------------------------------------------------------------------
   // Calibration. Power is meaningless if the test is not running at the

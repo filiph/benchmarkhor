@@ -6,6 +6,6 @@ analyzer:
     strict-inference: true
     strict-raw-types: true
   exclude:
-#    - adb_server
     - example
+#    - adb_server
 #    - example_apk
