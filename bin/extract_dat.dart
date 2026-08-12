@@ -607,7 +607,7 @@ void _writeChangeAggregatesForTiming({
         unavailableBecause = e.message?.toString() ?? e.toString();
       }
 
-      final usedCalibration = changes.length >= 20;
+      final usedCalibration = changes.length >= kMinPilotForCalibration;
       final calibrationSuffix =
           usedCalibration ? '' : ' (parametric; pilot too small to calibrate)';
 

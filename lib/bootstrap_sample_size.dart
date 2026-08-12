@@ -31,7 +31,7 @@ const kDefaultMaxN = 10000;
 /// Keyed on observation count, NOT distinct values: 300 rounds of a metric
 /// quantized to whole milliseconds may hold only a handful of distinct
 /// diffs, and that is precisely the case where calibration helps most.
-const _minPilotForCalibration = 20;
+const kMinPilotForCalibration = 20;
 
 /// Total resampled draws per calibration pass. Keeps cost flat in nRounds.
 /// At n = 6 this yields the full 20k sims; at n = 500 it yields 4k, whose
@@ -159,7 +159,7 @@ double _absT(List<double> sample) {
 ///
 /// Three limits worth knowing:
 ///
-/// * It cannot outrun a small pilot. With fewer than [_minPilotForCalibration]
+/// * It cannot outrun a small pilot. With fewer than [kMinPilotForCalibration]
 ///   pilot rounds, the empirical quantile is noisier than the parametric bias
 ///   it corrects, so it declines and falls back to studentTCriticalValue.
 /// * The symmetric |t| region is still an approximation under skew. An
@@ -186,7 +186,7 @@ double calibratedCriticalValue({
 
   // Too few pilot observations to estimate a tail quantile from. Fall back to
   // the parametric value rather than returning a confidently wrong number.
-  if (centeredNoise.length < _minPilotForCalibration) {
+  if (centeredNoise.length < kMinPilotForCalibration) {
     return studentTCriticalValue(nRounds - 1, alpha);
   }
 
