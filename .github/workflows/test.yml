@@ -22,8 +22,16 @@ jobs:
       # - uses: dart-lang/setup-dart@v1
       - uses: dart-lang/setup-dart@v1
 
-      - name: Install dependencies
+      - name: Install dependencies (root)
         run: dart pub get
+
+      - name: Install dependencies (adb_server)
+        working-directory: adb_server
+        run: dart pub get
+
+      - name: Build fake_adb
+        working-directory: adb_server/test/fixtures/fake_adb
+        run: dart compile exe fake_adb.dart -o adb
 
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
@@ -31,5 +39,9 @@ jobs:
       - name: Analyze project source
         run: dart analyze --fatal-infos
 
-      - name: Run tests
+      - name: Run tests (root)
+        run: dart test
+
+      - name: Run tests (adb_server)
+        working-directory: adb_server
         run: dart test
