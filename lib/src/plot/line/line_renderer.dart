@@ -48,9 +48,7 @@ String buildLineSvg(List<LineData> lines) {
 
   final buf = SvgBuffer();
 
-  buf.writeln(
-    '<?xml version="1.0" encoding="utf-8"?>',
-  );
+  buf.writeln('<?xml version="1.0" encoding="utf-8"?>');
   buf.writeln(
     '<svg xmlns="http://www.w3.org/2000/svg" '
     'width="$svgWidth" height="$svgHeight" '
@@ -102,8 +100,9 @@ String buildLineSvg(List<LineData> lines) {
     if (l.values.isEmpty) continue;
 
     final colorHex = colors[i % colors.length];
-    final (strokeColor, strokeOpacity) =
-        parseColor(colorHex.replaceRange(0, 3, '#ff'));
+    final (strokeColor, strokeOpacity) = parseColor(
+      colorHex.replaceRange(0, 3, '#ff'),
+    );
 
     final points = StringBuffer();
     for (int idx = 0; idx < l.values.length; idx++) {
@@ -124,8 +123,9 @@ String buildLineSvg(List<LineData> lines) {
   for (int i = 0; i < lines.length; i++) {
     final l = lines[i];
     final colorHex = colors[i % colors.length];
-    final (strokeColor, strokeOpacity) =
-        parseColor(colorHex.replaceRange(0, 3, '#ff'));
+    final (strokeColor, strokeOpacity) = parseColor(
+      colorHex.replaceRange(0, 3, '#ff'),
+    );
     final legendY = marginTop + i * legendLineHeight;
     final legendX = axisX + plotWidth - 150;
 

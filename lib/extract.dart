@@ -6,8 +6,11 @@ import 'package:logging/logging.dart';
 
 /// May throw [FormatException] if [fileContents] aren't valid JSON.
 Future<BenchmarkResult> extractStatsFromFlutterTimeline(
-    String label, DateTime timestamp, String fileContents,
-    {required bool shouldSort}) async {
+  String label,
+  DateTime timestamp,
+  String fileContents, {
+  required bool shouldSort,
+}) async {
   final map = json.decode(fileContents) as Map<String, dynamic>;
 
   final events = _parseEvents(map)!;
@@ -26,11 +29,16 @@ Future<BenchmarkResult> extractStatsFromFlutterTimeline(
   assert(uiThreadId != -1);
   assert(rasterThreadId != -1);
 
-  final uiTimes =
-      measureTimes(events, uiThreadId, 'Frame').toList(growable: false);
-  final rasterTimes =
-      measureTimes(events, rasterThreadId, 'GPURasterizer::Draw')
-          .toList(growable: false);
+  final uiTimes = measureTimes(
+    events,
+    uiThreadId,
+    'Frame',
+  ).toList(growable: false);
+  final rasterTimes = measureTimes(
+    events,
+    rasterThreadId,
+    'GPURasterizer::Draw',
+  ).toList(growable: false);
 
   if (shouldSort) {
     uiTimes.sort();
@@ -50,7 +58,10 @@ Future<BenchmarkResult> extractStatsFromFlutterTimeline(
 /// Measures events taken by events that are named [eventName]
 /// in thread [threadId].
 Iterable<int> measureTimes(
-    List<TimelineEvent> events, int threadId, Pattern eventName) sync* {
+  List<TimelineEvent> events,
+  int threadId,
+  Pattern eventName,
+) sync* {
   final log = Logger('measureTime');
 
   /// Started event is null when there hasn't yet been a "B" event, or when
@@ -65,21 +76,27 @@ Iterable<int> measureTimes(
     if (event.threadId != threadId) continue;
     if ((event.name ?? '') != eventName) continue;
     if (event.timestampMicros == null) {
-      log.warning("Event doesn't include a timestamp. Ignoring. "
-          'Event: ${event.json}');
+      log.warning(
+        "Event doesn't include a timestamp. Ignoring. "
+        'Event: ${event.json}',
+      );
       continue;
     }
     if (event.phase?.toUpperCase() == 'B') {
       if (startedEvent != null) {
-        log.warning('New event beginning but last one '
-            "hasn't ended yet. Ignoring the previous beginning. "
-            'Existing: ${startedEvent.json}. New: ${event.json}. ');
+        log.warning(
+          'New event beginning but last one '
+          "hasn't ended yet. Ignoring the previous beginning. "
+          'Existing: ${startedEvent.json}. New: ${event.json}. ',
+        );
       }
       startedEvent = event;
     } else if (event.phase?.toUpperCase() == 'E') {
       if (startedEvent == null) {
-        log.warning("Event ended but we didn't see it begin. Ignoring. "
-            'End event: ${event.json}');
+        log.warning(
+          "Event ended but we didn't see it begin. Ignoring. "
+          'End event: ${event.json}',
+        );
         continue;
       }
       if (event.timestampMicros == null) {
@@ -92,9 +109,11 @@ Iterable<int> measureTimes(
       final elapsedTime =
           event.timestampMicros! - startedEvent.timestampMicros!;
       if (elapsedTime > 10000000) {
-        log.warning('Event seems to be way too long, over 10 seconds. '
-            'It will be added as is, but check the timeline. '
-            'Start: ${startedEvent.json}. End: ${event.json}');
+        log.warning(
+          'Event seems to be way too long, over 10 seconds. '
+          'It will be added as is, but check the timeline. '
+          'Start: ${startedEvent.json}. End: ${event.json}',
+        );
       }
 
       yield elapsedTime;
@@ -113,7 +132,8 @@ List<TimelineEvent>? _parseEvents(Map<String, dynamic> json) {
   final timelineEvents =
       Iterable.castFrom<dynamic, Map<String, dynamic>>(jsonEvents)
           .map<TimelineEvent>(
-              (Map<String, dynamic> eventJson) => TimelineEvent(eventJson))
+            (Map<String, dynamic> eventJson) => TimelineEvent(eventJson),
+          )
           .toList();
 
   timelineEvents.sort((TimelineEvent e1, TimelineEvent e2) {

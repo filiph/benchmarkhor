@@ -46,11 +46,7 @@ class YAxis {
 
     final ticks = niceTicks(lo, hi, targetCount: targetTickCount);
     // Extend the axis to encompass the outermost ticks.
-    return YAxis._(
-      math.min(lo, ticks.first),
-      math.max(hi, ticks.last),
-      ticks,
-    );
+    return YAxis._(math.min(lo, ticks.first), math.max(hi, ticks.last), ticks);
   }
 
   /// Maps a data value to an SVG pixel y coordinate (inverted: larger values

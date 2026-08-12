@@ -5,7 +5,9 @@ void main() {
   group('BenchmarkResult', () {
     test('saves and loads well-formed and everything', () {
       final series = MeasurementSeries(
-          'UI thread', List.generate(100, (index) => index * index));
+        'UI thread',
+        List.generate(100, (index) => index * index),
+      );
       final timestamp = DateTime.utc(2022, 1, 3, 6, 55);
       final result = BenchmarkResult(
         label: 'こんにちは世界',
@@ -17,20 +19,28 @@ void main() {
       expect(recovered.label, 'こんにちは世界');
       expect(recovered.timestamp, timestamp);
       expect(recovered.series.length, 1);
-      expect(recovered.series.single.measurements.length,
-          series.measurements.length);
-      expect(recovered.series.single.measurements.first,
-          series.measurements.first);
+      expect(
+        recovered.series.single.measurements.length,
+        series.measurements.length,
+      );
+      expect(
+        recovered.series.single.measurements.first,
+        series.measurements.first,
+      );
       expect(recovered.series.single.measurements[1], series.measurements[1]);
       expect(
-          recovered.series.single.measurements.last, series.measurements.last);
+        recovered.series.single.measurements.last,
+        series.measurements.last,
+      );
     });
   });
 
   group('MeasurementSeries', () {
     test('saves and loads well-formed', () {
       final series = MeasurementSeries(
-          'こんにちは世界', List.generate(100, (index) => index * index));
+        'こんにちは世界',
+        List.generate(100, (index) => index * index),
+      );
       final bytes = series.toBytes();
       final recovered = MeasurementSeries.fromBytes(bytes);
       expect(recovered.label, 'こんにちは世界');
@@ -46,8 +56,10 @@ void main() {
         for (var i = 0; i < length; i++) {
           label += '*';
         }
-        final series =
-            MeasurementSeries(label, List.generate(10, (index) => 0));
+        final series = MeasurementSeries(
+          label,
+          List.generate(10, (index) => 0),
+        );
         final bytes = series.toBytes();
         final recovered = MeasurementSeries.fromBytes(bytes);
         expect(recovered.label, series.label);

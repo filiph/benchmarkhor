@@ -64,8 +64,9 @@ class ViolinData {
     final q3 = percentile(sorted, 0.75);
     final iqr = q3 - q1;
 
-    final notchDelta =
-        sorted.isEmpty ? 0.0 : (1.58 * iqr / sqrt(sorted.length));
+    final notchDelta = sorted.isEmpty
+        ? 0.0
+        : (1.58 * iqr / sqrt(sorted.length));
     final notchLo = med - notchDelta;
     final notchHi = med + notchDelta;
 
@@ -82,8 +83,9 @@ class ViolinData {
     final fenceHi = q3 + 1.5 * iqr;
 
     final nonOutliers = sorted.where((v) => v >= fenceLo && v <= fenceHi);
-    final whiskerLo =
-        nonOutliers.isNotEmpty ? nonOutliers.first.toDouble() : q1;
+    final whiskerLo = nonOutliers.isNotEmpty
+        ? nonOutliers.first.toDouble()
+        : q1;
     final whiskerHi = nonOutliers.isNotEmpty ? nonOutliers.last.toDouble() : q3;
 
     final outliers = sorted
@@ -94,8 +96,9 @@ class ViolinData {
     // KDE over the non-outlier data range, truncated at whiskers.
     final nonOutlierList = nonOutliers.toList();
     final kdePoints = kde(nonOutlierList, whiskerLo, whiskerHi);
-    final maxDensity =
-        kdePoints.isEmpty ? 0.0 : kdePoints.map((p) => p.$2).reduce(max);
+    final maxDensity = kdePoints.isEmpty
+        ? 0.0
+        : kdePoints.map((p) => p.$2).reduce(max);
 
     return ViolinData(
       label: label,

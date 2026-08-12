@@ -10,10 +10,7 @@ class LineData {
   /// Values in file order (NOT sorted), unlike [ViolinData].
   final List<num> values;
 
-  LineData({
-    required this.label,
-    required this.values,
-  });
+  LineData({required this.label, required this.values});
 
   factory LineData.compute(String label, List<num> values) {
     if (values.isEmpty) {

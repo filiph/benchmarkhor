@@ -24,9 +24,8 @@ class ViolinCommand extends Command<void> {
   @override
   void run() {
     final inputs = argResults!.rest;
-    final maxOutlierCoefficient = double.tryParse(
-          argResults!['max-outlier-coefficient'] as String,
-        ) ??
+    final maxOutlierCoefficient =
+        double.tryParse(argResults!['max-outlier-coefficient'] as String) ??
         3.0;
 
     if (inputs.isEmpty) {
@@ -37,15 +36,17 @@ class ViolinCommand extends Command<void> {
     for (final path in inputs) {
       final values = parseDat(path);
       // Use the filename (without extension) as the label
-      final label = path.split(Platform.pathSeparator).last.replaceAll(
-            RegExp(r'\.dat$', caseSensitive: false),
-            '',
-          );
-      violins.add(ViolinData.compute(
-        label,
-        values,
-        maxOutlierCoefficient: maxOutlierCoefficient,
-      ));
+      final label = path
+          .split(Platform.pathSeparator)
+          .last
+          .replaceAll(RegExp(r'\.dat$', caseSensitive: false), '');
+      violins.add(
+        ViolinData.compute(
+          label,
+          values,
+          maxOutlierCoefficient: maxOutlierCoefficient,
+        ),
+      );
     }
 
     final svg = buildViolinSvg(violins);

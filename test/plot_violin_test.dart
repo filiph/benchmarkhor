@@ -10,18 +10,17 @@ const plotBottom = marginTop + plotHeight;
 
 /// The y coordinate of the highlighted y=0 line, if drawn.
 double? zeroLineY(String svg) {
-  final match = RegExp(r'<line x1="[\d.]+" y1="([\d.]+)" x2="[\d.]+" '
-          r'y2="[\d.]+" stroke="#eee"')
-      .firstMatch(svg);
+  final match = RegExp(
+    r'<line x1="[\d.]+" y1="([\d.]+)" x2="[\d.]+" '
+    r'y2="[\d.]+" stroke="#eee"',
+  ).firstMatch(svg);
   return match == null ? null : double.parse(match.group(1)!);
 }
 
 /// The y coordinates of all outlier circles.
-List<double> outlierYs(String svg) =>
-    RegExp(r'<circle cx="[-\d.]+" cy="([-\d.]+)"')
-        .allMatches(svg)
-        .map((m) => double.parse(m.group(1)!))
-        .toList();
+List<double> outlierYs(String svg) => RegExp(
+  r'<circle cx="[-\d.]+" cy="([-\d.]+)"',
+).allMatches(svg).map((m) => double.parse(m.group(1)!)).toList();
 
 void main() {
   group('buildViolinSvg', () {
@@ -37,7 +36,7 @@ void main() {
     test('renders the sample fixtures on shared axes', () {
       final violins = [
         'test/fixtures/sample_a.dat',
-        'test/fixtures/sample_b.dat'
+        'test/fixtures/sample_b.dat',
       ].map((path) => ViolinData.compute(path, parseDat(path))).toList();
 
       final svg = buildViolinSvg(violins);
@@ -48,24 +47,47 @@ void main() {
     });
 
     test('all-positive data puts the zero line at the very bottom', () {
-      final violin =
-          ViolinData.compute('a', [100, 110, 120, 130, 140, 150, 160]);
+      final violin = ViolinData.compute('a', [
+        100,
+        110,
+        120,
+        130,
+        140,
+        150,
+        160,
+      ]);
       final svg = buildViolinSvg([violin]);
 
       expect(zeroLineY(svg), closeTo(plotBottom, 1e-9));
     });
 
     test('all-negative data puts the zero line at the very top', () {
-      final violin =
-          ViolinData.compute('a', [-100, -110, -120, -130, -140, -150, -160]);
+      final violin = ViolinData.compute('a', [
+        -100,
+        -110,
+        -120,
+        -130,
+        -140,
+        -150,
+        -160,
+      ]);
       final svg = buildViolinSvg([violin]);
 
       expect(zeroLineY(svg), closeTo(marginTop, 1e-9));
     });
 
     test('data straddling zero puts the zero line inside the plot', () {
-      final violin =
-          ViolinData.compute('a', [-30, -20, -10, 0, 10, 20, 30, 40, 50]);
+      final violin = ViolinData.compute('a', [
+        -30,
+        -20,
+        -10,
+        0,
+        10,
+        20,
+        30,
+        40,
+        50,
+      ]);
       final svg = buildViolinSvg([violin]);
 
       final y0 = zeroLineY(svg)!;
@@ -74,8 +96,17 @@ void main() {
     });
 
     test('negative data is drawn below the zero line', () {
-      final violin =
-          ViolinData.compute('a', [-30, -20, -10, 0, 10, 20, 30, 40, 50]);
+      final violin = ViolinData.compute('a', [
+        -30,
+        -20,
+        -10,
+        0,
+        10,
+        20,
+        30,
+        40,
+        50,
+      ]);
       final svg = buildViolinSvg([violin]);
 
       final y0 = zeroLineY(svg)!;
@@ -91,8 +122,15 @@ void main() {
     });
 
     test('renders notched box plot polygon and median line across waist', () {
-      final violin =
-          ViolinData.compute('a', [100, 110, 120, 130, 140, 150, 160]);
+      final violin = ViolinData.compute('a', [
+        100,
+        110,
+        120,
+        130,
+        140,
+        150,
+        160,
+      ]);
       final svg = buildViolinSvg([violin]);
 
       // Box plot rendered as a polygon with points
@@ -106,10 +144,7 @@ void main() {
 
     test('outliers far below the plot minimum are summarised, not drawn', () {
       // A tight distribution plus one extreme low value.
-      final values = <num>[
-        for (var i = 0; i < 40; i++) 100 + i % 5,
-        -100000,
-      ];
+      final values = <num>[for (var i = 0; i < 40; i++) 100 + i % 5, -100000];
       final violin = ViolinData.compute('a', values);
       final svg = buildViolinSvg([violin]);
 
@@ -122,10 +157,7 @@ void main() {
     });
 
     test('outliers far above the plot maximum are still summarised', () {
-      final values = <num>[
-        for (var i = 0; i < 40; i++) 100 + i % 5,
-        100000,
-      ];
+      final values = <num>[for (var i = 0; i < 40; i++) 100 + i % 5, 100000];
       final violin = ViolinData.compute('a', values);
       final svg = buildViolinSvg([violin]);
 
@@ -151,8 +183,10 @@ void main() {
     test('input range is symmetric around median when straddling zero', () {
       final data = ViolinData.compute('a', [-20, -10, 0, 10, 20]);
 
-      expect(data.inputMax - data.median,
-          closeTo(data.median - data.inputMin, 1e-9));
+      expect(
+        data.inputMax - data.median,
+        closeTo(data.median - data.inputMin, 1e-9),
+      );
     });
 
     test('input range is bounded at zero for all-positive data', () {

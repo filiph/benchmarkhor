@@ -24,15 +24,27 @@ import 'package:t_stats/t_stats.dart';
 
 void main(List<String> arguments) async {
   final parser = ArgParser()
-    ..addOption('output',
-        abbr: 'o', help: 'Output directory', defaultsTo: 'extracted_dat')
-    ..addOption('bootstrap-sesoi',
-        help: 'Smallest effect size of interest for sample size calculation',
-        defaultsTo: '0.05')
-    ..addOption('bootstrap-alpha',
-        help: 'Alpha level for sample size calculation', defaultsTo: '0.05')
-    ..addOption('bootstrap-power',
-        help: 'Target power for sample size calculation', defaultsTo: '0.80')
+    ..addOption(
+      'output',
+      abbr: 'o',
+      help: 'Output directory',
+      defaultsTo: 'extracted_dat',
+    )
+    ..addOption(
+      'bootstrap-sesoi',
+      help: 'Smallest effect size of interest for sample size calculation',
+      defaultsTo: '0.05',
+    )
+    ..addOption(
+      'bootstrap-alpha',
+      help: 'Alpha level for sample size calculation',
+      defaultsTo: '0.05',
+    )
+    ..addOption(
+      'bootstrap-power',
+      help: 'Target power for sample size calculation',
+      defaultsTo: '0.80',
+    )
     ..addFlag('verbose', help: 'Verbose logging.')
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Show help');
 
@@ -66,13 +78,13 @@ void main(List<String> arguments) async {
 
   final bootstrapSesoi =
       double.tryParse(argResults['bootstrap-sesoi'] as String? ?? '0.05') ??
-          0.05;
+      0.05;
   final bootstrapAlpha =
       double.tryParse(argResults['bootstrap-alpha'] as String? ?? '0.05') ??
-          0.05;
+      0.05;
   final bootstrapPower =
       double.tryParse(argResults['bootstrap-power'] as String? ?? '0.80') ??
-          0.80;
+      0.80;
 
   if (!outputDir.existsSync()) {
     outputDir.createSync(recursive: true);
@@ -96,7 +108,8 @@ void main(List<String> arguments) async {
         jsonDecode(sessionJsonFile.readAsStringSync()) as Map<String, dynamic>;
   } catch (e) {
     stderr.writeln(
-        'Error: Failed to parse session.json at ${sessionJsonFile.path}: $e');
+      'Error: Failed to parse session.json at ${sessionJsonFile.path}: $e',
+    );
     exit(1);
   }
 
@@ -138,15 +151,17 @@ void main(List<String> arguments) async {
       final recordedRound = trialJson['round'] as int;
       if (recordedRound != calculatedRound) {
         stderr.writeln(
-            'Error: Trial $trialId recorded round ($recordedRound) does not match calculated round ($calculatedRound).');
+          'Error: Trial $trialId recorded round ($recordedRound) does not match calculated round ($calculatedRound).',
+        );
         exit(1);
       }
     }
 
     endTemperatures.add(_endTemperature(trialJson));
 
-    final framesFile =
-        File(p.join(entity.path, 'results', 'files', 'frames.jsonl'));
+    final framesFile = File(
+      p.join(entity.path, 'results', 'files', 'frames.jsonl'),
+    );
     if (!framesFile.existsSync()) {
       stderr.writeln('Warning: frames.jsonl not found for $trialId');
       continue;
@@ -186,16 +201,25 @@ void main(List<String> arguments) async {
       continue;
     }
 
-    final trialData = TrialData(trialId, buildTimes, rasterTimes,
-        buildTimesByPhase, rasterTimesByPhase);
+    final trialData = TrialData(
+      trialId,
+      buildTimes,
+      rasterTimes,
+      buildTimesByPhase,
+      rasterTimesByPhase,
+    );
     variantTrials.putIfAbsent(variantName, () => []).add(trialData);
     roundTrials.putIfAbsent(calculatedRound, () => {})[variantName] = trialData;
 
     // Write per-trial files
-    _writeDat(p.join(outputDir.path, 'build_${variantName}_$trialId.dat'),
-        buildTimes);
-    _writeDat(p.join(outputDir.path, 'raster_${variantName}_$trialId.dat'),
-        rasterTimes);
+    _writeDat(
+      p.join(outputDir.path, 'build_${variantName}_$trialId.dat'),
+      buildTimes,
+    );
+    _writeDat(
+      p.join(outputDir.path, 'raster_${variantName}_$trialId.dat'),
+      rasterTimes,
+    );
   }
 
   // Write aggregated files
@@ -203,28 +227,36 @@ void main(List<String> arguments) async {
     final variantName = entry.key;
     final trials = entry.value;
 
-    _writeAggregates(outputDir.path, 'build', variantName,
-        trials.map((t) => t.buildTimes).toList());
-    _writeAggregates(outputDir.path, 'raster', variantName,
-        trials.map((t) => t.rasterTimes).toList());
+    _writeAggregates(
+      outputDir.path,
+      'build',
+      variantName,
+      trials.map((t) => t.buildTimes).toList(),
+    );
+    _writeAggregates(
+      outputDir.path,
+      'raster',
+      variantName,
+      trials.map((t) => t.rasterTimes).toList(),
+    );
 
     // Phases are optional. Frames without a phase tag are only part of the
     // all-phases aggregates above.
     for (final phase in _phasesOf(trials)) {
       _writeAggregates(
-          outputDir.path,
-          'build',
-          '${variantName}_$phase',
-          trials
-              .map((t) => t.buildTimesByPhase[phase] ?? const <num>[])
-              .toList());
+        outputDir.path,
+        'build',
+        '${variantName}_$phase',
+        trials.map((t) => t.buildTimesByPhase[phase] ?? const <num>[]).toList(),
+      );
       _writeAggregates(
-          outputDir.path,
-          'raster',
-          '${variantName}_$phase',
-          trials
-              .map((t) => t.rasterTimesByPhase[phase] ?? const <num>[])
-              .toList());
+        outputDir.path,
+        'raster',
+        '${variantName}_$phase',
+        trials
+            .map((t) => t.rasterTimesByPhase[phase] ?? const <num>[])
+            .toList(),
+      );
     }
   }
 
@@ -332,16 +364,23 @@ List<String> _phasesOf(List<TrialData> trials) {
 /// incomplete trailing Round is ignored, so the number of values matches the
 /// number of values in the per-Variant aggregates.
 void _writeRoundTemperatures(
-    String outputDirPath, List<double?> endTemperatures, int variantCount) {
+  String outputDirPath,
+  List<double?> endTemperatures,
+  int variantCount,
+) {
   if (variantCount == 0) return;
   final temperatures = <double>[];
-  for (var i = variantCount - 1;
-      i < endTemperatures.length;
-      i += variantCount) {
+  for (
+    var i = variantCount - 1;
+    i < endTemperatures.length;
+    i += variantCount
+  ) {
     final temperature = endTemperatures[i];
     if (temperature == null) {
-      stderr.writeln('Warning: no temperature recorded for round '
-          '${i ~/ variantCount + 1}');
+      stderr.writeln(
+        'Warning: no temperature recorded for round '
+        '${i ~/ variantCount + 1}',
+      );
       continue;
     }
     temperatures.add(temperature);
@@ -376,8 +415,12 @@ void _writeDat(String path, List<num> values) {
 
 /// Writes one value per trial for each metric, for one [timing] (`build` or
 /// `raster`) of one variant.
-void _writeAggregates(String outputDirPath, String timing, String variantName,
-    List<List<num>> trialsData) {
+void _writeAggregates(
+  String outputDirPath,
+  String timing,
+  String variantName,
+  List<List<num>> trialsData,
+) {
   final firsts = <double>[];
   final means = <double>[];
   final mins = <double>[];
@@ -418,8 +461,9 @@ void _writeAggregates(String outputDirPath, String timing, String variantName,
   _writeDat(p.join(outputDirPath, '${timing}_p95_$variantName.dat'), p95s);
   _writeDat(p.join(outputDirPath, '${timing}_p99_$variantName.dat'), p99s);
   _writeDat(
-      p.join(outputDirPath, '${timing}_p95superquantile_$variantName.dat'),
-      p95Superquantiles);
+    p.join(outputDirPath, '${timing}_p95superquantile_$variantName.dat'),
+    p95Superquantiles,
+  );
 }
 
 Metrics? _computeMetrics(List<num> data) {
@@ -491,15 +535,7 @@ final class Metrics {
   }
 }
 
-enum MetricType {
-  first,
-  mean,
-  min,
-  max,
-  p95,
-  p99,
-  p95superquantile,
-}
+enum MetricType { first, mean, min, max, p95, p99, p95superquantile }
 
 void _writeChangeAggregatesForTiming({
   required String outputDirPath,
@@ -573,7 +609,8 @@ void _writeChangeAggregatesForTiming({
       final changeStats = Statistic.from(changes, name: designation);
 
       final medianIsDifferent = varStats.isDifferentFrom(baseStats);
-      final meanIsDifferent = (varStats.lowerBound < baseStats.lowerBound &&
+      final meanIsDifferent =
+          (varStats.lowerBound < baseStats.lowerBound &&
               varStats.upperBound < baseStats.lowerBound) ||
           (varStats.lowerBound > baseStats.upperBound &&
               varStats.upperBound > baseStats.upperBound);
@@ -581,10 +618,10 @@ void _writeChangeAggregatesForTiming({
       final significanceMarker = (medianIsDifferent && meanIsDifferent)
           ? 'BOTH'
           : medianIsDifferent
-              ? 'medi'
-              : meanIsDifferent
-                  ? 'mean'
-                  : '    ';
+          ? 'medi'
+          : meanIsDifferent
+          ? 'mean'
+          : '    ';
       log.info('$significanceMarker ${changeStats.toString()}');
 
       final baseMean = baseStats.mean.toDouble();
@@ -608,18 +645,25 @@ void _writeChangeAggregatesForTiming({
       }
 
       final usedCalibration = changes.length >= kMinPilotForCalibration;
-      final calibrationSuffix =
-          usedCalibration ? '' : ' (parametric; pilot too small to calibrate)';
+      final calibrationSuffix = usedCalibration
+          ? ''
+          : ' (parametric; pilot too small to calibrate)';
 
       if (sampleSize == null) {
-        log.info('Bootstrap suggested minimum sample size for $designation: '
-            'unavailable ($unavailableBecause)');
+        log.info(
+          'Bootstrap suggested minimum sample size for $designation: '
+          'unavailable ($unavailableBecause)',
+        );
       } else if (sampleSize >= kDefaultMaxN) {
-        log.info('Bootstrap suggested minimum sample size for $designation: '
-            '>10000 (effect too small to detect within budget)$calibrationSuffix');
+        log.info(
+          'Bootstrap suggested minimum sample size for $designation: '
+          '>10000 (effect too small to detect within budget)$calibrationSuffix',
+        );
       } else {
-        log.info('Bootstrap suggested minimum sample size for $designation: '
-            '$sampleSize$calibrationSuffix');
+        log.info(
+          'Bootstrap suggested minimum sample size for $designation: '
+          '$sampleSize$calibrationSuffix',
+        );
       }
     }
   }
@@ -673,6 +717,11 @@ class TrialData {
   /// Raster times of only those frames tagged with a given phase.
   final Map<String, List<num>> rasterTimesByPhase;
 
-  TrialData(this.id, this.buildTimes, this.rasterTimes, this.buildTimesByPhase,
-      this.rasterTimesByPhase);
+  TrialData(
+    this.id,
+    this.buildTimes,
+    this.rasterTimes,
+    this.buildTimesByPhase,
+    this.rasterTimesByPhase,
+  );
 }

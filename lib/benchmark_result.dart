@@ -7,8 +7,9 @@ class BenchmarkResult {
   static const String _preamble = 'benchmarkhor format>';
   static final _preambleBytes = Uint8List.fromList(ascii.encode(_preamble));
   static const int currentFormatVersion = 1;
-  static final _currentFormatVersionBytes =
-      Uint16List.fromList([currentFormatVersion]);
+  static final _currentFormatVersionBytes = Uint16List.fromList([
+    currentFormatVersion,
+  ]);
   static const flutterProfileType = 'flutter-profile ';
   static const _typeStringLength = 16;
 
@@ -47,11 +48,12 @@ class BenchmarkResult {
     required this.timestamp,
     required this.series,
     this.type = flutterProfileType,
-  })  : assert(timestamp.isUtc, 'Timestamp must be in UTC'),
-        assert(
-            type.length == _typeStringLength,
-            'Type must be exactly $_typeStringLength characters long. '
-            'Feel free to pad with spaces') {
+  }) : assert(timestamp.isUtc, 'Timestamp must be in UTC'),
+       assert(
+         type.length == _typeStringLength,
+         'Type must be exactly $_typeStringLength characters long. '
+         'Feel free to pad with spaces',
+       ) {
     if (series.isEmpty) {
       throw Exception('BenchmarkResult cannot be created with zero series');
     }
@@ -64,7 +66,8 @@ class BenchmarkResult {
     final preamble = ascii.decode(preambleBytes);
     if (preamble != _preamble) {
       throw LoadException(
-          "The file doesn't start with the correct preamble: $_preamble");
+        "The file doesn't start with the correct preamble: $_preamble",
+      );
     }
     offset += preambleBytes.lengthInBytes;
 
@@ -72,59 +75,57 @@ class BenchmarkResult {
     if (version != currentFormatVersion) {
       // TODO: Support loading old versions when we have such a thing.
       throw LoadException(
-          'The file is saved in an unsupported version format: $version. '
-          "This program's supported version: $currentFormatVersion");
+        'The file is saved in an unsupported version format: $version. '
+        "This program's supported version: $currentFormatVersion",
+      );
     }
     offset += Uint16List.bytesPerElement;
 
-    final type =
-        ascii.decode(bytes.buffer.asUint8List(offset, _typeStringLength));
+    final type = ascii.decode(
+      bytes.buffer.asUint8List(offset, _typeStringLength),
+    );
     offset += _typeStringLength;
 
     // The data isn't 16-bit aligned, so we need to first create a copy
     // of the list that is just bytes, and then look at its buffer
     // as a 16-bit list.
     final labelLength = Uint8List.fromList(
-            bytes.buffer.asUint8List(offset, Uint16List.bytesPerElement))
-        .buffer
-        .asUint16List()
-        .single;
+      bytes.buffer.asUint8List(offset, Uint16List.bytesPerElement),
+    ).buffer.asUint16List().single;
     offset += Uint16List.bytesPerElement;
 
-    final labelBytes =
-        Uint8List.fromList(bytes.buffer.asUint8List(offset, labelLength))
-            .buffer
-            .asUint16List();
+    final labelBytes = Uint8List.fromList(
+      bytes.buffer.asUint8List(offset, labelLength),
+    ).buffer.asUint16List();
     offset += labelBytes.lengthInBytes;
     final label = String.fromCharCodes(labelBytes);
 
     final timestampMilliseconds = Uint8List.fromList(
-            bytes.buffer.asUint8List(offset, Uint64List.bytesPerElement))
-        .buffer
-        .asUint64List()
-        .single;
+      bytes.buffer.asUint8List(offset, Uint64List.bytesPerElement),
+    ).buffer.asUint64List().single;
     offset += Uint64List.bytesPerElement;
-    final timestamp =
-        DateTime.fromMillisecondsSinceEpoch(timestampMilliseconds, isUtc: true);
+    final timestamp = DateTime.fromMillisecondsSinceEpoch(
+      timestampMilliseconds,
+      isUtc: true,
+    );
 
     final seriesCount = Uint8List.fromList(
-            bytes.buffer.asUint8List(offset, Uint32List.bytesPerElement))
-        .buffer
-        .asUint32List()
-        .single;
+      bytes.buffer.asUint8List(offset, Uint32List.bytesPerElement),
+    ).buffer.asUint32List().single;
     offset += Uint32List.bytesPerElement;
 
-    final seriesLengthsBytes = Uint8List.fromList(bytes.buffer
-            .asUint8List(offset, seriesCount * Uint64List.bytesPerElement))
-        .buffer
-        .asUint64List();
+    final seriesLengthsBytes = Uint8List.fromList(
+      bytes.buffer.asUint8List(
+        offset,
+        seriesCount * Uint64List.bytesPerElement,
+      ),
+    ).buffer.asUint64List();
     offset += seriesLengthsBytes.lengthInBytes;
 
     final series = List<MeasurementSeries>.generate(seriesCount, (index) {
       final seriesBytes = Uint8List.fromList(
-              bytes.buffer.asUint8List(offset, seriesLengthsBytes[index]))
-          .buffer
-          .asUint8List();
+        bytes.buffer.asUint8List(offset, seriesLengthsBytes[index]),
+      ).buffer.asUint8List();
       offset += seriesBytes.lengthInBytes;
       return MeasurementSeries.fromBytes(seriesBytes);
     }, growable: false);
@@ -146,20 +147,20 @@ class BenchmarkResult {
     final labelBytes = Uint16List.fromList(label.codeUnits);
     final labelLengthBytes = Uint16List.fromList([labelBytes.lengthInBytes]);
 
-    final timestampBytes =
-        Uint64List.fromList([timestamp.millisecondsSinceEpoch]);
+    final timestampBytes = Uint64List.fromList([
+      timestamp.millisecondsSinceEpoch,
+    ]);
 
     final seriesCountBytes = Uint32List.fromList([series.length]);
 
-    final seriesDataRanges = <Uint8List>[
-      for (final s in series) s.toBytes(),
-    ];
+    final seriesDataRanges = <Uint8List>[for (final s in series) s.toBytes()];
 
     final seriesLengthsBytes = Uint64List.fromList([
       for (final range in seriesDataRanges) range.lengthInBytes,
     ]);
 
-    var buffer = _preambleBytes +
+    var buffer =
+        _preambleBytes +
         _currentFormatVersionBytes.buffer.asUint8List() +
         typeBytes +
         labelLengthBytes.buffer.asUint8List() +
@@ -202,33 +203,34 @@ class MeasurementSeries {
     // The data isn't 16-bit aligned, so we need to first create a copy
     // of the list that is just bytes, and then look at its buffer
     // as a 16-bit list.
-    final labelBytes =
-        Uint8List.fromList(bytes.buffer.asUint8List(offset, labelLength))
-            .buffer
-            .asUint16List();
+    final labelBytes = Uint8List.fromList(
+      bytes.buffer.asUint8List(offset, labelLength),
+    ).buffer.asUint16List();
     final label = String.fromCharCodes(labelBytes);
     offset += labelBytes.lengthInBytes;
 
     final measurementLength = Uint8List.fromList(
-            bytes.buffer.asUint8List(offset, Uint64List.bytesPerElement))
-        .buffer
-        .asUint64List()
-        .single;
+      bytes.buffer.asUint8List(offset, Uint64List.bytesPerElement),
+    ).buffer.asUint64List().single;
     offset += Uint64List.bytesPerElement;
 
-    final measurementZippedBytes =
-        bytes.buffer.asUint8List(offset, measurementLength);
+    final measurementZippedBytes = bytes.buffer.asUint8List(
+      offset,
+      measurementLength,
+    );
     final measurementUnzippedBytes = lzma.decode(measurementZippedBytes);
-    final measurements =
-        Uint8List.fromList(measurementUnzippedBytes).buffer.asInt64List();
+    final measurements = Uint8List.fromList(
+      measurementUnzippedBytes,
+    ).buffer.asInt64List();
 
     assert(
-        bytes.lengthInBytes ==
-            Uint16List.bytesPerElement +
-                labelLength +
-                Uint64List.bytesPerElement +
-                measurementLength,
-        'The data length of $bytes is not equivalent to the sum of its parts');
+      bytes.lengthInBytes ==
+          Uint16List.bytesPerElement +
+              labelLength +
+              Uint64List.bytesPerElement +
+              measurementLength,
+      'The data length of $bytes is not equivalent to the sum of its parts',
+    );
 
     return MeasurementSeries(label, measurements);
   }
@@ -236,16 +238,20 @@ class MeasurementSeries {
   Uint8List toBytes() {
     final labelBytes = Uint16List.fromList(label.codeUnits);
     final labelLengthBytes = Uint16List.fromList([labelBytes.lengthInBytes]);
-    final measurementBytes =
-        Int64List.fromList(measurements).buffer.asUint8List();
+    final measurementBytes = Int64List.fromList(
+      measurements,
+    ).buffer.asUint8List();
     final measurementZipped = Uint8List.fromList(lzma.encode(measurementBytes));
-    final measurementLengthBytes =
-        Uint64List.fromList([measurementZipped.lengthInBytes]);
+    final measurementLengthBytes = Uint64List.fromList([
+      measurementZipped.lengthInBytes,
+    ]);
 
-    final buffer = Uint8List.fromList(labelLengthBytes.buffer.asUint8List() +
-        labelBytes.buffer.asUint8List() +
-        measurementLengthBytes.buffer.asUint8List() +
-        measurementZipped);
+    final buffer = Uint8List.fromList(
+      labelLengthBytes.buffer.asUint8List() +
+          labelBytes.buffer.asUint8List() +
+          measurementLengthBytes.buffer.asUint8List() +
+          measurementZipped,
+    );
     return buffer;
   }
 }

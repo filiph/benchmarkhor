@@ -17,17 +17,19 @@ void main() {
       expect(axis.toSvgY(500), greaterThan(marginTop));
     });
 
-    test('all-negative range sits flush on zero, padded only at the bottom',
-        () {
-      final axis = YAxis.forRange(-500, -400);
+    test(
+      'all-negative range sits flush on zero, padded only at the bottom',
+      () {
+        final axis = YAxis.forRange(-500, -400);
 
-      expect(axis.max, 0);
-      expect(axis.min, lessThan(-500));
-      // The zero baseline is the very top of the plot area.
-      expect(axis.toSvgY(0), marginTop);
-      // The smallest value doesn't touch the bottom edge.
-      expect(axis.toSvgY(-500), lessThan(plotBottom));
-    });
+        expect(axis.max, 0);
+        expect(axis.min, lessThan(-500));
+        // The zero baseline is the very top of the plot area.
+        expect(axis.toSvgY(0), marginTop);
+        // The smallest value doesn't touch the bottom edge.
+        expect(axis.toSvgY(-500), lessThan(plotBottom));
+      },
+    );
 
     test('range straddling zero is padded on both ends', () {
       final axis = YAxis.forRange(-100, 200);

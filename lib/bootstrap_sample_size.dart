@@ -333,18 +333,18 @@ int calculateBootstrapSampleSize({
   // which is what makes the binary search below well-defined. The cache also
   // stops `calibrated` from re-deriving the critical value at a repeated n.
   double powerAt(int nRounds) => cache.putIfAbsent(
-        nRounds,
-        () => estimatePowerAt(
-          centeredNoise: noise,
-          trueEffect: trueEffect,
-          nRounds: nRounds,
-          alpha: alpha,
-          nSims: nSims,
-          seed: seed,
-          calibrated: calibrated,
-          nCalibrationSims: nCalibrationSims,
-        ),
-      );
+    nRounds,
+    () => estimatePowerAt(
+      centeredNoise: noise,
+      trueEffect: trueEffect,
+      nRounds: nRounds,
+      alpha: alpha,
+      nSims: nSims,
+      seed: seed,
+      calibrated: calibrated,
+      nCalibrationSims: nCalibrationSims,
+    ),
+  );
 
   // Exponential search for an upper bound, then binary search.
   var low = minN;

@@ -67,18 +67,18 @@ class TimelineEvent {
 
   /// Creates a timeline event given JSON-encoded event data.
   TimelineEvent(this.json)
-      : name = json['name'] as String?,
-        category = json['cat'] as String?,
-        phase = json['ph'] as String?,
-        processId = json['pid'] as int?,
-        threadId = json['tid'] as int?,
-        duration = json['dur'] != null
-            ? Duration(microseconds: json['dur'] as int)
-            : null,
-        threadDuration = json['tdur'] != null
-            ? Duration(microseconds: json['tdur'] as int)
-            : null,
-        timestampMicros = json['ts'] as int?,
-        threadTimestampMicros = json['tts'] as int?,
-        arguments = json['args'] as Map<String, dynamic>?;
+    : name = json['name'] as String?,
+      category = json['cat'] as String?,
+      phase = json['ph'] as String?,
+      processId = json['pid'] as int?,
+      threadId = json['tid'] as int?,
+      duration = json['dur'] != null
+          ? Duration(microseconds: json['dur'] as int)
+          : null,
+      threadDuration = json['tdur'] != null
+          ? Duration(microseconds: json['tdur'] as int)
+          : null,
+      timestampMicros = json['ts'] as int?,
+      threadTimestampMicros = json['tts'] as int?,
+      arguments = json['args'] as Map<String, dynamic>?;
 }

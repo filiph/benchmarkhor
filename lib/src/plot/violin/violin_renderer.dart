@@ -41,9 +41,7 @@ String buildViolinSvg(List<ViolinData> violins) {
 
   final buf = SvgBuffer();
 
-  buf.writeln(
-    '<?xml version="1.0" encoding="utf-8"?>',
-  );
+  buf.writeln('<?xml version="1.0" encoding="utf-8"?>');
   buf.writeln(
     '<svg xmlns="http://www.w3.org/2000/svg" '
     'width="$svgWidth" height="$svgHeight" '
@@ -121,8 +119,10 @@ String buildViolinSvg(List<ViolinData> violins) {
       final rightList = rightPoints.toString().trim().split(' ');
       final leftList = leftPoints.toString().trim().split(' ');
       final leftReversed = leftList.reversed.toList();
-      final polyPoints =
-          [...rightList, ...leftReversed].where((s) => s.isNotEmpty).join(' ');
+      final polyPoints = [
+        ...rightList,
+        ...leftReversed,
+      ].where((s) => s.isNotEmpty).join(' ');
 
       buf.writeln(
         '<polygon points="$polyPoints" fill="$fillColor" fill-opacity="$fillOpacity" '
@@ -180,7 +180,8 @@ String buildViolinSvg(List<ViolinData> violins) {
     final xNotchLeft = slotCenterX - notchHalfWidth;
     final xNotchRight = slotCenterX + notchHalfWidth;
 
-    final notchBoxPoints = '$xLeft,$yQ3 $xRight,$yQ3 '
+    final notchBoxPoints =
+        '$xLeft,$yQ3 $xRight,$yQ3 '
         '$xRight,$yNotchHi $xNotchRight,$yMedian $xRight,$yNotchLo '
         '$xRight,$yQ1 $xLeft,$yQ1 '
         '$xLeft,$yNotchLo $xNotchLeft,$yMedian $xLeft,$yNotchHi';

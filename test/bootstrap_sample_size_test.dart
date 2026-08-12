@@ -15,136 +15,163 @@ void main() {
   // Tolerances are asymmetric on purpose. The z-formula is a floor; the
   // t-based truth sits 0 to 4 rounds above it, more at small n.
   // ------------------------------------------------------------------
-  group('closed-form agreement on Gaussian noise', () {
-    // Monte-Carlo jitter in the returned n is smallest at small n, because
-    // power rises steeply there. At n ~ 34 with nSims = 10000 it is well
-    // under one round; at n ~ 128 it is about 1.5 rounds.
-    const sigma = 100.0;
-    const nSims = 10000;
+  group(
+    'closed-form agreement on Gaussian noise',
+    () {
+      // Monte-Carlo jitter in the returned n is smallest at small n, because
+      // power rises steeply there. At n ~ 34 with nSims = 10000 it is well
+      // under one round; at n ~ 128 it is about 1.5 rounds.
+      const sigma = 100.0;
+      const nSims = 10000;
 
-    late List<double> noise;
-    setUp(() => noise = normalNoise(4000, sigma));
+      late List<double> noise;
+      setUp(() => noise = normalNoise(4000, sigma));
 
-    /// sigma/delta -> (expected exact n, computed offline from the
-    /// noncentral-t power function)
-    ///   ratio 1 -> 10      (z-formula:   8)
-    ///   ratio 2 -> 34      (z-formula:  32)
-    ///   ratio 4 -> 128     (z-formula: 126)
-    void checkRatio(double sesoi, int expectedExact) {
-      const baseMean = 1000.0;
-      final delta = baseMean * sesoi;
-      final floor = zApproxN(
-        sigma: sigma,
-        delta: delta,
-        zAlpha: zAlpha05,
-        zPower: zPower80,
-      );
+      /// sigma/delta -> (expected exact n, computed offline from the
+      /// noncentral-t power function)
+      ///   ratio 1 -> 10      (z-formula:   8)
+      ///   ratio 2 -> 34      (z-formula:  32)
+      ///   ratio 4 -> 128     (z-formula: 126)
+      void checkRatio(double sesoi, int expectedExact) {
+        const baseMean = 1000.0;
+        final delta = baseMean * sesoi;
+        final floor = zApproxN(
+          sigma: sigma,
+          delta: delta,
+          zAlpha: zAlpha05,
+          zPower: zPower80,
+        );
 
-      final n = calculateBootstrapSampleSize(
-        diffs: noise,
-        baseMean: baseMean,
-        sesoi: sesoi,
-        nSims: nSims,
-        seed: 1,
-      );
-
-      expect(n, greaterThanOrEqualTo(floor),
-          reason: 'simulation must not beat the z-formula floor of $floor');
-      expect(n, closeTo(expectedExact, max(2, expectedExact * 0.08)),
-          reason: 'noncentral-t truth is $expectedExact, z-formula is $floor');
-    }
-
-    test('sigma/delta = 1 -> n ~ 10', () => checkRatio(0.10, 10));
-    test('sigma/delta = 2 -> n ~ 34', () => checkRatio(0.05, 34));
-    test('sigma/delta = 4 -> n ~ 128', () => checkRatio(0.025, 128));
-
-    test('calibration is nearly free on Gaussian noise', () {
-      final parametric = calculateBootstrapSampleSize(
-          diffs: noise,
-          baseMean: 1000.0,
-          sesoi: 0.05,
-          nSims: 8000,
-          seed: 17,
-          calibrated: false);
-      final calibrated = calculateBootstrapSampleSize(
-          diffs: noise,
-          baseMean: 1000.0,
-          sesoi: 0.05,
-          nSims: 8000,
-          seed: 17,
-          calibrated: true);
-
-      expect(parametric, closeTo(34, 3));
-      expect(calibrated, closeTo(parametric, 3),
-          reason: 'parametric = $parametric, calibrated = $calibrated');
-    });
-
-    test('n scales as 1/delta^2', () {
-      const baseMean = 1000.0;
-      int run(double sesoi) => calculateBootstrapSampleSize(
-            diffs: noise,
-            baseMean: baseMean,
-            sesoi: sesoi,
-            nSims: nSims,
-            seed: 1,
-          );
-
-      // Halving the effect twice should multiply n by roughly 16.
-      final big = run(0.10); // ~10
-      final small = run(0.025); // ~128
-      expect(small / big, closeTo(13, 4),
-          reason: 'quadratic scaling, damped by the +2 offset at small n');
-    });
-
-    test('tighter alpha and higher power both increase n', () {
-      const baseMean = 1000.0;
-      const sesoi = 0.05;
-      final base = calculateBootstrapSampleSize(
+        final n = calculateBootstrapSampleSize(
           diffs: noise,
           baseMean: baseMean,
           sesoi: sesoi,
           nSims: nSims,
-          seed: 1); // ~34
+          seed: 1,
+        );
 
-      final tighterAlpha = calculateBootstrapSampleSize(
+        expect(
+          n,
+          greaterThanOrEqualTo(floor),
+          reason: 'simulation must not beat the z-formula floor of $floor',
+        );
+        expect(
+          n,
+          closeTo(expectedExact, max(2, expectedExact * 0.08)),
+          reason: 'noncentral-t truth is $expectedExact, z-formula is $floor',
+        );
+      }
+
+      test('sigma/delta = 1 -> n ~ 10', () => checkRatio(0.10, 10));
+      test('sigma/delta = 2 -> n ~ 34', () => checkRatio(0.05, 34));
+      test('sigma/delta = 4 -> n ~ 128', () => checkRatio(0.025, 128));
+
+      test('calibration is nearly free on Gaussian noise', () {
+        final parametric = calculateBootstrapSampleSize(
+          diffs: noise,
+          baseMean: 1000.0,
+          sesoi: 0.05,
+          nSims: 8000,
+          seed: 17,
+          calibrated: false,
+        );
+        final calibrated = calculateBootstrapSampleSize(
+          diffs: noise,
+          baseMean: 1000.0,
+          sesoi: 0.05,
+          nSims: 8000,
+          seed: 17,
+          calibrated: true,
+        );
+
+        expect(parametric, closeTo(34, 3));
+        expect(
+          calibrated,
+          closeTo(parametric, 3),
+          reason: 'parametric = $parametric, calibrated = $calibrated',
+        );
+      });
+
+      test('n scales as 1/delta^2', () {
+        const baseMean = 1000.0;
+        int run(double sesoi) => calculateBootstrapSampleSize(
+          diffs: noise,
+          baseMean: baseMean,
+          sesoi: sesoi,
+          nSims: nSims,
+          seed: 1,
+        );
+
+        // Halving the effect twice should multiply n by roughly 16.
+        final big = run(0.10); // ~10
+        final small = run(0.025); // ~128
+        expect(
+          small / big,
+          closeTo(13, 4),
+          reason: 'quadratic scaling, damped by the +2 offset at small n',
+        );
+      });
+
+      test('tighter alpha and higher power both increase n', () {
+        const baseMean = 1000.0;
+        const sesoi = 0.05;
+        final base = calculateBootstrapSampleSize(
+          diffs: noise,
+          baseMean: baseMean,
+          sesoi: sesoi,
+          nSims: nSims,
+          seed: 1,
+        ); // ~34
+
+        final tighterAlpha = calculateBootstrapSampleSize(
           diffs: noise,
           baseMean: baseMean,
           sesoi: sesoi,
           alpha: 0.01,
           nSims: nSims,
-          seed: 1); // ~49
-      final morePower = calculateBootstrapSampleSize(
+          seed: 1,
+        ); // ~49
+        final morePower = calculateBootstrapSampleSize(
           diffs: noise,
           baseMean: baseMean,
           sesoi: sesoi,
           power: 0.95,
           nSims: nSims,
-          seed: 1); // ~54
+          seed: 1,
+        ); // ~54
 
-      expect(tighterAlpha, greaterThan(base));
-      expect(morePower, greaterThan(base));
+        expect(tighterAlpha, greaterThan(base));
+        expect(morePower, greaterThan(base));
 
-      // And they should land near their own closed forms.
-      expect(
+        // And they should land near their own closed forms.
+        expect(
           tighterAlpha,
           closeTo(
-              zApproxN(
-                  sigma: sigma,
-                  delta: 50.0,
-                  zAlpha: zAlpha01,
-                  zPower: zPower80),
-              6));
-      expect(
+            zApproxN(
+              sigma: sigma,
+              delta: 50.0,
+              zAlpha: zAlpha01,
+              zPower: zPower80,
+            ),
+            6,
+          ),
+        );
+        expect(
           morePower,
           closeTo(
-              zApproxN(
-                  sigma: sigma,
-                  delta: 50.0,
-                  zAlpha: zAlpha05,
-                  zPower: zPower95),
-              6));
-    });
-  }, timeout: const Timeout(Duration(minutes: 2)));
+            zApproxN(
+              sigma: sigma,
+              delta: 50.0,
+              zAlpha: zAlpha05,
+              zPower: zPower95,
+            ),
+            6,
+          ),
+        );
+      });
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
 
   // ------------------------------------------------------------------
   // Calibration. Power is meaningless if the test is not running at the
@@ -182,8 +209,11 @@ void main() {
       // The one-sample t-test on right-skewed data is known to mis-calibrate
       // at small n. If this fails, "80% power at n = 6" is really "80% power
       // at an inflated alpha" - switch to a permutation test or raise minN.
-      expect(rate, lessThan(0.09),
-          reason: 'observed alpha = $rate, nominal 0.05');
+      expect(
+        rate,
+        lessThan(0.09),
+        reason: 'observed alpha = $rate, nominal 0.05',
+      );
     });
   }, timeout: const Timeout(Duration(minutes: 2)));
 
@@ -197,12 +227,12 @@ void main() {
 
     test('same seed gives byte-identical results', () {
       int run() => calculateBootstrapSampleSize(
-            diffs: noise,
-            baseMean: 1000.0,
-            sesoi: 0.05,
-            nSims: 2000,
-            seed: 99,
-          );
+        diffs: noise,
+        baseMean: 1000.0,
+        sesoi: 0.05,
+        nSims: 2000,
+        seed: 99,
+      );
       final first = run();
       expect(run(), equals(first));
       expect(run(), equals(first));
@@ -217,12 +247,15 @@ void main() {
             sesoi: 0.05,
             nSims: 2000,
             seed: s,
-          )
+          ),
       ];
       // Before the fix, an unlucky comparison could discard half the search
       // range and land far away. Spread should now be a couple of rounds.
-      expect(results.reduce(max) - results.reduce(min), lessThanOrEqualTo(4),
-          reason: 'seeds gave $results');
+      expect(
+        results.reduce(max) - results.reduce(min),
+        lessThanOrEqualTo(4),
+        reason: 'seeds gave $results',
+      );
     });
 
     test('answer is invariant to shifting all diffs by a constant', () {
@@ -231,35 +264,52 @@ void main() {
       final shifted = [for (final d in noise) d + 12345.0];
       expect(
         calculateBootstrapSampleSize(
-            diffs: shifted,
+          diffs: shifted,
+          baseMean: 1000.0,
+          sesoi: 0.05,
+          nSims: 2000,
+          seed: 5,
+        ),
+        equals(
+          calculateBootstrapSampleSize(
+            diffs: noise,
             baseMean: 1000.0,
             sesoi: 0.05,
             nSims: 2000,
-            seed: 5),
-        equals(calculateBootstrapSampleSize(
-            diffs: noise, baseMean: 1000.0, sesoi: 0.05, nSims: 2000, seed: 5)),
+            seed: 5,
+          ),
+        ),
       );
     });
 
     test('sign of sesoi and baseMean does not matter', () {
       final n = calculateBootstrapSampleSize(
-          diffs: noise, baseMean: 1000.0, sesoi: 0.05, nSims: 2000, seed: 5);
+        diffs: noise,
+        baseMean: 1000.0,
+        sesoi: 0.05,
+        nSims: 2000,
+        seed: 5,
+      );
       expect(
-          calculateBootstrapSampleSize(
-              diffs: noise,
-              baseMean: 1000.0,
-              sesoi: -0.05,
-              nSims: 2000,
-              seed: 5),
-          equals(n));
+        calculateBootstrapSampleSize(
+          diffs: noise,
+          baseMean: 1000.0,
+          sesoi: -0.05,
+          nSims: 2000,
+          seed: 5,
+        ),
+        equals(n),
+      );
       expect(
-          calculateBootstrapSampleSize(
-              diffs: noise,
-              baseMean: -1000.0,
-              sesoi: 0.05,
-              nSims: 2000,
-              seed: 5),
-          equals(n));
+        calculateBootstrapSampleSize(
+          diffs: noise,
+          baseMean: -1000.0,
+          sesoi: 0.05,
+          nSims: 2000,
+          seed: 5,
+        ),
+        equals(n),
+      );
     });
   }, timeout: const Timeout(Duration(minutes: 2)));
 
@@ -302,17 +352,23 @@ void main() {
     test('clamps at minN when the effect is overwhelming', () {
       expect(
         calculateBootstrapSampleSize(
-            diffs: noise, baseMean: 1000.0, sesoi: 1.0, nSims: 1000, seed: 1),
+          diffs: noise,
+          baseMean: 1000.0,
+          sesoi: 1.0,
+          nSims: 1000,
+          seed: 1,
+        ),
         equals(kDefaultMinN),
       );
       expect(
         calculateBootstrapSampleSize(
-            diffs: noise,
-            baseMean: 1000.0,
-            sesoi: 1.0,
-            nSims: 1000,
-            seed: 1,
-            minN: 12),
+          diffs: noise,
+          baseMean: 1000.0,
+          sesoi: 1.0,
+          nSims: 1000,
+          seed: 1,
+          minN: 12,
+        ),
         equals(12),
       );
     });
@@ -320,7 +376,11 @@ void main() {
     test('rejects minN below the safe floor', () {
       expect(
         () => calculateBootstrapSampleSize(
-            diffs: noise, baseMean: 1000.0, sesoi: 0.05, minN: 3),
+          diffs: noise,
+          baseMean: 1000.0,
+          sesoi: 0.05,
+          minN: 3,
+        ),
         throwsArgumentError,
       );
     });
@@ -334,43 +394,70 @@ void main() {
 
     test('rejects degenerate diffs', () {
       expect(
-          () => calculateBootstrapSampleSize(
-              diffs: [], baseMean: 100.0, sesoi: 0.05),
-          throwsArgumentError);
+        () => calculateBootstrapSampleSize(
+          diffs: [],
+          baseMean: 100.0,
+          sesoi: 0.05,
+        ),
+        throwsArgumentError,
+      );
       expect(
-          () => calculateBootstrapSampleSize(
-              diffs: [1.0], baseMean: 100.0, sesoi: 0.05),
-          throwsArgumentError);
+        () => calculateBootstrapSampleSize(
+          diffs: [1.0],
+          baseMean: 100.0,
+          sesoi: 0.05,
+        ),
+        throwsArgumentError,
+      );
       // Zero variance: every resample is identical, so the old code found
       // "significance" 100% of the time and confidently returned minN.
       expect(
-          () => calculateBootstrapSampleSize(
-              diffs: [4.0, 4.0, 4.0, 4.0], baseMean: 100.0, sesoi: 0.05),
-          throwsArgumentError);
+        () => calculateBootstrapSampleSize(
+          diffs: [4.0, 4.0, 4.0, 4.0],
+          baseMean: 100.0,
+          sesoi: 0.05,
+        ),
+        throwsArgumentError,
+      );
     });
 
     test('rejects out-of-range parameters', () {
       expect(
-          () => calculateBootstrapSampleSize(
-              diffs: ok, baseMean: 100.0, sesoi: 0.0),
-          throwsArgumentError);
+        () => calculateBootstrapSampleSize(
+          diffs: ok,
+          baseMean: 100.0,
+          sesoi: 0.0,
+        ),
+        throwsArgumentError,
+      );
       expect(
-          () => calculateBootstrapSampleSize(
-              diffs: ok, baseMean: 0.0, sesoi: 0.05),
-          throwsArgumentError);
+        () =>
+            calculateBootstrapSampleSize(diffs: ok, baseMean: 0.0, sesoi: 0.05),
+        throwsArgumentError,
+      );
       for (final p in [0.0, 1.0, -0.1, 1.5]) {
         expect(
-            () => calculateBootstrapSampleSize(
-                diffs: ok, baseMean: 100.0, sesoi: 0.05, power: p),
-            throwsArgumentError,
-            reason: 'power = $p');
+          () => calculateBootstrapSampleSize(
+            diffs: ok,
+            baseMean: 100.0,
+            sesoi: 0.05,
+            power: p,
+          ),
+          throwsArgumentError,
+          reason: 'power = $p',
+        );
       }
       for (final a in [0.0, 1.0, -0.1, 2.0]) {
         expect(
-            () => calculateBootstrapSampleSize(
-                diffs: ok, baseMean: 100.0, sesoi: 0.05, alpha: a),
-            throwsArgumentError,
-            reason: 'alpha = $a');
+          () => calculateBootstrapSampleSize(
+            diffs: ok,
+            baseMean: 100.0,
+            sesoi: 0.05,
+            alpha: a,
+          ),
+          throwsArgumentError,
+          reason: 'alpha = $a',
+        );
       }
     });
   });
@@ -410,18 +497,25 @@ void main() {
       truth.forEach((df, t) {
         // Residual is dominated by the ~4.5e-4 error of the A&S 26.2.23
         // normal quantile, so ask for 1e-3 relative, not machine precision.
-        expect(studentTCriticalValue(df, 0.05), closeTo(t, t * 1e-3),
-            reason: 'df = $df');
+        expect(
+          studentTCriticalValue(df, 0.05),
+          closeTo(t, t * 1e-3),
+          reason: 'df = $df',
+        );
       });
     });
 
     test('monotone decreasing in df, increasing as alpha shrinks', () {
       for (var df = 5; df < 200; df++) {
-        expect(studentTCriticalValue(df + 1, 0.05),
-            lessThan(studentTCriticalValue(df, 0.05)));
+        expect(
+          studentTCriticalValue(df + 1, 0.05),
+          lessThan(studentTCriticalValue(df, 0.05)),
+        );
       }
-      expect(studentTCriticalValue(30, 0.01),
-          greaterThan(studentTCriticalValue(30, 0.05)));
+      expect(
+        studentTCriticalValue(30, 0.01),
+        greaterThan(studentTCriticalValue(30, 0.05)),
+      );
     });
 
     test('converges to the normal quantile', () {
@@ -459,11 +553,13 @@ void main() {
       44.3,
       52.0,
       46.9,
-      48.2
+      48.2,
     ];
     final pilotA = [44.1, 48.9, 43.7, 46.0, 44.2, 45.1, 43.0, 49.4, 45.0, 46.1];
     final diffs = List<double>.generate(
-        pilotBase.length, (i) => pilotA[i] - pilotBase[i]);
+      pilotBase.length,
+      (i) => pilotA[i] - pilotBase[i],
+    );
     final baseMean = pilotBase.reduce((a, b) => a + b) / pilotBase.length;
 
     test('10-round pilot needs only a handful of rounds for SESOI = 5%', () {
@@ -491,23 +587,26 @@ void main() {
       const baseMean = 100.0;
 
       final nTiny = calculateBootstrapSampleSize(
-          diffs: noisy,
-          baseMean: baseMean,
-          sesoi: 0.002,
-          nSims: 4000,
-          seed: 123);
+        diffs: noisy,
+        baseMean: baseMean,
+        sesoi: 0.002,
+        nSims: 4000,
+        seed: 123,
+      );
       final nSmall = calculateBootstrapSampleSize(
-          diffs: noisy,
-          baseMean: baseMean,
-          sesoi: 0.01,
-          nSims: 4000,
-          seed: 123);
+        diffs: noisy,
+        baseMean: baseMean,
+        sesoi: 0.01,
+        nSims: 4000,
+        seed: 123,
+      );
       final nLarge = calculateBootstrapSampleSize(
-          diffs: noisy,
-          baseMean: baseMean,
-          sesoi: 0.10,
-          nSims: 4000,
-          seed: 123);
+        diffs: noisy,
+        baseMean: baseMean,
+        sesoi: 0.10,
+        nSims: 4000,
+        seed: 123,
+      );
 
       expect(nTiny, greaterThan(nSmall));
       expect(nSmall, greaterThan(nLarge));
@@ -527,17 +626,21 @@ void main() {
       // the search stops early. See the characterization test below.
       const sigma = 100.0;
       int run(List<double> noise) => calculateBootstrapSampleSize(
-          diffs: noise,
-          baseMean: 1000.0,
-          sesoi: 0.05,
-          nSims: 8000,
-          seed: 17,
-          calibrated: true);
+        diffs: noise,
+        baseMean: 1000.0,
+        sesoi: 0.05,
+        nSims: 8000,
+        seed: 17,
+        calibrated: true,
+      );
 
       final gaussian = run(normalNoise(4000, sigma));
       final skewed = run(lognormalNoise(4000, sigma));
-      expect(skewed, closeTo(gaussian, gaussian * 0.15),
-          reason: 'gaussian = $gaussian, skewed = $skewed');
+      expect(
+        skewed,
+        closeTo(gaussian, gaussian * 0.15),
+        reason: 'gaussian = $gaussian, skewed = $skewed',
+      );
     });
 
     test('calibratedCriticalValue falls back to student t when pilot < 20', () {
@@ -559,25 +662,31 @@ void main() {
       expect(critCal, isNot(equals(expectedParametric)));
     });
 
-    test('CHARACTERIZATION: uncalibrated n is biased low under strong skew',
-        () {
-      // Documents the limitation rather than hiding it. If this number moves,
-      // something about the parametric path changed and you want to know.
-      const sigma = 100.0;
-      int run(List<double> noise) => calculateBootstrapSampleSize(
+    test(
+      'CHARACTERIZATION: uncalibrated n is biased low under strong skew',
+      () {
+        // Documents the limitation rather than hiding it. If this number moves,
+        // something about the parametric path changed and you want to know.
+        const sigma = 100.0;
+        int run(List<double> noise) => calculateBootstrapSampleSize(
           diffs: noise,
           baseMean: 1000.0,
           sesoi: 0.05,
           nSims: 8000,
           seed: 17,
-          calibrated: false);
+          calibrated: false,
+        );
 
-      final gaussian = run(normalNoise(4000, sigma));
-      final skewed = run(lognormalNoise(4000, sigma));
-      expect(gaussian, closeTo(34, 3));
-      expect(skewed, lessThanOrEqualTo(gaussian),
-          reason: 'gaussian = $gaussian, skewed = $skewed');
-    });
+        final gaussian = run(normalNoise(4000, sigma));
+        final skewed = run(lognormalNoise(4000, sigma));
+        expect(gaussian, closeTo(34, 3));
+        expect(
+          skewed,
+          lessThanOrEqualTo(gaussian),
+          reason: 'gaussian = $gaussian, skewed = $skewed',
+        );
+      },
+    );
   }, timeout: const Timeout(Duration(minutes: 2)));
 }
 
@@ -620,8 +729,7 @@ int zApproxN({
   required double delta,
   required double zAlpha,
   required double zPower,
-}) =>
-    (pow((zAlpha + zPower) * sigma / delta, 2) as double).ceil();
+}) => (pow((zAlpha + zPower) * sigma / delta, 2) as double).ceil();
 
 /// Rescales [xs] to mean exactly 0 and *population* SD exactly [sigma].
 ///

@@ -12,7 +12,7 @@ repository: https://github.com/filiph/benchmarkhor
 #  benchmerge:
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: ^3.12.2
 
 dependencies:
   args: ^2.1.1

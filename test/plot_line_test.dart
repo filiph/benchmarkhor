@@ -9,9 +9,10 @@ const plotBottom = marginTop + plotHeight;
 
 /// The y coordinate of the x axis (the highlighted y=0 line), if drawn.
 double? xAxisY(String svg) {
-  final match = RegExp(r'<line x1="[\d.]+" y1="([\d.]+)" x2="[\d.]+" '
-          r'y2="[\d.]+" stroke="#eee"')
-      .firstMatch(svg);
+  final match = RegExp(
+    r'<line x1="[\d.]+" y1="([\d.]+)" x2="[\d.]+" '
+    r'y2="[\d.]+" stroke="#eee"',
+  ).firstMatch(svg);
   return match == null ? null : double.parse(match.group(1)!);
 }
 
@@ -49,8 +50,9 @@ void main() {
 
       expect(RegExp('<polyline').allMatches(svg).length, 2);
 
-      final strokeMatches =
-          RegExp(r'<polyline[^>]*stroke="([^"]*)"').allMatches(svg).toList();
+      final strokeMatches = RegExp(
+        r'<polyline[^>]*stroke="([^"]*)"',
+      ).allMatches(svg).toList();
       expect(strokeMatches.length, 2);
       expect(strokeMatches[0].group(1), isNot(strokeMatches[1].group(1)));
 
@@ -69,7 +71,7 @@ void main() {
 
     test('all-positive data puts the x axis at the very bottom', () {
       final svg = buildLineSvg([
-        LineData.compute('a', [10, 20, 30])
+        LineData.compute('a', [10, 20, 30]),
       ]);
 
       expect(xAxisY(svg), closeTo(plotBottom, 1e-9));
@@ -77,7 +79,7 @@ void main() {
 
     test('all-negative data puts the x axis at the very top', () {
       final svg = buildLineSvg([
-        LineData.compute('a', [-10, -20, -30])
+        LineData.compute('a', [-10, -20, -30]),
       ]);
 
       expect(xAxisY(svg), closeTo(marginTop, 1e-9));
@@ -85,7 +87,7 @@ void main() {
 
     test('data straddling zero puts the x axis inside the plot', () {
       final svg = buildLineSvg([
-        LineData.compute('a', [-10, 5, 20])
+        LineData.compute('a', [-10, 5, 20]),
       ]);
 
       final y0 = xAxisY(svg)!;
@@ -95,7 +97,7 @@ void main() {
 
     test('there is exactly one x axis line', () {
       final svg = buildLineSvg([
-        LineData.compute('a', [-10, 5, 20])
+        LineData.compute('a', [-10, 5, 20]),
       ]);
 
       expect(RegExp('stroke="#eee"').allMatches(svg).length, 1);
@@ -103,7 +105,7 @@ void main() {
 
     test('negative values are drawn below the x axis, inside the plot', () {
       final svg = buildLineSvg([
-        LineData.compute('a', [-10, 5, 20])
+        LineData.compute('a', [-10, 5, 20]),
       ]);
 
       final y0 = xAxisY(svg)!;

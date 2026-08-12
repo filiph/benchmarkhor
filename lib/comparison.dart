@@ -65,26 +65,40 @@ class FlutterComparison {
     _FlutterProfileBenchmarkResult improvedData, {
     @Deprecated('do not use') this.runtimeThreshold = 0,
     this.frameBudget = _fps120Budget,
-  })  : _uiDiffs = computeDiffs(
-            originalData.uiTimes, improvedData.uiTimes, runtimeThreshold),
-        _rasterDiffs = computeDiffs(originalData.rasterTimes,
-            improvedData.rasterTimes, runtimeThreshold),
-        _originalUiCount = originalData.uiTimes.length,
-        _improvedUiCount = improvedData.uiTimes.length,
-        _originalRasterCount = originalData.rasterTimes.length,
-        _improvedRasterCount = improvedData.rasterTimes.length,
-        _originalUiFullRuntime = originalData.uiTimes.fold(0, _sum),
-        _improvedUiFullRuntime = improvedData.uiTimes.fold(0, _sum),
-        _originalRasterFullRuntime = originalData.rasterTimes.fold(0, _sum),
-        _improvedRasterFullRuntime = improvedData.rasterTimes.fold(0, _sum),
-        _originalUiSkippedFrames =
-            _countSkipped(originalData.uiTimes, frameBudget),
-        _improvedUiSkippedFrames =
-            _countSkipped(improvedData.uiTimes, frameBudget),
-        _originalRasterSkippedFrames =
-            _countSkipped(originalData.rasterTimes, frameBudget),
-        _improvedRasterSkippedFrames =
-            _countSkipped(improvedData.rasterTimes, frameBudget);
+  }) : _uiDiffs = computeDiffs(
+         originalData.uiTimes,
+         improvedData.uiTimes,
+         runtimeThreshold,
+       ),
+       _rasterDiffs = computeDiffs(
+         originalData.rasterTimes,
+         improvedData.rasterTimes,
+         runtimeThreshold,
+       ),
+       _originalUiCount = originalData.uiTimes.length,
+       _improvedUiCount = improvedData.uiTimes.length,
+       _originalRasterCount = originalData.rasterTimes.length,
+       _improvedRasterCount = improvedData.rasterTimes.length,
+       _originalUiFullRuntime = originalData.uiTimes.fold(0, _sum),
+       _improvedUiFullRuntime = improvedData.uiTimes.fold(0, _sum),
+       _originalRasterFullRuntime = originalData.rasterTimes.fold(0, _sum),
+       _improvedRasterFullRuntime = improvedData.rasterTimes.fold(0, _sum),
+       _originalUiSkippedFrames = _countSkipped(
+         originalData.uiTimes,
+         frameBudget,
+       ),
+       _improvedUiSkippedFrames = _countSkipped(
+         improvedData.uiTimes,
+         frameBudget,
+       ),
+       _originalRasterSkippedFrames = _countSkipped(
+         originalData.rasterTimes,
+         frameBudget,
+       ),
+       _improvedRasterSkippedFrames = _countSkipped(
+         improvedData.rasterTimes,
+         frameBudget,
+       );
 
   String get asciiVisualizations {
     return '<-- (improvement)                  UI thread                (deterioration) -->\n\n'
@@ -96,23 +110,25 @@ class FlutterComparison {
   String get report {
     final reportStats = _createReportStats();
     final uiReport = createReport(
-        _uiDiffs,
-        'UI',
-        _originalUiCount,
-        _improvedUiCount,
-        _originalUiFullRuntime,
-        _improvedUiFullRuntime,
-        _originalUiSkippedFrames,
-        _improvedUiSkippedFrames);
+      _uiDiffs,
+      'UI',
+      _originalUiCount,
+      _improvedUiCount,
+      _originalUiFullRuntime,
+      _improvedUiFullRuntime,
+      _originalUiSkippedFrames,
+      _improvedUiSkippedFrames,
+    );
     final rasterReport = createReport(
-        _rasterDiffs,
-        'Raster',
-        _originalRasterCount,
-        _improvedRasterCount,
-        _originalRasterFullRuntime,
-        _improvedRasterFullRuntime,
-        _originalRasterSkippedFrames,
-        _improvedRasterSkippedFrames);
+      _rasterDiffs,
+      'Raster',
+      _originalRasterCount,
+      _improvedRasterCount,
+      _originalRasterFullRuntime,
+      _improvedRasterFullRuntime,
+      _originalRasterSkippedFrames,
+      _improvedRasterSkippedFrames,
+    );
     return '$reportStats\n'
         '$uiReport\n'
         '$rasterReport';
@@ -127,8 +143,9 @@ class FlutterComparison {
       if (before.length / after.length < 0.7 ||
           after.length / before.length < 0.7) {
         _log.warning(
-            'The two sets of measurement for "$name" are not the same length. '
-            'Not even similar: ${before.length} versus ${after.length}.');
+          'The two sets of measurement for "$name" are not the same length. '
+          'Not even similar: ${before.length} versus ${after.length}.',
+        );
       }
 
       final beforeStats = Statistic.from(before);
@@ -145,40 +162,49 @@ class FlutterComparison {
       addLine('After', after, afterStats);
 
       if (afterStats.isMeanDifferentFrom(beforeStats)) {
-        buf.writeln('         '
-            '* statistically significant difference (95% confidence)');
+        buf.writeln(
+          '         '
+          '* statistically significant difference (95% confidence)',
+        );
       } else {
-        buf.writeln('         '
-            '* not a statistically significant difference (95% confidence)');
+        buf.writeln(
+          '         '
+          '* not a statistically significant difference (95% confidence)',
+        );
       }
     }
 
     addStatsFor(
-        'UI',
-        original.series.singleWhere((s) => s.label == 'UI thread').measurements,
-        improved.series
-            .singleWhere((s) => s.label == 'UI thread')
-            .measurements);
+      'UI',
+      original.series.singleWhere((s) => s.label == 'UI thread').measurements,
+      improved.series.singleWhere((s) => s.label == 'UI thread').measurements,
+    );
     addStatsFor(
-        'Raster',
-        original.series
-            .singleWhere((s) => s.label == 'Raster thread')
-            .measurements,
-        improved.series
-            .singleWhere((s) => s.label == 'Raster thread')
-            .measurements);
+      'Raster',
+      original.series
+          .singleWhere((s) => s.label == 'Raster thread')
+          .measurements,
+      improved.series
+          .singleWhere((s) => s.label == 'Raster thread')
+          .measurements,
+    );
 
     return buf.toString();
   }
 
   static List<int> computeDiffs(
-      List<int> original, List<int> improved, int threshold) {
-    final originalOrdered =
-        List<int>.from(original.where((m) => m > threshold), growable: false)
-          ..sort();
-    final improvedOrdered =
-        List<int>.from(improved.where((m) => m > threshold), growable: false)
-          ..sort();
+    List<int> original,
+    List<int> improved,
+    int threshold,
+  ) {
+    final originalOrdered = List<int>.from(
+      original.where((m) => m > threshold),
+      growable: false,
+    )..sort();
+    final improvedOrdered = List<int>.from(
+      improved.where((m) => m > threshold),
+      growable: false,
+    )..sort();
     final length = min(originalOrdered.length, improvedOrdered.length);
 
     return List<int>.generate(length, (index) {
@@ -232,35 +258,44 @@ class FlutterComparison {
     final boundValueString =
         '${(histogram.lowestBound / 1000).abs().toStringAsFixed(1)}ms';
 
-    buf.writeln('-${boundValueString.padRight(sideSize - 1)}'
-        '^'
-        '${boundValueString.padLeft(sideSize)}');
+    buf.writeln(
+      '-${boundValueString.padRight(sideSize - 1)}'
+      '^'
+      '${boundValueString.padLeft(sideSize)}',
+    );
 
     return buf.toString();
   }
 
   static String createReport(
-      List<int> measurements,
-      String thread,
-      int originalCount,
-      int improvedCount,
-      int originalRuntime,
-      int improvedRuntime,
-      int originalSkipped,
-      int improvedSkipped) {
+    List<int> measurements,
+    String thread,
+    int originalCount,
+    int improvedCount,
+    int originalRuntime,
+    int improvedRuntime,
+    int originalSkipped,
+    int improvedSkipped,
+  ) {
     final buf = StringBuffer();
 
     buf.writeln('$thread thread (N=$originalCount):');
 
     final runtimeDifference = improvedRuntime - originalRuntime;
     final gerund = runtimeDifference <= 0 ? 'improvement' : 'worsening';
-    buf.writeln('* '
-        '${(runtimeDifference.abs() / originalRuntime * 100).toStringAsFixed(1)}% '
-        '(${(runtimeDifference / 1000).toStringAsFixed(0)}ms) '
-        '$gerund of total execution time');
+    buf.writeln(
+      '* '
+      '${(runtimeDifference.abs() / originalRuntime * 100).toStringAsFixed(1)}% '
+      '(${(runtimeDifference / 1000).toStringAsFixed(0)}ms) '
+      '$gerund of total execution time',
+    );
 
     final jankRiskRatio = RiskRatio.fromPrevalence(
-        improvedCount, improvedSkipped, originalCount, originalSkipped);
+      improvedCount,
+      improvedSkipped,
+      originalCount,
+      originalSkipped,
+    );
     if (!jankRiskRatio.isSignificant) {
       buf.write('* No significant change in jank risk');
     } else if (jankRiskRatio.ratio < 1) {
@@ -272,21 +307,25 @@ class FlutterComparison {
       final higherPercent = ((jankRiskRatio.upper - 1) * 100).round();
       buf.write('* +$smallerPercent to +$higherPercent% more potential jank');
     }
-    final originalSkippedRatio =
-        (originalSkipped / originalCount * 100).toStringAsFixed(1);
-    final improvedSkippedRatio =
-        (improvedSkipped / improvedCount * 100).toStringAsFixed(1);
-    buf.writeln(' ($originalSkipped -> $improvedSkipped, '
-        'or $originalSkippedRatio% -> $improvedSkippedRatio%)');
+    final originalSkippedRatio = (originalSkipped / originalCount * 100)
+        .toStringAsFixed(1);
+    final improvedSkippedRatio = (improvedSkipped / improvedCount * 100)
+        .toStringAsFixed(1);
+    buf.writeln(
+      ' ($originalSkipped -> $improvedSkipped, '
+      'or $originalSkippedRatio% -> $improvedSkippedRatio%)',
+    );
 
     final skippedDifference = improvedSkipped - originalSkipped;
     final skippedPpt =
         (improvedSkipped / improvedCount - originalSkipped / originalCount) *
-            100;
+        100;
     final noun = skippedDifference <= 0 ? 'decrease' : 'increase';
-    buf.writeln('  ('
-        "That's a ${skippedPpt.abs().toStringAsFixed(0)} ppt "
-        '$noun in ratio of jank-to-normal frames.)');
+    buf.writeln(
+      '  ('
+      "That's a ${skippedPpt.abs().toStringAsFixed(0)} ppt "
+      '$noun in ratio of jank-to-normal frames.)',
+    );
 
     // final betterMeasurements = measurements.where((m) => m < 0).length;
     // final betterPercent = (betterMeasurements / measurements.length) * 100;
@@ -295,19 +334,25 @@ class FlutterComparison {
     // 833 microseconds is 5% of a 60fps frame budget
     // 1000 microseconds is 6% of a 60fps frame budget
     const threshold = 1000;
-    final betterMeasurementsWithPadding =
-        measurements.where((m) => m < -threshold).length;
+    final betterMeasurementsWithPadding = measurements
+        .where((m) => m < -threshold)
+        .length;
     final betterPercentWithPadding =
         (betterMeasurementsWithPadding / measurements.length) * 100;
-    buf.writeln('* ${betterPercentWithPadding.toStringAsFixed(1)}% '
-        'of individual measurements improved by 1ms+');
+    buf.writeln(
+      '* ${betterPercentWithPadding.toStringAsFixed(1)}% '
+      'of individual measurements improved by 1ms+',
+    );
 
-    final worseMeasurementsWithPadding =
-        measurements.where((m) => m > threshold).length;
+    final worseMeasurementsWithPadding = measurements
+        .where((m) => m > threshold)
+        .length;
     final worsePercentWithPadding =
         (worseMeasurementsWithPadding / measurements.length) * 100;
-    buf.writeln('* ${worsePercentWithPadding.toStringAsFixed(1)}% '
-        'of individual measurements worsened by 1ms+');
+    buf.writeln(
+      '* ${worsePercentWithPadding.toStringAsFixed(1)}% '
+      'of individual measurements worsened by 1ms+',
+    );
 
     return buf.toString();
   }
@@ -339,9 +384,12 @@ class Histogram {
   /// added to the outermost buckets.
   Histogram(List<int> measurements, {int? forceRange}) {
     // Maximum distance from 0.
-    var distance = forceRange ??
+    var distance =
+        forceRange ??
         measurements.fold<int>(
-            0, (previousValue, element) => max(previousValue, element.abs()));
+          0,
+          (previousValue, element) => max(previousValue, element.abs()),
+        );
 
     lowestBound = (-distance - 1);
     highestBound = (distance + 1);
@@ -363,7 +411,9 @@ class Histogram {
 
     final highestCount = bucketMemberCounts.fold<int>(0, max);
     bucketsNormalized = List<double>.generate(
-        bucketCount, (index) => bucketMemberCounts[index] / highestCount);
+      bucketCount,
+      (index) => bucketMemberCounts[index] / highestCount,
+    );
   }
 }
 
@@ -384,10 +434,11 @@ class RiskRatio {
   /// Standard computation according to:
   /// https://sphweb.bumc.bu.edu/otlt/mph-modules/bs/bs704_confidence_intervals/bs704_confidence_intervals8.html
   factory RiskRatio.fromPrevalence(
-      int improvedTotalCount,
-      int improvedWithOutcome,
-      int originalTotalCount,
-      int originalWithOutcome) {
+    int improvedTotalCount,
+    int improvedWithOutcome,
+    int originalTotalCount,
+    int originalWithOutcome,
+  ) {
     final n1 = improvedTotalCount;
     final x1 = improvedWithOutcome;
     final n2 = originalTotalCount;
@@ -425,15 +476,15 @@ class _FlutterProfileBenchmarkResult {
   final List<int> rasterTimes;
 
   _FlutterProfileBenchmarkResult(BenchmarkResult result)
-      : assert(result.type == 'flutter-profile '),
-        uiTimes = result.series
-            .where((s) => s.label == 'UI thread')
-            .single
-            .measurements,
-        rasterTimes = result.series
-            .where((s) => s.label == 'Raster thread')
-            .single
-            .measurements;
+    : assert(result.type == 'flutter-profile '),
+      uiTimes = result.series
+          .where((s) => s.label == 'UI thread')
+          .single
+          .measurements,
+      rasterTimes = result.series
+          .where((s) => s.label == 'Raster thread')
+          .single
+          .measurements;
 }
 
 extension on Statistic {

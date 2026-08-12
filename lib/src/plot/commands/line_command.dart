@@ -26,10 +26,10 @@ class LineCommand extends Command<void> {
     for (final path in inputs) {
       final values = parseDat(path);
       // Use the filename (without extension) as the label
-      final label = path.split(Platform.pathSeparator).last.replaceAll(
-            RegExp(r'\.dat$', caseSensitive: false),
-            '',
-          );
+      final label = path
+          .split(Platform.pathSeparator)
+          .last
+          .replaceAll(RegExp(r'\.dat$', caseSensitive: false), '');
       lines.add(LineData.compute(label, values));
     }
 
