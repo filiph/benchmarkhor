@@ -141,7 +141,8 @@ void main() {
     );
     await store.writeStatus(status);
 
-    final trialDir = store.trialDir(sessionId, 'trial-001')..createSync(recursive: true);
+    final trialDir = store.trialDir(sessionId, 'trial-001')
+      ..createSync(recursive: true);
     final trialMetadata = TrialMetadata(
       sessionId: sessionId,
       variantName: 'v1',

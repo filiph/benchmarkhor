@@ -166,7 +166,8 @@ void main() {
     expect(metadata.warnings, contains(contains('Thermal gate timeout')));
   });
 
-  test('Runner detects thermal throttling during trial and records warning', () async {
+  test('Runner detects thermal throttling during trial and records warning',
+      () async {
     final sessionId = '20260809__throttled';
     await setupValidSession(sessionId);
     await store.discoverNewSessions();

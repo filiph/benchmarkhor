@@ -41,8 +41,8 @@ void main(List<String> arguments) {
   if (cmd.contains('dumpsys thermalservice')) {
     final throttling =
         Platform.environment['FAKE_ADB_THERMAL_THROTTLING'] == 'true';
-    final status =
-        Platform.environment['FAKE_ADB_THERMAL_STATUS'] ?? (throttling ? '2' : '0');
+    final status = Platform.environment['FAKE_ADB_THERMAL_STATUS'] ??
+        (throttling ? '2' : '0');
     print('IsThrottling: $throttling');
     print('Thermal Status: $status');
     return;
