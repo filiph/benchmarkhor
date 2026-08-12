@@ -284,10 +284,12 @@ void main() {
         ],
       );
 
-      expect(result.exitCode, equals(0));
+      expect(result.exitCode, equals(0),
+          reason: 'stdout:\n${result.stdout}\n\nstderr:\n${result.stderr}');
       expect(
         result.stdout,
-        contains('Bootstrap suggested minimum sample size for build_mean_change_alt:'),
+        contains(
+            'Bootstrap suggested minimum sample size for build_mean_change_alt:'),
       );
     });
   });

@@ -156,6 +156,7 @@ void main() {
         alpha: 0.05,
         nSims: 20000,
         seed: 3,
+        calibrated: true,
       );
       // The one-sample t-test on right-skewed data is known to mis-calibrate
       // at small n. If this fails, "80% power at n = 6" is really "80% power
@@ -414,11 +415,12 @@ void main() {
       expect(t, greaterThan(10));
     });
 
-    test('refuses small df with an untabled alpha', () {
-      // A Bonferroni-corrected alpha at df <= 4 has no exact entry, and the
-      // series is unusable there. Better to throw than to be 20% wrong.
-      expect(() => studentTCriticalValue(2, 0.05 / 3), throwsArgumentError);
-      expect(studentTCriticalValue(10, 0.05 / 3), closeTo(2.7099, 5e-3));
+    test('refuses df 3 or 4 with an untabled alpha', () {
+      expect(() => studentTCriticalValue(3, 0.05 / 3), throwsArgumentError);
+      expect(() => studentTCriticalValue(4, 0.05 / 3), throwsArgumentError);
+      expect(studentTCriticalValue(1, 0.05 / 3), closeTo(38.188, 2e-3));
+      expect(studentTCriticalValue(2, 0.05 / 3), closeTo(7.6488, 2e-3));
+      expect(studentTCriticalValue(10, 0.05 / 3), closeTo(2.869, 0.02));
     });
   });
 
@@ -496,28 +498,39 @@ void main() {
       expect(nTiny / nSmall, closeTo(22, 6));
     });
 
-    test('a coarse noise library still gives a usable answer', () {
-      // 10 pilot rounds means the resampling library has only 10 distinct
-      // values. That is fine for the *mean* (CLT), but the returned n
-      // inherits the ~24% uncertainty of a 10-sample sigma estimate, which
-      // doubles to ~48% in n. Report "about 4 rounds", never "4 rounds".
-      final wide = calculateBootstrapSampleSize(
-          diffs: diffs, baseMean: baseMean, sesoi: 0.02, nSims: 5000, seed: 42);
-      expect(wide, inInclusiveRange(8, 20));
+    test('calibration removes most of the skew-induced bias in n', () {
+      // Power depends on sigma, so a heavier-tailed library with the same spread
+      // should need a similar n. It only does so with `calibrated: true`: the
+      // parametric path returns 24 vs 34 here, because its true alpha on this
+      // fixture is ~0.13, and an inflated alpha inflates power at every n, so
+      // the search stops early. See the characterization test below.
+      const sigma = 100.0;
+      int run(List<double> noise) => calculateBootstrapSampleSize(
+          diffs: noise,
+          baseMean: 1000.0,
+          sesoi: 0.05,
+          nSims: 8000,
+          seed: 17,
+          calibrated: true);
+
+      final gaussian = run(normalNoise(4000, sigma));
+      final skewed = run(lognormalNoise(4000, sigma));
+      expect(skewed, closeTo(gaussian, gaussian * 0.15),
+          reason: 'gaussian = $gaussian, skewed = $skewed');
     });
 
-    test('skew does not change n much when sigma is held fixed', () {
-      // Power depends on sigma, so a heavier-tailed library with the same
-      // spread should need a similar n. Skew shows up in *calibration*
-      // (see the type-I group), not here. If this ever diverges sharply,
-      // suspect the variance estimate rather than the search.
+    test('CHARACTERIZATION: uncalibrated n is biased low under strong skew',
+        () {
+      // Documents the limitation rather than hiding it. If this number moves,
+      // something about the parametric path changed and you want to know.
       const sigma = 100.0;
       int run(List<double> noise) => calculateBootstrapSampleSize(
           diffs: noise, baseMean: 1000.0, sesoi: 0.05, nSims: 8000, seed: 17);
 
       final gaussian = run(normalNoise(4000, sigma));
       final skewed = run(lognormalNoise(4000, sigma));
-      expect(skewed, closeTo(gaussian, gaussian * 0.25),
+      expect(gaussian, closeTo(34, 3));
+      expect(skewed, lessThan(gaussian * 0.85),
           reason: 'gaussian = $gaussian, skewed = $skewed');
     });
   }, timeout: const Timeout(Duration(minutes: 2)));

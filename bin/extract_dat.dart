@@ -30,11 +30,9 @@ void main(List<String> arguments) async {
         help: 'Smallest effect size of interest for sample size calculation',
         defaultsTo: '0.05')
     ..addOption('bootstrap-alpha',
-        help: 'Alpha level for sample size calculation',
-        defaultsTo: '0.05')
+        help: 'Alpha level for sample size calculation', defaultsTo: '0.05')
     ..addOption('bootstrap-power',
-        help: 'Target power for sample size calculation',
-        defaultsTo: '0.80')
+        help: 'Target power for sample size calculation', defaultsTo: '0.80')
     ..addFlag('verbose', help: 'Verbose logging.')
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Show help');
 
@@ -591,15 +589,35 @@ void _writeChangeAggregatesForTiming({
       log.info('$significanceMarker ${changeStats.toString()}');
 
       final baseMean = baseStats.mean.toDouble();
-      final sampleSize = calculateBootstrapSampleSize(
-        diffs: changeLists[metric]!,
-        baseMean: baseMean,
-        sesoi: bootstrapSesoi,
-        alpha: bootstrapAlpha,
-        power: bootstrapPower,
-      );
-      log.info(
-          'Bootstrap suggested minimum sample size for $designation: $sampleSize');
+
+      int? sampleSize;
+      String? unavailableBecause;
+      try {
+        sampleSize = calculateBootstrapSampleSize(
+          diffs: changeLists[metric]!,
+          baseMean: baseMean,
+          sesoi: bootstrapSesoi,
+          alpha: bootstrapAlpha,
+          power: bootstrapPower,
+        );
+      } on ArgumentError catch (e) {
+        // The library refuses degenerate pilots (fewer than 2 diffs, or zero
+        // variance - e.g. a quantized metric that returned the same value every
+        // round). That is a real "cannot be computed", not an error to swallow
+        // silently, so we say so and carry on with the other metrics.
+        unavailableBecause = e.message?.toString() ?? e.toString();
+      }
+
+      if (sampleSize == null) {
+        log.info('Bootstrap suggested minimum sample size for $designation: '
+            'unavailable ($unavailableBecause)');
+      } else if (sampleSize >= kDefaultMaxN) {
+        log.info('Bootstrap suggested minimum sample size for $designation: '
+            '>10000 (effect too small to detect within budget)');
+      } else {
+        log.info('Bootstrap suggested minimum sample size for $designation: '
+            '$sampleSize');
+      }
     }
   }
 }
