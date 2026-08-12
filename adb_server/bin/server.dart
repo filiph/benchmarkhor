@@ -6,19 +6,14 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import 'package:adb_server/api.dart';
 import 'package:adb_server/config.dart';
+import 'package:adb_server/logging.dart';
 import 'package:adb_server/runner.dart';
 import 'package:adb_server/session_store.dart';
+import 'package:path/path.dart' as p;
 
 final _log = Logger('adb_server');
 
 Future<void> main(List<String> arguments) async {
-  Logger.root.onRecord.listen((record) {
-    stderr.writeln(
-      '${record.time.toIso8601String()} '
-      '[${record.level.name}] ${record.loggerName}: ${record.message}',
-    );
-  });
-
   final Config config;
   try {
     config = Config.fromEnvironment(Platform.environment);
@@ -27,6 +22,15 @@ Future<void> main(List<String> arguments) async {
     exitCode = 1;
     return;
   }
+
+  final fileLogger = RotatingFileLogger(p.join(config.dataDir, 'server.log'));
+
+  Logger.root.onRecord.listen((record) {
+    final message = '${record.time.toIso8601String()} '
+        '[${record.level.name}] ${record.loggerName}: ${record.message}';
+    stderr.writeln(message);
+    fileLogger.log(message);
+  });
   Logger.root.level = Level.LEVELS.firstWhere(
     (l) => l.name.toLowerCase() == config.logLevel.toLowerCase(),
     orElse: () => Level.INFO,

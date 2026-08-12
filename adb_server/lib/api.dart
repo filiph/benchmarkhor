@@ -8,6 +8,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'adb.dart';
 import 'config.dart';
 import 'device_probe.dart';
+import 'logging.dart';
 import 'models.dart';
 import 'runner.dart';
 import 'session_store.dart';
@@ -53,6 +54,7 @@ class Api {
     router.get(
         '/api/sessions/<id>/trials/<trial>/trial.json', _serveTrialArtifact);
     router.get('/api/sessions/<id>/log', _sessionLog);
+    router.get('/api/logs/server.log', _serverLog);
     router.get('/sessions/<id>', _sessionDetailPage);
 
     return router;
@@ -110,7 +112,8 @@ class Api {
           ? ' | Temp: <strong>${temp.toStringAsFixed(1)}°C</strong>'
           : '')
       ..writeln('</span>')
-      ..writeln(' | Busy: <strong>${runner.isBusy}</strong>');
+      ..writeln(' | Busy: <strong>${runner.isBusy}</strong>')
+      ..writeln(' | <a href="/api/logs/server.log">Server Logs</a>');
 
     if (runner.isBusy) {
       html.writeln(
@@ -179,6 +182,33 @@ class Api {
         'busy': runner.isBusy,
         'config': config.toJson(),
       });
+
+  Future<Response> _serverLog(Request request) async {
+    final linesParam = request.url.queryParameters['lines'];
+    final n = int.tryParse(linesParam ?? '5000') ?? 5000;
+
+    final logFiles = <File>[];
+    // Order: oldest to newest
+    for (var i = defaultMaxFiles - 1; i >= 1; i--) {
+      final f = File(p.join(config.dataDir, 'server.log.$i'));
+      if (f.existsSync()) logFiles.add(f);
+    }
+    final current = File(p.join(config.dataDir, 'server.log'));
+    if (current.existsSync()) logFiles.add(current);
+
+    final allLines = <String>[];
+    for (final f in logFiles) {
+      try {
+        allLines.addAll(await f.readAsLines());
+      } catch (e) {
+        // Skip files that can't be read
+      }
+    }
+
+    final start = (allLines.length - n).clamp(0, allLines.length);
+    final tail = allLines.sublist(start);
+    return Response.ok(tail.join('\n'), headers: {'content-type': 'text/plain'});
+  }
 
   Future<Response> _listSessions(Request request) async {
     await sessionStore.discoverNewSessions();
