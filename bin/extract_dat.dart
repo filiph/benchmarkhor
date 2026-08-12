@@ -557,9 +557,9 @@ void _writeChangeAggregatesForTiming({
   final suffix = phase == null ? variantName : '${variantName}_$phase';
   for (final metric in MetricType.values) {
     final designation = '${timing}_${metric.name}_change_$suffix';
-    final values = changeLists[metric]!;
-    if (values.isNotEmpty) {
-      _writeDat(p.join(outputDirPath, '$designation.dat'), values);
+    final changes = changeLists[metric]!;
+    if (changes.isNotEmpty) {
+      _writeDat(p.join(outputDirPath, '$designation.dat'), changes);
     }
 
     // Show statistical difference.
@@ -570,8 +570,7 @@ void _writeChangeAggregatesForTiming({
     } else {
       final baseStats = Statistic.from(baseData, name: '$designation baseline');
       final varStats = Statistic.from(varData, name: '$designation variant');
-      final changeStats =
-          Statistic.from(changeLists[metric]!, name: designation);
+      final changeStats = Statistic.from(changes, name: designation);
 
       final medianIsDifferent = varStats.isDifferentFrom(baseStats);
       final meanIsDifferent = (varStats.lowerBound < baseStats.lowerBound &&
@@ -593,12 +592,14 @@ void _writeChangeAggregatesForTiming({
       int? sampleSize;
       String? unavailableBecause;
       try {
+        final shouldCalibrate = skewness(changes) > 0.5;
         sampleSize = calculateBootstrapSampleSize(
-          diffs: changeLists[metric]!,
+          diffs: changes,
           baseMean: baseMean,
           sesoi: bootstrapSesoi,
           alpha: bootstrapAlpha,
           power: bootstrapPower,
+          calibrated: shouldCalibrate,
         );
       } on ArgumentError catch (e) {
         // The library refuses degenerate pilots (fewer than 2 diffs, or zero

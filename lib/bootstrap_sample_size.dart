@@ -215,8 +215,13 @@ double calibratedCriticalValue({
 /// is the whole point; with it false you can see how far off the parametric
 /// assumption is for your data.
 ///
-/// [calibrated] roughly doubles the cost (one extra simulation pass to find
-/// the critical value). Callers doing a search over n should memoize per n.
+/// Set [calibrated] false only if you specifically want the textbook
+/// parametric answer for comparison, or if runtime is critical and you
+/// have verified with [skewness] that your diffs are near-symmetric
+/// (|skew| < 0.5). The default holds the false-positive rate at [alpha]
+/// for the actual shape of your data; turning it off assumes normality
+/// and, on skewed diffs at small n, silently under-reports the required
+/// sample size by ~30%.
 @visibleForTesting
 double estimatePowerAt({
   required List<double> centeredNoise,
@@ -225,7 +230,7 @@ double estimatePowerAt({
   double alpha = 0.05,
   int nSims = 5000,
   int seed = 0,
-  bool calibrated = false,
+  bool calibrated = true,
   int nCalibrationSims = 20000,
 }) {
   if (nRounds < 2) return 0.0;
@@ -259,10 +264,13 @@ double estimatePowerAt({
 /// [diffs] are the paired per-round differences. Returns [maxN] if the
 /// requirement cannot be met within that budget, so check for that.
 ///
-/// Set [calibrated] true when the differences are skewed (check with
-/// [skewness]); it holds the false-positive rate at [alpha] instead of
-/// letting it drift upward, at the cost of a larger recommended n and
-/// roughly double the runtime. See [calibratedCriticalValue].
+/// Set [calibrated] false only if you specifically want the textbook
+/// parametric answer for comparison, or if runtime is critical and you
+/// have verified with [skewness] that your diffs are near-symmetric
+/// (|skew| < 0.5). The default holds the false-positive rate at [alpha]
+/// for the actual shape of your data; turning it off assumes normality
+/// and, on skewed diffs at small n, silently under-reports the required
+/// sample size by ~30%.
 ///
 /// Assumes rounds are independent; if your measurements drift over time
 /// (thermal, cache warmth), the true requirement will be higher.
@@ -276,7 +284,7 @@ int calculateBootstrapSampleSize({
   int seed = 0,
   int minN = kDefaultMinN,
   int maxN = kDefaultMaxN,
-  bool calibrated = false,
+  bool calibrated = true,
   int nCalibrationSims = 20000,
 }) {
   if (diffs.length < 2) {
