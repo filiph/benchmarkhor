@@ -166,6 +166,44 @@ void main() {
     expect(metadata.warnings, contains(contains('Thermal gate timeout')));
   });
 
+  test('Runner detects thermal throttling during trial and records warning', () async {
+    final sessionId = '20260809__throttled';
+    await setupValidSession(sessionId);
+    await store.discoverNewSessions();
+
+    final runner = Runner(
+      config: config,
+      sessionStore: store,
+      environment: {
+        'FAKE_ADB_THERMAL_THROTTLING': 'true',
+        'FAKE_ADB_THERMAL_STATUS': '2',
+      },
+    );
+
+    final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
+    await deviceSdcard.create(recursive: true);
+    await File(p.join(deviceSdcard.path, 'DONE')).create();
+
+    await runner.startNext();
+
+    int attempts = 0;
+    while (Runner.isBusy && attempts < 10) {
+      await Future<void>.delayed(const Duration(seconds: 1));
+      attempts++;
+    }
+
+    final metadata = TrialMetadata.fromJson(jsonDecode(await store
+        .trialMetadataFile(sessionId, 'trial-001')
+        .readAsString()) as Map<String, dynamic>);
+
+    expect(metadata.thermalThrottled, isTrue);
+    expect(metadata.maxThermalStatus, equals(2));
+    expect(
+        metadata.warnings,
+        contains(
+            contains('Device experienced thermal throttling during trial')));
+  });
+
   test('Runner applies device profile and reset profile', () async {
     final profileFile = File(p.join(tempDir.path, 'profile.sh'));
     await profileFile.writeAsString(

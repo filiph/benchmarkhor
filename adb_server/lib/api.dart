@@ -393,14 +393,23 @@ class Api {
           '<p><a href="/">&larr; Back to Dashboard</a> | <a href="/api/sessions/$id/log" target="_blank">Session Log</a></p>')
       ..writeln('<h2>Trials</h2>')
       ..writeln(
-          '<table><thead><tr><th>Trial</th><th>Variant</th><th>Started</th><th>Finished</th><th>Temp (soc-thermal)</th><th>Artifacts</th></tr></thead><tbody>');
+          '<table><thead><tr><th>Trial</th><th>Variant</th><th>Started</th><th>Finished</th><th>Temp / Throttled</th><th>Artifacts</th></tr></thead><tbody>');
 
     for (final trial in trials) {
       final beforeTemp = _getSocThermal(trial.deviceBefore);
       final afterTemp = _getSocThermal(trial.deviceAfter);
-      final tempStr = (beforeTemp != null && afterTemp != null)
+      var tempStr = (beforeTemp != null && afterTemp != null)
           ? '${beforeTemp.toStringAsFixed(1)}°C &rarr; ${afterTemp.toStringAsFixed(1)}°C'
           : 'N/A';
+      if (trial.thermalThrottled) {
+        final statusSuffix = trial.maxThermalStatus != null
+            ? ' (status: ${trial.maxThermalStatus})'
+            : '';
+        tempStr +=
+            ' | <span style="color: red; font-weight: bold;">Throttled$statusSuffix</span>';
+      } else {
+        tempStr += ' | Normal';
+      }
 
       html.writeln('<tr>');
       html.writeln('<td>${trial.trialId}</td>');

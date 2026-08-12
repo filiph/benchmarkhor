@@ -274,6 +274,13 @@ class Runner {
       bool gated = false;
       while (DateTime.now().isBefore(timeout)) {
         final p = await trialProbe.probe();
+        final tsMap = p['thermalservice'] as Map<String, dynamic>?;
+        final isThrottling = tsMap?['is_throttling'] == true;
+        final statusLevel = tsMap?['status_level'] as int?;
+        final throttlingStr = isThrottling
+            ? 'throttled (status: ${statusLevel ?? 'unknown'})'
+            : 'normal (status: ${statusLevel ?? 0})';
+
         final temps = p['temperatures'] as List<Map<String, String>>?;
         final maxTemp = temps
                 ?.map((t) => double.tryParse(t['temp'] ?? '0') ?? 0)
@@ -283,11 +290,11 @@ class Runner {
         final tempC = maxTemp > 1000 ? maxTemp / 1000 : maxTemp;
 
         if (tempC < config.thermalGateCelsius!) {
-          log('Temperature $tempC C is below threshold ${config.thermalGateCelsius} C.');
+          log('Temperature $tempC C ($throttlingStr) is below threshold ${config.thermalGateCelsius} C.');
           gated = true;
           break;
         }
-        log('Temperature $tempC C is too high, waiting...');
+        log('Temperature $tempC C ($throttlingStr) is too high, waiting...');
         await Future<void>.delayed(const Duration(seconds: 10));
       }
 
@@ -307,6 +314,24 @@ class Runner {
       sessionStore.lastSnapshotFile(),
       const JsonEncoder.withIndent('  ').convert(deviceBefore),
     );
+
+    bool thermalThrottled = false;
+    int? maxThermalStatus;
+
+    void updateThermalState(Map<String, dynamic> probeResult) {
+      final ts = probeResult['thermalservice'];
+      if (ts is Map) {
+        if (ts['is_throttling'] == true) {
+          thermalThrottled = true;
+        }
+        final level = ts['status_level'] as int?;
+        if (level != null) {
+          maxThermalStatus = max(maxThermalStatus ?? 0, level);
+        }
+      }
+    }
+
+    updateThermalState(deviceBefore);
 
     // 3. Clean device state
     log('Cleaning device state...');
@@ -385,6 +410,24 @@ class Runner {
           throw CancelledException('Session cancelled during trial poll.');
         }
 
+        // Check thermal status & temperature alongside trial completion check
+        final pollProbe = await trialProbe.probe();
+        updateThermalState(pollProbe);
+        final tsMap = pollProbe['thermalservice'] as Map<String, dynamic>?;
+        final isThrottling = tsMap?['is_throttling'] == true;
+        final statusLevel = tsMap?['status_level'] as int?;
+        final pollThrottlingStr = isThrottling
+            ? 'throttled (status: ${statusLevel ?? 'unknown'})'
+            : 'normal (status: ${statusLevel ?? 0})';
+
+        final temps = pollProbe['temperatures'] as List<Map<String, String>>?;
+        final maxTemp = temps
+                ?.map((t) => double.tryParse(t['temp'] ?? '0') ?? 0)
+                .reduce(max) ??
+            0;
+        final tempC = maxTemp > 1000 ? maxTemp / 1000 : maxTemp;
+        log('Trial poll: temp=${tempC.toStringAsFixed(1)} C, thermal_status=$pollThrottlingStr');
+
         // Priority 1: Sentinel file
         final sentinel = await trialAdb
             .shell('test -f ${spec.deviceResultDir}/DONE && echo YES');
@@ -443,6 +486,15 @@ class Runner {
       // 9. Post-run snapshot
       log('Capturing post-run snapshot...');
       final deviceAfter = await trialProbe.probe();
+      updateThermalState(deviceAfter);
+
+      if (thermalThrottled) {
+        final msg =
+            'Device experienced thermal throttling during trial${maxThermalStatus != null ? " (max status: $maxThermalStatus)" : ""}';
+        if (!warnings.contains(msg)) {
+          warnings.add(msg);
+        }
+      }
 
       // 10. Finalize Trial
       final finishedAt = DateTime.now().toUtc();
@@ -459,6 +511,8 @@ class Runner {
         config: config.toJson(),
         deviceProfile: profileResult?.content,
         deviceProfileSha256: profileResult?.sha256,
+        thermalThrottled: thermalThrottled,
+        maxThermalStatus: maxThermalStatus,
       );
 
       await sessionStore.writeAtomic(

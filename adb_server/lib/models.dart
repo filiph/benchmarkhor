@@ -343,6 +343,8 @@ class TrialMetadata {
   final Map<String, dynamic> config;
   final String? deviceProfile;
   final String? deviceProfileSha256;
+  final bool thermalThrottled;
+  final int? maxThermalStatus;
 
   const TrialMetadata({
     this.schemaVersion = currentSchemaVersion,
@@ -358,6 +360,8 @@ class TrialMetadata {
     this.config = const {},
     this.deviceProfile,
     this.deviceProfileSha256,
+    this.thermalThrottled = false,
+    this.maxThermalStatus,
   });
 
   factory TrialMetadata.fromJson(Map<String, dynamic> json) => TrialMetadata(
@@ -375,6 +379,8 @@ class TrialMetadata {
         config: json['config'] as Map<String, dynamic>? ?? const {},
         deviceProfile: json['device_profile'] as String?,
         deviceProfileSha256: json['device_profile_sha256'] as String?,
+        thermalThrottled: json['thermal_throttled'] as bool? ?? false,
+        maxThermalStatus: json['max_thermal_status'] as int?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -392,5 +398,7 @@ class TrialMetadata {
         if (deviceProfile != null) 'device_profile': deviceProfile,
         if (deviceProfileSha256 != null)
           'device_profile_sha256': deviceProfileSha256,
+        'thermal_throttled': thermalThrottled,
+        if (maxThermalStatus != null) 'max_thermal_status': maxThermalStatus,
       };
 }

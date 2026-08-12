@@ -127,4 +127,42 @@ void main() {
     expect(response.statusCode, 303); // seeOther
     expect(response.headers['location'], '/');
   });
+
+  test('GET /sessions/<id> displays trial details including thermal throttling',
+      () async {
+    final sessionId = '20260810-120000Z__detail-test';
+    final sessionDir = store.sessionDir(sessionId)..createSync(recursive: true);
+    final status = SessionStatus(
+      sessionId: sessionId,
+      state: SessionState.done,
+      roundsPlanned: 1,
+      createdAt: DateTime.now().toUtc(),
+      updatedAt: DateTime.now().toUtc(),
+    );
+    await store.writeStatus(status);
+
+    final trialDir = store.trialDir(sessionId, 'trial-001')..createSync(recursive: true);
+    final trialMetadata = TrialMetadata(
+      sessionId: sessionId,
+      variantName: 'v1',
+      trialId: 'trial-001',
+      startedAt: DateTime.now().toUtc(),
+      finishedAt: DateTime.now().toUtc(),
+      thermalThrottled: true,
+      maxThermalStatus: 2,
+    );
+    final metaFile = store.trialMetadataFile(sessionId, 'trial-001');
+    metaFile.writeAsStringSync(jsonEncode(trialMetadata.toJson()));
+
+    final request = Request(
+      'GET',
+      Uri.parse('http://localhost/sessions/$sessionId'),
+    );
+    final response = await api.router.call(request);
+    expect(response.statusCode, 200);
+
+    final body = await response.readAsString();
+    expect(body, contains('Session: $sessionId'));
+    expect(body, contains('Throttled (status: 2)'));
+  });
 }
