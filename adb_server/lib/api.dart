@@ -106,8 +106,9 @@ class Api {
           '<span class="device-status ${deviceState == 'device' ? 'status-online' : 'status-offline'}">')
       ..writeln(
           'DUT: <strong>${config.dutAddress}</strong> is <strong>$deviceState</strong>')
-      ..writeln(
-          '${temp != null ? ' | Temp: <strong>${temp.toStringAsFixed(1)}°C</strong>' : ''}')
+      ..writeln(temp != null
+          ? ' | Temp: <strong>${temp.toStringAsFixed(1)}°C</strong>'
+          : '')
       ..writeln('</span>')
       ..writeln(' | Busy: <strong>${runner.isBusy}</strong>');
 
