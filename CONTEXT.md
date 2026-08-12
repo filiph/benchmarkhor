@@ -32,6 +32,9 @@ A visual narrowing of the box plot around the median indicating the 95% confiden
 The bounds of the notch are calculated as $\text{median} \pm 1.58 \times \frac{\text{IQR}}{\sqrt{n}}$, narrowing down to 60% of the full box width at the median position. If the notch bounds extend beyond Q1 or Q3 (e.g., due to small sample size or high variability), the notch lines are allowed to extend beyond the box, creating a flipped/flared shape.
 _Avoid_: Waist, confidence interval cutoff
 
+### Median Label
+A text label displayed to the right of the median line (at the notch waist) showing the median value formatted as $\mu_{1/2} = \text{value}$ (`μ½ = <value>`), where $\mu_{1/2}$ denotes the median (with subscript ½) in small light gray text.
+
 ### Whisker
 The lines extending from the box plot.
 In `benchmarkhor`, whiskers extend to the most extreme data points within $1.5 \times IQR$ of the first and third quartiles. These points also define the vertical truncation bounds for the KDE curve.

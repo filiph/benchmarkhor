@@ -99,6 +99,9 @@ void main() {
       expect(svg, contains('<polygon points="'));
       // Median line rendered across notch waist (width 21.6 = 2 * 10.8)
       expect(svg, contains('stroke-width="2.5"'));
+      // Median label rendered with μ½ subscript notation
+      expect(svg, contains('μ<tspan font-size="8" dy="2">½</tspan>'));
+      expect(svg, contains(' = 130'));
     });
 
     test('outliers far below the plot minimum are summarised, not drawn', () {
