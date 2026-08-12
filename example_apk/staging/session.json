@@ -10,7 +10,7 @@
     "improved": {
       "apk": "improved.apk",
       "test_apk": "improved-test.apk"
-    },
+    }
   },
   "package": "com.example.example_apk",
   "test_package": "com.example.example_apk.test",
