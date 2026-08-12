@@ -12,14 +12,14 @@ class ExpensiveRouteOptimized extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text('Dogs'),
+        title: const Text('Dogs'),
       ),
       body: Column(
         children: [
           SizedBox(
             height: 200,
             child: Image.asset(
-              key: Key('dog_photo'),
+              key: const Key('dog_photo'),
               'assets/bond+friend.jpg',
               fit: BoxFit.cover,
             ),
@@ -47,7 +47,7 @@ class _ExpensiveItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           SizedBox(
