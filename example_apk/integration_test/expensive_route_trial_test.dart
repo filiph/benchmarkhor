@@ -74,8 +74,6 @@ void main() {
         await _settleForReal(tester, const Duration(seconds: 1));
         await _waitFor(tester, find.byType(ExpensiveRoute));
 
-        await _settleForReal(tester, const Duration(seconds: 2));
-
         recorder.phase = 'scroll';
         final listFinder = find.byType(ListView);
         final screenHeight = tester.getSize(listFinder).height;
@@ -89,9 +87,6 @@ void main() {
         }
 
         await _settleForReal(tester, const Duration(seconds: 2));
-
-        recorder.phase = 'rest';
-        await _settleForReal(tester, const Duration(milliseconds: 500));
         await recorder.stop();
 
         expect(

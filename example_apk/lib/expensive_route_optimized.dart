@@ -28,7 +28,8 @@ class ExpensiveRouteOptimized extends StatelessWidget {
             child: ListView.builder(
               itemCount: unoptimized.itemCount,
               itemBuilder: (c, i) => _ExpensiveItem(index: i),
-              prototypeItem: const _ExpensiveItem(index: 42),
+              // The following is here as an additional potential optimization.
+              // prototypeItem: const _ExpensiveItem(index: 42),
             ),
           ),
         ],

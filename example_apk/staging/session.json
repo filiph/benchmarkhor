@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "name": "expensive-route-const-and-prototype-item",
-  "description": "Compare baseline ExpensiveRoute with ExpensiveRouteOptimized using ListView.builder, and another with prototypeItem set.",
+  "name": "upside-of-const-pilot",
+  "description": "Compare baseline (no const anywhere) with a proper const version (pilot)",
   "variants": {
     "baseline": {
       "apk": "baseline.apk",
@@ -11,15 +11,11 @@
       "apk": "improved.apk",
       "test_apk": "improved-test.apk"
     },
-    "prototype_item": {
-      "apk": "improved_prototype_item.apk",
-      "test_apk": "improved_prototype_item-test.apk"
-    }
   },
   "package": "com.example.example_apk",
   "test_package": "com.example.example_apk.test",
   "instrumentation_runner": "androidx.test.runner.AndroidJUnitRunner",
-  "rounds": 300,
+  "rounds": 10,
   "trial_timeout_seconds": 1800,
   "expected_result_files": ["frames.jsonl"],
   "device_result_dir": "/sdcard/Android/data/com.example.example_apk/files",

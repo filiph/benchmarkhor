@@ -34,10 +34,9 @@ class ExpensiveRoute extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView(
-              children: [
-                for (var i = 1; i <= itemCount; i++) _ExpensiveItem(index: i),
-              ],
+            child: ListView.builder(
+              itemCount: itemCount,
+              itemBuilder: (c, i) => _ExpensiveItem(index: i),
             ),
           ),
         ],
