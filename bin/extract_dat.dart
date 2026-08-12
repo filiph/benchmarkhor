@@ -45,6 +45,11 @@ void main(List<String> arguments) async {
       help: 'Target power for sample size calculation',
       defaultsTo: '0.80',
     )
+    ..addFlag(
+      'write-trial-files',
+      help: "Writes every trial's full frame data as .dat files",
+      defaultsTo: false,
+    )
     ..addFlag('verbose', help: 'Verbose logging.')
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Show help');
 
@@ -211,15 +216,17 @@ void main(List<String> arguments) async {
     variantTrials.putIfAbsent(variantName, () => []).add(trialData);
     roundTrials.putIfAbsent(calculatedRound, () => {})[variantName] = trialData;
 
-    // Write per-trial files
-    _writeDat(
-      p.join(outputDir.path, 'build_${variantName}_$trialId.dat'),
-      buildTimes,
-    );
-    _writeDat(
-      p.join(outputDir.path, 'raster_${variantName}_$trialId.dat'),
-      rasterTimes,
-    );
+    if (argResults.flag('write-trial-files')) {
+      // Write per-trial files
+      _writeDat(
+        p.join(outputDir.path, 'build_${variantName}_$trialId.dat'),
+        buildTimes,
+      );
+      _writeDat(
+        p.join(outputDir.path, 'raster_${variantName}_$trialId.dat'),
+        rasterTimes,
+      );
+    }
   }
 
   // Write aggregated files
