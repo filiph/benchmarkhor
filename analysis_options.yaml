@@ -8,4 +8,4 @@ analyzer:
   exclude:
 #    - adb_server
     - example
-    - example_apk
+#    - example_apk
