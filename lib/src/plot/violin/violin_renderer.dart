@@ -197,6 +197,17 @@ String buildViolinSvg(List<ViolinData> violins) {
       'stroke="white" stroke-width="2.5"/>',
     );
 
+    // Median label to the right of notch waist
+    final formattedMedian = formatTick(v.median);
+    buf.writeln(
+      '<text x="${xRight + 8}" y="${yMedian + 4}" '
+      'font-family="Arial,sans-serif" font-size="11" fill="#ccc">'
+      '<title>Median</title>' // Same function as HTML's `title` attribute.
+      'μ<tspan font-size="8" dy="2">½</tspan>'
+      '<tspan font-size="11" dy="-2"> = $formattedMedian</tspan>'
+      '</text>',
+    );
+
     // --- Outliers ---
     int excludedAboveCount = 0;
     double? excludedMax;
