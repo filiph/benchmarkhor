@@ -91,8 +91,8 @@ class Config {
           int.tryParse(env['POLL_INTERVAL_SECONDS'] ?? '') ?? 15,
       defaultTrialTimeoutSeconds:
           int.tryParse(env['DEFAULT_TRIAL_TIMEOUT_SECONDS'] ?? '') ??
-              int.tryParse(env['DEFAULT_RUN_TIMEOUT_SECONDS'] ?? '') ??
-              1800,
+          int.tryParse(env['DEFAULT_RUN_TIMEOUT_SECONDS'] ?? '') ??
+          1800,
       thermalGateCelsius: double.tryParse(env['THERMAL_GATE_CELSIUS'] ?? ''),
       thermalGateTimeoutSeconds:
           int.tryParse(env['THERMAL_GATE_TIMEOUT_SECONDS'] ?? '') ?? 300,
@@ -109,19 +109,19 @@ class Config {
   /// A JSON-serialisable summary, safe to embed in `/health` responses and
   /// in every `trial.json`.
   Map<String, dynamic> toJson() => {
-        'dut_address': dutAddress,
-        'data_dir': dataDir,
-        'port': port,
-        'adb_path': adbPath,
-        'poll_interval_seconds': pollIntervalSeconds,
-        'default_trial_timeout_seconds': defaultTrialTimeoutSeconds,
-        'thermal_gate_celsius': thermalGateCelsius,
-        'thermal_gate_timeout_seconds': thermalGateTimeoutSeconds,
-        'device_profile_file': deviceProfileFile,
-        'device_reset_file': deviceResetFile,
-        'profiles_dir': profilesDir,
-        'precompile_package': precompilePackage,
-        'log_level': logLevel,
-        'git_commit': gitCommit,
-      };
+    'dut_address': dutAddress,
+    'data_dir': dataDir,
+    'port': port,
+    'adb_path': adbPath,
+    'poll_interval_seconds': pollIntervalSeconds,
+    'default_trial_timeout_seconds': defaultTrialTimeoutSeconds,
+    'thermal_gate_celsius': thermalGateCelsius,
+    'thermal_gate_timeout_seconds': thermalGateTimeoutSeconds,
+    'device_profile_file': deviceProfileFile,
+    'device_reset_file': deviceResetFile,
+    'profiles_dir': profilesDir,
+    'precompile_package': precompilePackage,
+    'log_level': logLevel,
+    'git_commit': gitCommit,
+  };
 }

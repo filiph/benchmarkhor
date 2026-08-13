@@ -94,7 +94,8 @@ class SessionStore {
       json = jsonDecode(raw) as Map<String, dynamic>;
     } on FormatException catch (e) {
       throw FormatException(
-          'session.json for "$sessionId" is not valid JSON: $e');
+        'session.json for "$sessionId" is not valid JSON: $e',
+      );
     }
     return SessionSpec.fromJson(json);
   }
@@ -132,7 +133,9 @@ class SessionStore {
         final spec = await readSessionSpec(sessionId);
         await writeStatus(
           SessionStatus.initial(
-              sessionId: sessionId, roundsPlanned: spec.rounds),
+            sessionId: sessionId,
+            roundsPlanned: spec.rounds,
+          ),
         );
       } on FormatException catch (e) {
         final now = DateTime.now().toUtc();

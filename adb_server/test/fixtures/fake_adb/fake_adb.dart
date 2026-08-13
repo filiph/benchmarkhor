@@ -34,7 +34,8 @@ void main(List<String> arguments) {
 
   if (cmd.contains('getprop ro.build.fingerprint')) {
     print(
-        'google/crosshatch/crosshatch:12/SP1A.210812.015/7679544:user/release-keys');
+      'google/crosshatch/crosshatch:12/SP1A.210812.015/7679544:user/release-keys',
+    );
     return;
   }
 
@@ -48,34 +49,37 @@ void main(List<String> arguments) {
       print('CPU_ONLINE: 0-7');
       for (var i = 0; i < 8; i++) {
         print(
-            'FREQ /sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq: 1800000');
+          'FREQ /sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq: 1800000',
+        );
       }
       for (var i = 0; i < 2; i++) {
         print(
-            'THERMAL /sys/class/thermal/thermal_zone$i/type: cpu-thermal | 35000');
+          'THERMAL /sys/class/thermal/thermal_zone$i/type: cpu-thermal | 35000',
+        );
       }
       print('THERMALSERVICE START');
       final throttling =
           Platform.environment['FAKE_ADB_THERMAL_THROTTLING'] == 'true';
-      final status = Platform.environment['FAKE_ADB_THERMAL_STATUS'] ??
+      final status =
+          Platform.environment['FAKE_ADB_THERMAL_STATUS'] ??
           (throttling ? '2' : '0');
       print('IsThrottling: $throttling');
       print('Thermal Status: $status');
       print('THERMALSERVICE END');
 
       // Handle sentinels
-      final doneMatch =
-          RegExp(r'if \[ -f "([^"]+)" \]; then echo "SENTINEL: DONE"; fi')
-              .firstMatch(cmd);
+      final doneMatch = RegExp(
+        r'if \[ -f "([^"]+)" \]; then echo "SENTINEL: DONE"; fi',
+      ).firstMatch(cmd);
       if (doneMatch != null) {
         final doneFile = doneMatch.group(1)!;
         if (File(doneFile).existsSync()) {
           print('SENTINEL: DONE');
         }
       }
-      final failedMatch =
-          RegExp(r'if \[ -f "([^"]+)" \]; then echo "SENTINEL: FAILED"; fi')
-              .firstMatch(cmd);
+      final failedMatch = RegExp(
+        r'if \[ -f "([^"]+)" \]; then echo "SENTINEL: FAILED"; fi',
+      ).firstMatch(cmd);
       if (failedMatch != null) {
         final failedFile = failedMatch.group(1)!;
         if (File(failedFile).existsSync()) {
@@ -92,7 +96,8 @@ void main(List<String> arguments) {
   if (cmd.contains('dumpsys thermalservice')) {
     final throttling =
         Platform.environment['FAKE_ADB_THERMAL_THROTTLING'] == 'true';
-    final status = Platform.environment['FAKE_ADB_THERMAL_STATUS'] ??
+    final status =
+        Platform.environment['FAKE_ADB_THERMAL_STATUS'] ??
         (throttling ? '2' : '0');
     print('IsThrottling: $throttling');
     print('Thermal Status: $status');
@@ -163,15 +168,17 @@ void main(List<String> arguments) {
 
   if (cmd.contains('am instrument')) {
     // Simulate creating the DONE file after a short delay
-    final resultDirMatch =
-        RegExp(r'device_result_dir=([^\s]+)').firstMatch(cmd);
+    final resultDirMatch = RegExp(
+      r'device_result_dir=([^\s]+)',
+    ).firstMatch(cmd);
     // In our test, the result dir is passed via environment or hardcoded in spec.
     // But the runner cleans it.
     // For simplicity, let's just create it in the hardcoded test path if it's am instrument.
     // Actually, we can just rely on the test to create it, but we need to wait for the runner to finish cleaning.
 
     print(
-        'INSTRUMENTATION_STATUS: class=dev.flutter.plugins.integration_test.FlutterTestRunner');
+      'INSTRUMENTATION_STATUS: class=dev.flutter.plugins.integration_test.FlutterTestRunner',
+    );
     print('INSTRUMENTATION_STATUS: test=sample_test');
     print('INSTRUMENTATION_STATUS_CODE: 1');
     print('INSTRUMENTATION_RESULT: stream=');

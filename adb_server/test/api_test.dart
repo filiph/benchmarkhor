@@ -48,7 +48,7 @@ void main() {
     final spec = {
       'name': 'API Test',
       'variants': {
-        'default': {'apk': 'app.apk', 'test_apk': 'test.apk'}
+        'default': {'apk': 'app.apk', 'test_apk': 'test.apk'},
       },
       'package': 'com.example.api',
       'device_result_dir': '/sdcard/api',
@@ -91,15 +91,17 @@ void main() {
     final sessionId = '20260810-120000Z__exclusion-test';
     final sessionDir = store.sessionDir(sessionId)..createSync(recursive: true);
     final specFile = store.sessionSpecFile(sessionId);
-    specFile.writeAsStringSync(jsonEncode({
-      'name': 'Exclusion Test',
-      'variants': {
-        'v1': {'apk': 'a.apk', 'test_apk': 'at.apk'}
-      },
-      'package': 'com.example.exclusion',
-      'device_result_dir': '/sdcard/exclusion',
-      'rounds': 1,
-    }));
+    specFile.writeAsStringSync(
+      jsonEncode({
+        'name': 'Exclusion Test',
+        'variants': {
+          'v1': {'apk': 'a.apk', 'test_apk': 'at.apk'},
+        },
+        'package': 'com.example.exclusion',
+        'device_result_dir': '/sdcard/exclusion',
+        'rounds': 1,
+      }),
+    );
     await store.discoverNewSessions();
 
     // 2. Mock a long-running startNext by making it async
@@ -132,15 +134,17 @@ void main() {
     final sessionId = '20260810-120000Z__manual-session';
     final sessionDir = store.sessionDir(sessionId)..createSync(recursive: true);
     final specFile = store.sessionSpecFile(sessionId);
-    specFile.writeAsStringSync(jsonEncode({
-      'name': 'Manual Session',
-      'variants': {
-        'v1': {'apk': 'a.apk', 'test_apk': 'at.apk'}
-      },
-      'package': 'com.example.manual',
-      'device_result_dir': '/sdcard/manual',
-      'rounds': 5,
-    }));
+    specFile.writeAsStringSync(
+      jsonEncode({
+        'name': 'Manual Session',
+        'variants': {
+          'v1': {'apk': 'a.apk', 'test_apk': 'at.apk'},
+        },
+        'package': 'com.example.manual',
+        'device_result_dir': '/sdcard/manual',
+        'rounds': 5,
+      }),
+    );
 
     // 2. Call discovery via API
     final request = Request(
@@ -157,54 +161,59 @@ void main() {
     expect(status.roundsPlanned, 5);
   });
 
-  test('POST /api/sessions/discover redirects to / for HTML requests',
-      () async {
-    final request = Request(
-      'POST',
-      Uri.parse('http://localhost/api/sessions/discover'),
-      headers: {'accept': 'text/html'},
-    );
-    final response = await api.router.call(request);
-    expect(response.statusCode, 303); // seeOther
-    expect(response.headers['location'], '/');
-  });
+  test(
+    'POST /api/sessions/discover redirects to / for HTML requests',
+    () async {
+      final request = Request(
+        'POST',
+        Uri.parse('http://localhost/api/sessions/discover'),
+        headers: {'accept': 'text/html'},
+      );
+      final response = await api.router.call(request);
+      expect(response.statusCode, 303); // seeOther
+      expect(response.headers['location'], '/');
+    },
+  );
 
-  test('GET /sessions/<id> displays trial details including thermal throttling',
-      () async {
-    final sessionId = '20260810-120000Z__detail-test';
-    final sessionDir = store.sessionDir(sessionId)..createSync(recursive: true);
-    final status = SessionStatus(
-      sessionId: sessionId,
-      state: SessionState.done,
-      roundsPlanned: 1,
-      createdAt: DateTime.now().toUtc(),
-      updatedAt: DateTime.now().toUtc(),
-    );
-    await store.writeStatus(status);
+  test(
+    'GET /sessions/<id> displays trial details including thermal throttling',
+    () async {
+      final sessionId = '20260810-120000Z__detail-test';
+      final sessionDir = store.sessionDir(sessionId)
+        ..createSync(recursive: true);
+      final status = SessionStatus(
+        sessionId: sessionId,
+        state: SessionState.done,
+        roundsPlanned: 1,
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      );
+      await store.writeStatus(status);
 
-    final trialDir = store.trialDir(sessionId, 'trial-001')
-      ..createSync(recursive: true);
-    final trialMetadata = TrialMetadata(
-      sessionId: sessionId,
-      variantName: 'v1',
-      trialId: 'trial-001',
-      startedAt: DateTime.now().toUtc(),
-      finishedAt: DateTime.now().toUtc(),
-      thermalThrottled: true,
-      maxThermalStatus: 2,
-    );
-    final metaFile = store.trialMetadataFile(sessionId, 'trial-001');
-    metaFile.writeAsStringSync(jsonEncode(trialMetadata.toJson()));
+      final trialDir = store.trialDir(sessionId, 'trial-001')
+        ..createSync(recursive: true);
+      final trialMetadata = TrialMetadata(
+        sessionId: sessionId,
+        variantName: 'v1',
+        trialId: 'trial-001',
+        startedAt: DateTime.now().toUtc(),
+        finishedAt: DateTime.now().toUtc(),
+        thermalThrottled: true,
+        maxThermalStatus: 2,
+      );
+      final metaFile = store.trialMetadataFile(sessionId, 'trial-001');
+      metaFile.writeAsStringSync(jsonEncode(trialMetadata.toJson()));
 
-    final request = Request(
-      'GET',
-      Uri.parse('http://localhost/sessions/$sessionId'),
-    );
-    final response = await api.router.call(request);
-    expect(response.statusCode, 200);
+      final request = Request(
+        'GET',
+        Uri.parse('http://localhost/sessions/$sessionId'),
+      );
+      final response = await api.router.call(request);
+      expect(response.statusCode, 200);
 
-    final body = await response.readAsString();
-    expect(body, contains('Session: $sessionId'));
-    expect(body, contains('Throttled (status: 2)'));
-  });
+      final body = await response.readAsString();
+      expect(body, contains('Session: $sessionId'));
+      expect(body, contains('Throttled (status: 2)'));
+    },
+  );
 }

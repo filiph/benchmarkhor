@@ -19,7 +19,8 @@ void main() {
     fakeAdbPath = p.absolute('test/fixtures/fake_adb/$adbName');
     if (!File(fakeAdbPath).existsSync()) {
       throw StateError(
-          'Fake ADB not found at $fakeAdbPath. Run make to build it.');
+        'Fake ADB not found at $fakeAdbPath. Run make to build it.',
+      );
     }
   });
 
@@ -54,20 +55,23 @@ void main() {
     final spec = {
       'name': 'Test Session',
       'variants': {
-        'v1': {'apk': 'app.apk', 'test_apk': 'test.apk'}
+        'v1': {'apk': 'app.apk', 'test_apk': 'test.apk'},
       },
       'package': 'com.example.app',
       'device_result_dir': p.join(tempDir.path, 'device_sdcard'),
       'rounds': 1,
     };
-    await File(p.join(dir.path, 'session.json'))
-        .writeAsString(jsonEncode(spec));
+    await File(
+      p.join(dir.path, 'session.json'),
+    ).writeAsString(jsonEncode(spec));
     await File(p.join(dir.path, 'app.apk')).create();
     await File(p.join(dir.path, 'test.apk')).create();
   }
 
   Future<void> simulateAppFinishing(
-      String sessionId, Directory deviceSdcard) async {
+    String sessionId,
+    Directory deviceSdcard,
+  ) async {
     final logFile = store.sessionLogFile(sessionId);
     int logAttempts = 0;
     while (logAttempts < 30) {
@@ -81,8 +85,9 @@ void main() {
       logAttempts++;
     }
 
-    await File(p.join(deviceSdcard.path, 'result.txt'))
-        .writeAsString('bench results');
+    await File(
+      p.join(deviceSdcard.path, 'result.txt'),
+    ).writeAsString('bench results');
     await File(p.join(deviceSdcard.path, 'DONE')).create();
   }
 
@@ -142,13 +147,18 @@ void main() {
     final trialDir = store.trialDir(sessionId, 'trial-001');
     expect(await trialDir.exists(), isTrue);
     expect(await File(p.join(trialDir.path, 'trial.json')).exists(), isTrue);
-    expect(await File(p.join(trialDir.path, 'results_index.json')).exists(),
-        isTrue);
-    expect(await File(p.join(trialDir.path, 'results/result.txt')).exists(),
-        isTrue);
+    expect(
+      await File(p.join(trialDir.path, 'results_index.json')).exists(),
+      isTrue,
+    );
+    expect(
+      await File(p.join(trialDir.path, 'results/result.txt')).exists(),
+      isTrue,
+    );
 
-    final indexRaw =
-        await File(p.join(trialDir.path, 'results_index.json')).readAsString();
+    final indexRaw = await File(
+      p.join(trialDir.path, 'results_index.json'),
+    ).readAsString();
     final index = jsonDecode(indexRaw) as List<dynamic>;
     expect(index, hasLength(2));
     expect(index.any((e) => e['filename'] == 'result.txt'), isTrue);
@@ -194,57 +204,72 @@ void main() {
       attempts++;
     }
 
-    final metadata = TrialMetadata.fromJson(jsonDecode(await store
-        .trialMetadataFile(sessionId, 'trial-001')
-        .readAsString()) as Map<String, dynamic>);
+    final metadata = TrialMetadata.fromJson(
+      jsonDecode(
+            await store
+                .trialMetadataFile(sessionId, 'trial-001')
+                .readAsString(),
+          )
+          as Map<String, dynamic>,
+    );
 
     expect(metadata.warnings, contains(contains('Thermal gate timeout')));
   });
 
-  test('Runner detects thermal throttling during trial and records warning',
-      () async {
-    final sessionId = '20260809__throttled';
-    await setupValidSession(sessionId);
-    await store.discoverNewSessions();
+  test(
+    'Runner detects thermal throttling during trial and records warning',
+    () async {
+      final sessionId = '20260809__throttled';
+      await setupValidSession(sessionId);
+      await store.discoverNewSessions();
 
-    final runner = Runner(
-      config: config,
-      sessionStore: store,
-      environment: {
-        'FAKE_ADB_THERMAL_THROTTLING': 'true',
-        'FAKE_ADB_THERMAL_STATUS': '2',
-      },
-    );
+      final runner = Runner(
+        config: config,
+        sessionStore: store,
+        environment: {
+          'FAKE_ADB_THERMAL_THROTTLING': 'true',
+          'FAKE_ADB_THERMAL_STATUS': '2',
+        },
+      );
 
-    final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
-    await deviceSdcard.create(recursive: true);
+      final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
+      await deviceSdcard.create(recursive: true);
 
-    await runner.startNext();
+      await runner.startNext();
 
-    await simulateAppFinishing(sessionId, deviceSdcard);
+      await simulateAppFinishing(sessionId, deviceSdcard);
 
-    int attempts = 0;
-    while (runner.isBusy && attempts < 10) {
-      await Future<void>.delayed(const Duration(seconds: 1));
-      attempts++;
-    }
+      int attempts = 0;
+      while (runner.isBusy && attempts < 10) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        attempts++;
+      }
 
-    final metadata = TrialMetadata.fromJson(jsonDecode(await store
-        .trialMetadataFile(sessionId, 'trial-001')
-        .readAsString()) as Map<String, dynamic>);
+      final metadata = TrialMetadata.fromJson(
+        jsonDecode(
+              await store
+                  .trialMetadataFile(sessionId, 'trial-001')
+                  .readAsString(),
+            )
+            as Map<String, dynamic>,
+      );
 
-    expect(metadata.thermalThrottled, isTrue);
-    expect(metadata.maxThermalStatus, equals(2));
-    expect(
+      expect(metadata.thermalThrottled, isTrue);
+      expect(metadata.maxThermalStatus, equals(2));
+      expect(
         metadata.warnings,
         contains(
-            contains('Device experienced thermal throttling during trial')));
-  });
+          contains('Device experienced thermal throttling during trial'),
+        ),
+      );
+    },
+  );
 
   test('Runner applies device profile and reset profile', () async {
     final profileFile = File(p.join(tempDir.path, 'profile.sh'));
     await profileFile.writeAsString(
-        'echo performance > /sys/cpu/governor\n# comment\necho 1200000 > /sys/cpu/speed');
+      'echo performance > /sys/cpu/governor\n# comment\necho 1200000 > /sys/cpu/speed',
+    );
 
     final resetFile = File(p.join(tempDir.path, 'reset.sh'));
     await resetFile.writeAsString('echo schedutil > /sys/cpu/governor');
@@ -288,14 +313,16 @@ void main() {
     // 1. Verify TrialMetadata records the profile
     final metadataFile = store.trialMetadataFile(sessionId, 'trial-001');
     final metadata = TrialMetadata.fromJson(
-        jsonDecode(await metadataFile.readAsString()) as Map<String, dynamic>);
+      jsonDecode(await metadataFile.readAsString()) as Map<String, dynamic>,
+    );
 
     expect(metadata.deviceProfile, contains('performance'));
     expect(metadata.deviceProfileSha256, isNotNull);
 
     // 2. Verify adb.log contains the commands
-    final adbLog =
-        await store.trialAdbLogFile(sessionId, 'trial-001').readAsString();
+    final adbLog = await store
+        .trialAdbLogFile(sessionId, 'trial-001')
+        .readAsString();
     expect(adbLog, contains('echo performance > /sys/cpu/governor'));
     expect(adbLog, contains('echo 1200000 > /sys/cpu/speed'));
     expect(adbLog, isNot(contains('# comment')));
@@ -310,8 +337,9 @@ void main() {
     // Create a profile in the temp dir under a directory matching "Pixel 3 XL"
     // "Pixel 3 XL" cleaned -> "pixel3xl"
     // So we can use "pixel_3_xl" or "pixel3xl"
-    final profileDir =
-        Directory(p.join(tempDir.path, 'profiles', 'pixel_3_xl'));
+    final profileDir = Directory(
+      p.join(tempDir.path, 'profiles', 'pixel_3_xl'),
+    );
     await profileDir.create(recursive: true);
     final profileFile = File(p.join(profileDir.path, 'performance.sh'));
     await profileFile.writeAsString('echo auto-detected > /sys/cpu/mode');
@@ -352,14 +380,20 @@ void main() {
       attempts++;
     }
 
-    final metadata = TrialMetadata.fromJson(jsonDecode(await store
-        .trialMetadataFile(sessionId, 'trial-001')
-        .readAsString()) as Map<String, dynamic>);
+    final metadata = TrialMetadata.fromJson(
+      jsonDecode(
+            await store
+                .trialMetadataFile(sessionId, 'trial-001')
+                .readAsString(),
+          )
+          as Map<String, dynamic>,
+    );
 
     expect(metadata.deviceProfile, contains('auto-detected'));
 
-    final adbLog =
-        await store.trialAdbLogFile(sessionId, 'trial-001').readAsString();
+    final adbLog = await store
+        .trialAdbLogFile(sessionId, 'trial-001')
+        .readAsString();
     expect(adbLog, contains('echo auto-detected > /sys/cpu/mode'));
   });
 }

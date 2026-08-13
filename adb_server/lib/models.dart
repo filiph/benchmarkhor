@@ -15,9 +15,9 @@ enum SessionState {
   invalid;
 
   static SessionState parse(String value) => SessionState.values.firstWhere(
-        (s) => s.name == value,
-        orElse: () => throw FormatException('Unknown session state: "$value"'),
-      );
+    (s) => s.name == value,
+    orElse: () => throw FormatException('Unknown session state: "$value"'),
+  );
 }
 
 /// Specification for a single variant within a session.
@@ -25,10 +25,7 @@ class VariantSpec {
   final String apk;
   final String testApk;
 
-  const VariantSpec({
-    required this.apk,
-    required this.testApk,
-  });
+  const VariantSpec({required this.apk, required this.testApk});
 
   factory VariantSpec.fromJson(Map<String, dynamic> json) {
     return VariantSpec(
@@ -37,10 +34,7 @@ class VariantSpec {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'apk': apk,
-        'test_apk': testApk,
-      };
+  Map<String, dynamic> toJson() => {'apk': apk, 'test_apk': testApk};
 }
 
 /// The immutable, submitter-authored session specification (`session.json`).
@@ -85,7 +79,8 @@ class SessionSpec {
       final value = json[key];
       if (value is! String || value.isEmpty) {
         throw FormatException(
-            'session.json: "$key" must be a non-empty string');
+          'session.json: "$key" must be a non-empty string',
+        );
       }
       return value;
     }
@@ -95,11 +90,9 @@ class SessionSpec {
       throw const FormatException('session.json: "variants" must be a map');
     }
     final variants = variantsJson.cast<String, dynamic>().map(
-          (key, value) => MapEntry(
-            key,
-            VariantSpec.fromJson(value as Map<String, dynamic>),
-          ),
-        );
+      (key, value) =>
+          MapEntry(key, VariantSpec.fromJson(value as Map<String, dynamic>)),
+    );
 
     final rounds = json['rounds'] ?? json['repetitions'];
     if (rounds != null && (rounds is! int || rounds < 1)) {
@@ -124,34 +117,36 @@ class SessionSpec {
       variants: variants,
       package: package,
       testPackage: json['test_package'] as String? ?? '$package.test',
-      instrumentationRunner: json['instrumentation_runner'] as String? ??
+      instrumentationRunner:
+          json['instrumentation_runner'] as String? ??
           'dev.flutter.plugins.integration_test.FlutterTestRunner',
       rounds: (rounds as int?) ?? 1,
-      trialTimeoutSeconds: (json['trial_timeout_seconds'] ??
-          json['run_timeout_seconds']) as int?,
+      trialTimeoutSeconds:
+          (json['trial_timeout_seconds'] ?? json['run_timeout_seconds'])
+              as int?,
       expectedResultFiles:
           (expectedResultFiles as List?)?.map((e) => e as String).toList() ??
-              const [],
+          const [],
       deviceResultDir: requireString('device_result_dir'),
       tags: (json['tags'] as Map?)?.cast<String, dynamic>() ?? const {},
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'schema_version': schemaVersion,
-        'name': name,
-        'description': description,
-        'variants': variants.map((k, v) => MapEntry(k, v.toJson())),
-        'package': package,
-        'test_package': testPackage,
-        'instrumentation_runner': instrumentationRunner,
-        'rounds': rounds,
-        if (trialTimeoutSeconds != null)
-          'trial_timeout_seconds': trialTimeoutSeconds,
-        'expected_result_files': expectedResultFiles,
-        'device_result_dir': deviceResultDir,
-        'tags': tags,
-      };
+    'schema_version': schemaVersion,
+    'name': name,
+    'description': description,
+    'variants': variants.map((k, v) => MapEntry(k, v.toJson())),
+    'package': package,
+    'test_package': testPackage,
+    'instrumentation_runner': instrumentationRunner,
+    'rounds': rounds,
+    if (trialTimeoutSeconds != null)
+      'trial_timeout_seconds': trialTimeoutSeconds,
+    'expected_result_files': expectedResultFiles,
+    'device_result_dir': deviceResultDir,
+    'tags': tags,
+  };
 }
 
 /// One entry in a [SessionStatus.history] list.
@@ -177,11 +172,11 @@ class SessionHistoryEntry {
       );
 
   Map<String, dynamic> toJson() => {
-        'at': at.toIso8601String(),
-        'from': from,
-        'to': to,
-        if (reason != null) 'reason': reason,
-      };
+    'at': at.toIso8601String(),
+    'from': from,
+    'to': to,
+    if (reason != null) 'reason': reason,
+  };
 }
 
 /// The mutable, server-owned session state (`status.json`).
@@ -228,35 +223,37 @@ class SessionStatus {
   }
 
   factory SessionStatus.fromJson(Map<String, dynamic> json) => SessionStatus(
-        schemaVersion: json['schema_version'] as int? ?? currentSchemaVersion,
-        sessionId: (json['session_id'] ?? json['job_id']) as String,
-        state: SessionState.parse(json['state'] as String),
-        createdAt: DateTime.parse(json['created_at'] as String),
-        updatedAt: DateTime.parse(json['updated_at'] as String),
-        roundsCompleted:
-            (json['rounds_completed'] ?? json['runs_completed']) as int? ?? 0,
-        roundsPlanned: (json['rounds_planned'] ?? json['runs_planned']) as int,
-        currentTrial: (json['current_trial'] ?? json['current_run']) as String?,
-        history: (json['history'] as List?)
-                ?.map((e) =>
-                    SessionHistoryEntry.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            const [],
-        error: json['error'] as String?,
-      );
+    schemaVersion: json['schema_version'] as int? ?? currentSchemaVersion,
+    sessionId: (json['session_id'] ?? json['job_id']) as String,
+    state: SessionState.parse(json['state'] as String),
+    createdAt: DateTime.parse(json['created_at'] as String),
+    updatedAt: DateTime.parse(json['updated_at'] as String),
+    roundsCompleted:
+        (json['rounds_completed'] ?? json['runs_completed']) as int? ?? 0,
+    roundsPlanned: (json['rounds_planned'] ?? json['runs_planned']) as int,
+    currentTrial: (json['current_trial'] ?? json['current_run']) as String?,
+    history:
+        (json['history'] as List?)
+            ?.map(
+              (e) => SessionHistoryEntry.fromJson(e as Map<String, dynamic>),
+            )
+            .toList() ??
+        const [],
+    error: json['error'] as String?,
+  );
 
   Map<String, dynamic> toJson() => {
-        'schema_version': schemaVersion,
-        'session_id': sessionId,
-        'state': state.name,
-        'created_at': createdAt.toIso8601String(),
-        'updated_at': updatedAt.toIso8601String(),
-        'rounds_completed': roundsCompleted,
-        'rounds_planned': roundsPlanned,
-        'current_trial': currentTrial,
-        'history': history.map((e) => e.toJson()).toList(),
-        'error': error,
-      };
+    'schema_version': schemaVersion,
+    'session_id': sessionId,
+    'state': state.name,
+    'created_at': createdAt.toIso8601String(),
+    'updated_at': updatedAt.toIso8601String(),
+    'rounds_completed': roundsCompleted,
+    'rounds_planned': roundsPlanned,
+    'current_trial': currentTrial,
+    'history': history.map((e) => e.toJson()).toList(),
+    'error': error,
+  };
 
   /// Returns the human-readable label for the primary timestamp of this session,
   /// based on its current [state].
@@ -319,7 +316,11 @@ class SessionStatus {
       history: [
         ...history,
         SessionHistoryEntry(
-            at: now, from: state.name, to: to.name, reason: reason),
+          at: now,
+          from: state.name,
+          to: to.name,
+          reason: reason,
+        ),
       ],
       error: error,
     );
@@ -365,40 +366,39 @@ class TrialMetadata {
   });
 
   factory TrialMetadata.fromJson(Map<String, dynamic> json) => TrialMetadata(
-        schemaVersion: json['schema_version'] as int? ?? currentSchemaVersion,
-        sessionId: json['session_id'] as String,
-        variantName: json['variant_name'] as String,
-        trialId: json['trial_id'] as String,
-        round: json['round'] as int?,
-        startedAt: DateTime.parse(json['started_at'] as String),
-        finishedAt: DateTime.parse(json['finished_at'] as String),
-        deviceBefore:
-            json['device_before'] as Map<String, dynamic>? ?? const {},
-        deviceAfter: json['device_after'] as Map<String, dynamic>? ?? const {},
-        warnings: (json['warnings'] as List?)?.cast<String>() ?? const [],
-        config: json['config'] as Map<String, dynamic>? ?? const {},
-        deviceProfile: json['device_profile'] as String?,
-        deviceProfileSha256: json['device_profile_sha256'] as String?,
-        thermalThrottled: json['thermal_throttled'] as bool? ?? false,
-        maxThermalStatus: json['max_thermal_status'] as int?,
-      );
+    schemaVersion: json['schema_version'] as int? ?? currentSchemaVersion,
+    sessionId: json['session_id'] as String,
+    variantName: json['variant_name'] as String,
+    trialId: json['trial_id'] as String,
+    round: json['round'] as int?,
+    startedAt: DateTime.parse(json['started_at'] as String),
+    finishedAt: DateTime.parse(json['finished_at'] as String),
+    deviceBefore: json['device_before'] as Map<String, dynamic>? ?? const {},
+    deviceAfter: json['device_after'] as Map<String, dynamic>? ?? const {},
+    warnings: (json['warnings'] as List?)?.cast<String>() ?? const [],
+    config: json['config'] as Map<String, dynamic>? ?? const {},
+    deviceProfile: json['device_profile'] as String?,
+    deviceProfileSha256: json['device_profile_sha256'] as String?,
+    thermalThrottled: json['thermal_throttled'] as bool? ?? false,
+    maxThermalStatus: json['max_thermal_status'] as int?,
+  );
 
   Map<String, dynamic> toJson() => {
-        'schema_version': schemaVersion,
-        'session_id': sessionId,
-        'variant_name': variantName,
-        'trial_id': trialId,
-        if (round != null) 'round': round,
-        'started_at': startedAt.toIso8601String(),
-        'finished_at': finishedAt.toIso8601String(),
-        'device_before': deviceBefore,
-        'device_after': deviceAfter,
-        'warnings': warnings,
-        'config': config,
-        if (deviceProfile != null) 'device_profile': deviceProfile,
-        if (deviceProfileSha256 != null)
-          'device_profile_sha256': deviceProfileSha256,
-        'thermal_throttled': thermalThrottled,
-        if (maxThermalStatus != null) 'max_thermal_status': maxThermalStatus,
-      };
+    'schema_version': schemaVersion,
+    'session_id': sessionId,
+    'variant_name': variantName,
+    'trial_id': trialId,
+    if (round != null) 'round': round,
+    'started_at': startedAt.toIso8601String(),
+    'finished_at': finishedAt.toIso8601String(),
+    'device_before': deviceBefore,
+    'device_after': deviceAfter,
+    'warnings': warnings,
+    'config': config,
+    if (deviceProfile != null) 'device_profile': deviceProfile,
+    if (deviceProfileSha256 != null)
+      'device_profile_sha256': deviceProfileSha256,
+    'thermal_throttled': thermalThrottled,
+    if (maxThermalStatus != null) 'max_thermal_status': maxThermalStatus,
+  };
 }

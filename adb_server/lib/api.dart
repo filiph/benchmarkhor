@@ -26,11 +26,7 @@ class Api {
   final Runner runner;
   final DateTime startedAt = DateTime.now().toUtc();
 
-  Api({
-    required this.config,
-    required this.sessionStore,
-    required this.runner,
-  });
+  Api({required this.config, required this.sessionStore, required this.runner});
 
   Router get router {
     final router = Router();
@@ -46,13 +42,21 @@ class Api {
     router.post('/api/queue/next', _queueNext);
     router.get('/api/device', _deviceProbe);
     router.get(
-        '/api/sessions/<id>/trials/<trial>/results/<file>', _serveResult);
+      '/api/sessions/<id>/trials/<trial>/results/<file>',
+      _serveResult,
+    );
     router.get(
-        '/api/sessions/<id>/trials/<trial>/adb.log', _serveTrialArtifact);
+      '/api/sessions/<id>/trials/<trial>/adb.log',
+      _serveTrialArtifact,
+    );
     router.get(
-        '/api/sessions/<id>/trials/<trial>/logcat.txt', _serveTrialArtifact);
+      '/api/sessions/<id>/trials/<trial>/logcat.txt',
+      _serveTrialArtifact,
+    );
     router.get(
-        '/api/sessions/<id>/trials/<trial>/trial.json', _serveTrialArtifact);
+      '/api/sessions/<id>/trials/<trial>/trial.json',
+      _serveTrialArtifact,
+    );
     router.get('/api/sessions/<id>/log', _sessionLog);
     router.get('/api/logs/server.log', _serverLog);
     router.get('/sessions/<id>', _sessionDetailPage);
@@ -61,10 +65,10 @@ class Api {
   }
 
   Response _json(Object? body, {int status = 200}) => Response(
-        status,
-        body: const JsonEncoder.withIndent('  ').convert(body),
-        headers: {'content-type': 'application/json'},
-      );
+    status,
+    body: const JsonEncoder.withIndent('  ').convert(body),
+    headers: {'content-type': 'application/json'},
+  );
 
   Future<Response> _statusPage(Request request) async {
     final adb = Adb(adbPath: config.adbPath, deviceAddress: config.dutAddress);
@@ -85,19 +89,24 @@ class Api {
       ..writeln('<!DOCTYPE html>')
       ..writeln('<html><head><title>adb_server</title>')
       ..writeln(
-          '<meta http-equiv="refresh" content="${runner.isBusy ? '5' : '30'}">')
+        '<meta http-equiv="refresh" content="${runner.isBusy ? '5' : '30'}">',
+      )
       ..writeln(
-          '<style>body { font-family: sans-serif; margin: 2rem; line-height: 1.5; }')
+        '<style>body { font-family: sans-serif; margin: 2rem; line-height: 1.5; }',
+      )
       ..writeln(
-          'table { border-collapse: collapse; width: 100%; margin-top: 1rem; }')
+        'table { border-collapse: collapse; width: 100%; margin-top: 1rem; }',
+      )
       ..writeln(
-          'th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ccc; }')
+        'th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ccc; }',
+      )
       ..writeln('.state-queued { color: #666; }')
       ..writeln('.state-running { color: #007bff; font-weight: bold; }')
       ..writeln('.state-done { color: #28a745; }')
       ..writeln('.state-failed { color: #dc3545; }')
       ..writeln(
-          '.footer { margin-top: 3rem; color: #666; font-size: 0.85rem; border-top: 1px solid #eee; padding-top: 1rem; }')
+        '.footer { margin-top: 3rem; color: #666; font-size: 0.85rem; border-top: 1px solid #eee; padding-top: 1rem; }',
+      )
       ..writeln('.device-status { padding: 0.5rem; border-radius: 4px; }')
       ..writeln('.status-online { background: #d4edda; color: #155724; }')
       ..writeln('.status-offline { background: #f8d7da; color: #721c24; }')
@@ -105,24 +114,30 @@ class Api {
       ..writeln('<h1>adb_server</h1>')
       ..writeln('<div style="margin-bottom: 2rem;">')
       ..writeln(
-          '<span class="device-status ${deviceState == 'device' ? 'status-online' : 'status-offline'}">')
+        '<span class="device-status ${deviceState == 'device' ? 'status-online' : 'status-offline'}">',
+      )
       ..writeln(
-          'DUT: <strong>${config.dutAddress}</strong> is <strong>$deviceState</strong>')
-      ..writeln(temp != null
-          ? ' | Temp: <strong>${temp.toStringAsFixed(1)}°C</strong>'
-          : '')
+        'DUT: <strong>${config.dutAddress}</strong> is <strong>$deviceState</strong>',
+      )
+      ..writeln(
+        temp != null
+            ? ' | Temp: <strong>${temp.toStringAsFixed(1)}°C</strong>'
+            : '',
+      )
       ..writeln('</span>')
       ..writeln(' | Busy: <strong>${runner.isBusy}</strong>')
       ..writeln(' | <a href="/api/logs/server.log">Server Logs</a>');
 
     if (runner.isBusy) {
       html.writeln(
-          ' | Session: <strong><a href="/sessions/${runner.runningSessionId}">${runner.runningSessionId}</a></strong>');
+        ' | Session: <strong><a href="/sessions/${runner.runningSessionId}">${runner.runningSessionId}</a></strong>',
+      );
     }
     html.writeln('</div>');
 
     html.writeln(
-        '<form action="/api/sessions/discover" method="POST" style="margin-bottom: 1rem;">');
+      '<form action="/api/sessions/discover" method="POST" style="margin-bottom: 1rem;">',
+    );
     html.writeln('<button type="submit">Discover New Sessions</button>');
     html.writeln('</form>');
 
@@ -132,7 +147,8 @@ class Api {
 
     html.writeln('<h2>Recent Sessions</h2>');
     html.writeln(
-        '<table><thead><tr><th>ID</th><th>State</th><th>Progress</th><th>Timestamp</th><th>Actions</th></tr></thead><tbody>');
+      '<table><thead><tr><th>ID</th><th>State</th><th>Progress</th><th>Timestamp</th><th>Actions</th></tr></thead><tbody>',
+    );
 
     for (final s in sessions) {
       final tsValue = s.timestampValue.toLocal();
@@ -140,20 +156,24 @@ class Api {
 
       html.writeln('<tr>');
       html.writeln(
-          '<td><a href="/sessions/${s.sessionId}">${s.sessionId}</a></td>');
+        '<td><a href="/sessions/${s.sessionId}">${s.sessionId}</a></td>',
+      );
       html.writeln('<td class="state-${s.state.name}">${s.state.name}</td>');
       html.writeln('<td>${s.roundsCompleted}/${s.roundsPlanned} rounds</td>');
       html.writeln(
-          '<td><span title="$tsLabel">${tsValue.toString().split('.').first}</span></td>');
+        '<td><span title="$tsLabel">${tsValue.toString().split('.').first}</span></td>',
+      );
       html.writeln('<td>');
       if (s.state == SessionState.running) {
         html.writeln(
-            '<form action="/api/sessions/${s.sessionId}/cancel" method="POST" style="display:inline;">');
+          '<form action="/api/sessions/${s.sessionId}/cancel" method="POST" style="display:inline;">',
+        );
         html.writeln('<button type="submit">Stop</button>');
         html.writeln('</form>');
       } else if (s.state != SessionState.queued) {
         html.writeln(
-            '<form action="/api/sessions/${s.sessionId}/requeue" method="POST" style="display:inline;">');
+          '<form action="/api/sessions/${s.sessionId}/requeue" method="POST" style="display:inline;">',
+        );
         html.writeln('<button type="submit">Re-queue</button>');
         html.writeln('</form>');
       }
@@ -163,9 +183,11 @@ class Api {
 
     html.writeln('</tbody></table>');
     html.writeln(
-        '<form action="/api/queue/next" method="POST" style="margin-top: 2rem;">');
+      '<form action="/api/queue/next" method="POST" style="margin-top: 2rem;">',
+    );
     html.writeln(
-        '<button type="submit" ${runner.isBusy ? 'disabled' : ''}>Start Next Queued Session</button>');
+      '<button type="submit" ${runner.isBusy ? 'disabled' : ''}>Start Next Queued Session</button>',
+    );
     html.writeln('</form>');
 
     html.writeln('<div class="footer">Version: $gitCommit</div>');
@@ -176,12 +198,11 @@ class Api {
   }
 
   Response _health(Request request) => _json({
-        'status': 'ok',
-        'uptime_seconds':
-            DateTime.now().toUtc().difference(startedAt).inSeconds,
-        'busy': runner.isBusy,
-        'config': config.toJson(),
-      });
+    'status': 'ok',
+    'uptime_seconds': DateTime.now().toUtc().difference(startedAt).inSeconds,
+    'busy': runner.isBusy,
+    'config': config.toJson(),
+  });
 
   Future<Response> _serverLog(Request request) async {
     final linesParam = request.url.queryParameters['lines'];
@@ -207,7 +228,10 @@ class Api {
 
     final start = (allLines.length - n).clamp(0, allLines.length);
     final tail = allLines.sublist(start);
-    return Response.ok(tail.join('\n'), headers: {'content-type': 'text/plain'});
+    return Response.ok(
+      tail.join('\n'),
+      headers: {'content-type': 'text/plain'},
+    );
   }
 
   Future<Response> _listSessions(Request request) async {
@@ -303,10 +327,7 @@ class Api {
       assert(status.state == SessionState.invalid || e.message.isNotEmpty);
     }
 
-    return _json({
-      'session': spec,
-      'status': status.toJson(),
-    });
+    return _json({'session': spec, 'status': status.toJson()});
   }
 
   Future<Response> _queueNext(Request request) async {
@@ -333,14 +354,13 @@ class Api {
         status.state == SessionState.invalid ||
         status.state == SessionState.interrupted) {
       return _json({
-        'error': 'Session is already in terminal state ${status.state.name}'
+        'error': 'Session is already in terminal state ${status.state.name}',
       }, status: 409);
     }
 
-    await sessionStore.writeStatus(status.transitionTo(
-      SessionState.cancelled,
-      reason: 'Cancelled via API.',
-    ));
+    await sessionStore.writeStatus(
+      status.transitionTo(SessionState.cancelled, reason: 'Cancelled via API.'),
+    );
 
     return _json({'status': 'cancelling'}, status: 202);
   }
@@ -351,10 +371,9 @@ class Api {
       return _json({'error': 'Session "$id" not found'}, status: 404);
     }
 
-    await sessionStore.writeStatus(status.transitionTo(
-      SessionState.queued,
-      roundsCompleted: 0,
-    ));
+    await sessionStore.writeStatus(
+      status.transitionTo(SessionState.queued, roundsCompleted: 0),
+    );
 
     return _json({'status': 'queued'}, status: 200);
   }
@@ -362,9 +381,9 @@ class Api {
   Future<Response> _deviceProbe(Request request) async {
     final adb = Adb(adbPath: config.adbPath, deviceAddress: config.dutAddress);
     if (!await adb.connect()) {
-      return _json(
-          {'error': 'Failed to connect to device at ${config.dutAddress}'},
-          status: 503);
+      return _json({
+        'error': 'Failed to connect to device at ${config.dutAddress}',
+      }, status: 503);
     }
     final probe = DeviceProbe(adb);
     final snapshot = await probe.probe();
@@ -379,7 +398,11 @@ class Api {
   }
 
   Future<Response> _serveResult(
-      Request request, String id, String trial, String file) async {
+    Request request,
+    String id,
+    String trial,
+    String file,
+  ) async {
     // Basic path validation to prevent traversal
     if (file.contains('..') || file.contains('/')) {
       return Response.forbidden('Invalid filename');
@@ -392,8 +415,10 @@ class Api {
       return _json({'error': 'Result file not found'}, status: 404);
     }
 
-    return Response.ok(resultFile.openRead(),
-        headers: {'content-type': 'text/plain'});
+    return Response.ok(
+      resultFile.openRead(),
+      headers: {'content-type': 'text/plain'},
+    );
   }
 
   Future<Response> _sessionLog(Request request, String id) async {
@@ -402,8 +427,10 @@ class Api {
       return _json({'error': 'Log not found'}, status: 404);
     }
 
-    return Response.ok(logFile.openRead(),
-        headers: {'content-type': 'text/plain'});
+    return Response.ok(
+      logFile.openRead(),
+      headers: {'content-type': 'text/plain'},
+    );
   }
 
   Future<Response> _sessionDetailPage(Request request, String id) async {
@@ -423,8 +450,9 @@ class Api {
           final metadataFile = sessionStore.trialMetadataFile(id, trialId);
           if (await metadataFile.exists()) {
             try {
-              final json = jsonDecode(await metadataFile.readAsString())
-                  as Map<String, dynamic>;
+              final json =
+                  jsonDecode(await metadataFile.readAsString())
+                      as Map<String, dynamic>;
               trials.add(TrialMetadata.fromJson(json));
             } catch (_) {
               // Skip malformed trial metadata
@@ -438,20 +466,25 @@ class Api {
       ..writeln('<!DOCTYPE html>')
       ..writeln('<html><head><title>Session $id</title>')
       ..writeln(
-          '<style>body { font-family: sans-serif; margin: 2rem; line-height: 1.5; }')
+        '<style>body { font-family: sans-serif; margin: 2rem; line-height: 1.5; }',
+      )
       ..writeln(
-          'table { border-collapse: collapse; width: 100%; margin-top: 1rem; }')
+        'table { border-collapse: collapse; width: 100%; margin-top: 1rem; }',
+      )
       ..writeln(
-          'th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ccc; }')
+        'th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ccc; }',
+      )
       ..writeln('a { text-decoration: none; color: #007bff; }')
       ..writeln('a:hover { text-decoration: underline; }')
       ..writeln('</style></head><body>')
       ..writeln('<h1>Session: $id</h1>')
       ..writeln(
-          '<p><a href="/">&larr; Back to Dashboard</a> | <a href="/api/sessions/$id/log" target="_blank">Session Log</a></p>')
+        '<p><a href="/">&larr; Back to Dashboard</a> | <a href="/api/sessions/$id/log" target="_blank">Session Log</a></p>',
+      )
       ..writeln('<h2>Trials</h2>')
       ..writeln(
-          '<table><thead><tr><th>Trial</th><th>Variant</th><th>Started</th><th>Finished</th><th>Temp / Throttled</th><th>Artifacts</th></tr></thead><tbody>');
+        '<table><thead><tr><th>Trial</th><th>Variant</th><th>Started</th><th>Finished</th><th>Temp / Throttled</th><th>Artifacts</th></tr></thead><tbody>',
+      );
 
     for (final trial in trials) {
       final beforeTemp = _getSocThermal(trial.deviceBefore);
@@ -473,17 +506,22 @@ class Api {
       html.writeln('<td>${trial.trialId}</td>');
       html.writeln('<td>${trial.variantName}</td>');
       html.writeln(
-          '<td>${trial.startedAt.toLocal().toString().split('.').first}</td>');
+        '<td>${trial.startedAt.toLocal().toString().split('.').first}</td>',
+      );
       html.writeln(
-          '<td>${trial.finishedAt.toLocal().toString().split('.').first}</td>');
+        '<td>${trial.finishedAt.toLocal().toString().split('.').first}</td>',
+      );
       html.writeln('<td>$tempStr</td>');
       html.writeln('<td>');
       html.writeln(
-          '<a href="/api/sessions/$id/trials/${trial.trialId}/adb.log" target="_blank">adb.log</a> | ');
+        '<a href="/api/sessions/$id/trials/${trial.trialId}/adb.log" target="_blank">adb.log</a> | ',
+      );
       html.writeln(
-          '<a href="/api/sessions/$id/trials/${trial.trialId}/logcat.txt" target="_blank">logcat.txt</a> | ');
+        '<a href="/api/sessions/$id/trials/${trial.trialId}/logcat.txt" target="_blank">logcat.txt</a> | ',
+      );
       html.writeln(
-          '<a href="/api/sessions/$id/trials/${trial.trialId}/trial.json" target="_blank">trial.json</a>');
+        '<a href="/api/sessions/$id/trials/${trial.trialId}/trial.json" target="_blank">trial.json</a>',
+      );
       html.writeln('</td>');
       html.writeln('</tr>');
     }
@@ -507,7 +545,10 @@ class Api {
   }
 
   Future<Response> _serveTrialArtifact(
-      Request request, String id, String trial) async {
+    Request request,
+    String id,
+    String trial,
+  ) async {
     final segments = request.url.pathSegments;
     final fileName = segments.last;
 
@@ -522,8 +563,9 @@ class Api {
       return _json({'error': 'File not found'}, status: 404);
     }
 
-    final contentType =
-        fileName.endsWith('.json') ? 'application/json' : 'text/plain';
+    final contentType = fileName.endsWith('.json')
+        ? 'application/json'
+        : 'text/plain';
     return Response.ok(file.openRead(), headers: {'content-type': contentType});
   }
 }

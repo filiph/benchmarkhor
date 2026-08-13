@@ -27,9 +27,11 @@ class Adb {
   /// Runs an `adb` command with the given [arguments].
   ///
   /// The command is automatically targeted at [deviceAddress] using `-s`.
-  Future<ProcessResult> run(List<String> arguments,
-      {bool useDevice = true,
-      Duration timeout = const Duration(minutes: 2)}) async {
+  Future<ProcessResult> run(
+    List<String> arguments, {
+    bool useDevice = true,
+    Duration timeout = const Duration(minutes: 2),
+  }) async {
     final fullArgs = [
       if (useDevice) ...['-s', deviceAddress],
       ...arguments,
@@ -39,8 +41,11 @@ class Adb {
     final stopwatch = Stopwatch()..start();
     ProcessResult result;
     if (timeout != Duration.zero) {
-      final process =
-          await Process.start(adbPath, fullArgs, environment: environment);
+      final process = await Process.start(
+        adbPath,
+        fullArgs,
+        environment: environment,
+      );
       final stdoutFuture = process.stdout.transform(utf8.decoder).join();
       final stderrFuture = process.stderr.transform(utf8.decoder).join();
       final exitCode = await process.exitCode.timeout(
@@ -80,56 +85,70 @@ class Adb {
       if (adbLogSink != null) {
         adbLogSink!.write(logEntry.toString());
       } else if (adbLog != null) {
-        await adbLog!.writeAsString(logEntry.toString(),
-            mode: FileMode.append, flush: true);
+        await adbLog!.writeAsString(
+          logEntry.toString(),
+          mode: FileMode.append,
+          flush: true,
+        );
       }
     }
 
     if (result.exitCode != 0) {
       _log.fine(
-          'adb command failed (exit ${result.exitCode}): ${fullArgs.join(' ')}');
+        'adb command failed (exit ${result.exitCode}): ${fullArgs.join(' ')}',
+      );
       _log.fine('Stderr: ${result.stderr}');
     }
 
     return result;
   }
 
-  Future<bool> connect(
-      {int retries = 3, Duration backoff = const Duration(seconds: 30)}) async {
+  Future<bool> connect({
+    int retries = 3,
+    Duration backoff = const Duration(seconds: 30),
+  }) async {
     for (int i = 0; i <= retries; i++) {
       if (i > 0) {
         _log.info(
-            'Retrying connection in ${backoff.inSeconds}s... (Attempt ${i + 1}'
-            '/${retries + 1})');
+          'Retrying connection in ${backoff.inSeconds}s... (Attempt ${i + 1}'
+          '/${retries + 1})',
+        );
         await Future<void>.delayed(backoff);
       }
 
-      final result = await run(['connect', deviceAddress],
-          useDevice: false, timeout: const Duration(seconds: 60));
+      final result = await run(
+        ['connect', deviceAddress],
+        useDevice: false,
+        timeout: const Duration(seconds: 60),
+      );
       final stdout = result.stdout as String;
 
       if (result.exitCode == 0 &&
           (stdout.contains('connected') ||
               stdout.contains('already connected'))) {
         // Double-check with get-state
-        final stateResult =
-            await run(['get-state'], timeout: const Duration(seconds: 10));
+        final stateResult = await run([
+          'get-state',
+        ], timeout: const Duration(seconds: 10));
         if (stateResult.exitCode == 0 &&
             (stateResult.stdout as String).trim() == 'device') {
           return true;
         }
         _log.warning(
-            'adb connect succeeded but get-state failed: ${stateResult.stderr}');
+          'adb connect succeeded but get-state failed: ${stateResult.stderr}',
+        );
       } else {
         _log.warning(
-            'adb connect failed (exit ${result.exitCode}): ${result.stdout} ${result.stderr}');
+          'adb connect failed (exit ${result.exitCode}): ${result.stdout} ${result.stderr}',
+        );
       }
     }
     return false;
   }
 
-  Future<String?> getState(
-      {Duration timeout = const Duration(seconds: 30)}) async {
+  Future<String?> getState({
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
     final result = await run(['get-state'], timeout: timeout);
     if (result.exitCode != 0) return null;
     return (result.stdout as String).trim();
@@ -149,52 +168,61 @@ class Adb {
     return true;
   }
 
-  Future<ProcessResult> shell(String command,
-          {Duration timeout = const Duration(minutes: 2)}) =>
-      run(['shell', command], timeout: timeout);
+  Future<ProcessResult> shell(
+    String command, {
+    Duration timeout = const Duration(minutes: 2),
+  }) => run(['shell', command], timeout: timeout);
 
-  Future<void> install(String apkPath,
-      {bool reinstall = true,
-      bool grantPermissions = true,
-      Duration timeout = const Duration(minutes: 5)}) async {
-    final result = await run(
-      [
-        'install',
-        if (reinstall) '-r',
-        if (grantPermissions) '-g',
-        apkPath,
-      ],
-      timeout: timeout,
-    );
+  Future<void> install(
+    String apkPath, {
+    bool reinstall = true,
+    bool grantPermissions = true,
+    Duration timeout = const Duration(minutes: 5),
+  }) async {
+    final result = await run([
+      'install',
+      if (reinstall) '-r',
+      if (grantPermissions) '-g',
+      apkPath,
+    ], timeout: timeout);
     if (result.exitCode != 0) {
       throw Exception('Failed to install APK $apkPath: ${result.stderr}');
     }
   }
 
-  Future<void> uninstall(String package,
-      {Duration timeout = const Duration(minutes: 2)}) async {
+  Future<void> uninstall(
+    String package, {
+    Duration timeout = const Duration(minutes: 2),
+  }) async {
     final result = await run(['uninstall', package], timeout: timeout);
     if (result.exitCode != 0) {
       throw Exception('Failed to uninstall package $package: ${result.stderr}');
     }
   }
 
-  Future<void> pull(String remotePath, String localPath,
-      {Duration timeout = const Duration(minutes: 5)}) async {
+  Future<void> pull(
+    String remotePath,
+    String localPath, {
+    Duration timeout = const Duration(minutes: 5),
+  }) async {
     final result = await run(['pull', remotePath, localPath], timeout: timeout);
     if (result.exitCode != 0) {
       throw Exception(
-          'Failed to pull $remotePath to $localPath: ${result.stderr}');
+        'Failed to pull $remotePath to $localPath: ${result.stderr}',
+      );
     }
   }
 
-  Future<void> forceStop(String package,
-      {Duration timeout = const Duration(seconds: 30)}) async {
+  Future<void> forceStop(
+    String package, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
     await shell('am force-stop $package', timeout: timeout);
   }
 
-  Future<void> clearLogcat(
-      {Duration timeout = const Duration(seconds: 30)}) async {
+  Future<void> clearLogcat({
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
     final result = await run(['logcat', '-c'], timeout: timeout);
     if (result.exitCode != 0) {
       throw Exception('Failed to clear logcat: ${result.stderr}');
@@ -206,9 +234,11 @@ class Adb {
   /// Returns a [LogcatProcess] which contains the [Process] and a [Stream] of
   /// logcat lines. The caller is responsible for killing the process.
   Future<LogcatProcess> startLogcat(File outputFile) async {
-    final process = await Process.start(
-        adbPath, ['-s', deviceAddress, 'logcat'],
-        environment: environment);
+    final process = await Process.start(adbPath, [
+      '-s',
+      deviceAddress,
+      'logcat',
+    ], environment: environment);
     final sink = outputFile.openWrite();
 
     final controller = StreamController<String>.broadcast();
@@ -217,16 +247,16 @@ class Adb {
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
-      sink.writeln(line);
-      controller.add(line);
-    });
+          sink.writeln(line);
+          controller.add(line);
+        });
     process.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
-      sink.writeln(line);
-      controller.add(line);
-    });
+          sink.writeln(line);
+          controller.add(line);
+        });
 
     return LogcatProcess(process, controller.stream, sink);
   }

@@ -26,7 +26,8 @@ Future<void> main(List<String> arguments) async {
   final fileLogger = RotatingFileLogger(p.join(config.dataDir, 'server.log'));
 
   Logger.root.onRecord.listen((record) {
-    final message = '${record.time.toIso8601String()} '
+    final message =
+        '${record.time.toIso8601String()} '
         '[${record.level.name}] ${record.loggerName}: ${record.message}';
     stderr.writeln(message);
     fileLogger.log(message);
@@ -48,8 +49,9 @@ Future<void> main(List<String> arguments) async {
   final runner = Runner(config: config, sessionStore: sessionStore);
 
   final api = Api(config: config, sessionStore: sessionStore, runner: runner);
-  final handler =
-      const Pipeline().addMiddleware(logRequests()).addHandler(api.router.call);
+  final handler = const Pipeline()
+      .addMiddleware(logRequests())
+      .addHandler(api.router.call);
 
   final server = await shelf_io.serve(handler, '0.0.0.0', config.port);
   _log.info(

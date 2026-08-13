@@ -20,11 +20,14 @@ void main() {
   });
 
   Future<void> writeSessionSpec(
-      String sessionId, Map<String, dynamic> json) async {
+    String sessionId,
+    Map<String, dynamic> json,
+  ) async {
     final dir = Directory(p.join(store.sessionsDir.path, sessionId));
     await dir.create(recursive: true);
-    await File(p.join(dir.path, 'session.json'))
-        .writeAsString(jsonEncode(json));
+    await File(
+      p.join(dir.path, 'session.json'),
+    ).writeAsString(jsonEncode(json));
   }
 
   group('discoverNewSessions', () {
@@ -32,7 +35,7 @@ void main() {
       await writeSessionSpec('session-a', {
         'name': 'demo',
         'variants': {
-          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'}
+          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'},
         },
         'package': 'com.example.demo',
         'device_result_dir': '/sdcard/demo',
@@ -62,7 +65,7 @@ void main() {
       await writeSessionSpec('session-c', {
         'name': 'demo',
         'variants': {
-          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'}
+          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'},
         },
         'package': 'com.example.demo',
         'device_result_dir': '/sdcard/demo',
@@ -89,19 +92,21 @@ void main() {
       await writeSessionSpec('session-d', {
         'name': 'demo',
         'variants': {
-          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'}
+          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'},
         },
         'package': 'com.example.demo',
         'device_result_dir': '/sdcard/demo',
       });
       final now = DateTime.now().toUtc();
-      await store.writeStatus(SessionStatus(
-        sessionId: 'session-d',
-        state: SessionState.running,
-        createdAt: now,
-        updatedAt: now,
-        roundsPlanned: 1,
-      ));
+      await store.writeStatus(
+        SessionStatus(
+          sessionId: 'session-d',
+          state: SessionState.running,
+          createdAt: now,
+          updatedAt: now,
+          roundsPlanned: 1,
+        ),
+      );
 
       await store.recoverInterruptedSessions();
 
@@ -114,19 +119,21 @@ void main() {
       await writeSessionSpec('session-e', {
         'name': 'demo',
         'variants': {
-          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'}
+          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'},
         },
         'package': 'com.example.demo',
         'device_result_dir': '/sdcard/demo',
       });
       final now = DateTime.now().toUtc();
-      await store.writeStatus(SessionStatus(
-        sessionId: 'session-e',
-        state: SessionState.queued,
-        createdAt: now,
-        updatedAt: now,
-        roundsPlanned: 1,
-      ));
+      await store.writeStatus(
+        SessionStatus(
+          sessionId: 'session-e',
+          state: SessionState.queued,
+          createdAt: now,
+          updatedAt: now,
+          roundsPlanned: 1,
+        ),
+      );
 
       await store.recoverInterruptedSessions();
 
@@ -162,7 +169,7 @@ void main() {
       await writeSessionSpec('2026-01-02__b', {
         'name': 'demo',
         'variants': {
-          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'}
+          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'},
         },
         'package': 'com.example.demo',
         'device_result_dir': '/sdcard/demo',
@@ -170,7 +177,7 @@ void main() {
       await writeSessionSpec('2026-01-01__a', {
         'name': 'demo',
         'variants': {
-          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'}
+          'baseline': {'apk': 'baseline.apk', 'test_apk': 'test.apk'},
         },
         'package': 'com.example.demo',
         'device_result_dir': '/sdcard/demo',

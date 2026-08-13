@@ -48,11 +48,11 @@ class ThermalServiceStatus {
   }
 
   Map<String, dynamic> toJson() => {
-        'is_throttling': isThrottling,
-        if (statusLevel != null) 'status_level': statusLevel,
-        if (rawOutput.isNotEmpty) 'raw': rawOutput,
-        if (error != null) 'error': error,
-      };
+    'is_throttling': isThrottling,
+    if (statusLevel != null) 'status_level': statusLevel,
+    if (rawOutput.isNotEmpty) 'raw': rawOutput,
+    if (error != null) 'error': error,
+  };
 }
 
 /// Collects device metadata as specified in `REQUIREMENTS.md` §7.
@@ -112,7 +112,9 @@ class DeviceProbe {
     await capture('display_density', 'wm density');
     await capture('display_rotation', 'settings get system user_rotation');
     await capture(
-        'display_orientation_prop', 'getprop persist.sys.orientation');
+      'display_orientation_prop',
+      'getprop persist.sys.orientation',
+    );
 
     final refreshRate = await _getRefreshRate();
     if (refreshRate != null) {
@@ -137,9 +139,11 @@ class DeviceProbe {
     script.writeln('echo "DATE: \$(date +%Y-%m-%dT%H:%M:%S%z)"');
     script.writeln('echo "CPU_ONLINE: \$(cat /sys/devices/system/cpu/online)"');
     script.writeln(
-        'for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq; do echo "FREQ \$f: \$(cat \$f)"; done');
+      'for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq; do echo "FREQ \$f: \$(cat \$f)"; done',
+    );
     script.writeln(
-        'for f in /sys/class/thermal/thermal_zone*/type; do t=\$(echo \$f | sed "s/type/temp/"); echo "THERMAL \$f: \$(cat \$f) | \$(cat \$t)"; done');
+      'for f in /sys/class/thermal/thermal_zone*/type; do t=\$(echo \$f | sed "s/type/temp/"); echo "THERMAL \$f: \$(cat \$f) | \$(cat \$t)"; done',
+    );
     script.writeln('echo "THERMALSERVICE START"');
     script.writeln('dumpsys thermalservice');
     script.writeln('echo "THERMALSERVICE END"');
@@ -148,7 +152,8 @@ class DeviceProbe {
     }
     if (failedFile != null) {
       script.writeln(
-          'if [ -f "$failedFile" ]; then echo "SENTINEL: FAILED"; fi');
+        'if [ -f "$failedFile" ]; then echo "SENTINEL: FAILED"; fi',
+      );
     }
 
     final result = await adb.shell(script.toString());
@@ -174,7 +179,8 @@ class DeviceProbe {
       } else if (line.startsWith('LOADAVG: ')) {
         metadata['loadavg'] = line.substring(9);
       } else if (line.startsWith('MEMINFO: ')) {
-        metadata['meminfo'] = (metadata['meminfo'] ?? '') + line.substring(9) + '\n';
+        metadata['meminfo'] =
+            (metadata['meminfo'] ?? '') + line.substring(9) + '\n';
       } else if (line.startsWith('DATE: ')) {
         metadata['date'] = line.substring(6);
       } else if (line.startsWith('CPU_ONLINE: ')) {
@@ -196,9 +202,9 @@ class DeviceProbe {
         inThermalService = true;
       } else if (line == 'THERMALSERVICE END') {
         inThermalService = false;
-        metadata['thermalservice'] =
-            ThermalServiceStatus.parse(thermalServiceBuffer.toString())
-                .toJson();
+        metadata['thermalservice'] = ThermalServiceStatus.parse(
+          thermalServiceBuffer.toString(),
+        ).toJson();
       } else if (inThermalService) {
         thermalServiceBuffer.writeln(line);
       } else if (line.startsWith('SENTINEL: ')) {
@@ -222,13 +228,15 @@ class DeviceProbe {
   /// or null if not found or offline.
   Future<double?> getSocTemp() async {
     for (var i = 0; i < 20; i++) {
-      final typeRes =
-          await adb.shell('cat /sys/class/thermal/thermal_zone$i/type');
+      final typeRes = await adb.shell(
+        'cat /sys/class/thermal/thermal_zone$i/type',
+      );
       if (typeRes.exitCode != 0) break;
       final type = (typeRes.stdout as String).trim();
       if (type == 'soc-thermal' || type == 'cpu-thermal') {
-        final tempRes =
-            await adb.shell('cat /sys/class/thermal/thermal_zone$i/temp');
+        final tempRes = await adb.shell(
+          'cat /sys/class/thermal/thermal_zone$i/temp',
+        );
         if (tempRes.exitCode == 0) {
           final val = double.tryParse((tempRes.stdout as String).trim());
           if (val != null) {
@@ -246,8 +254,9 @@ class DeviceProbe {
       if (res.exitCode == 0) {
         final output = res.stdout as String;
         // Common pattern: "refreshRate 60.0" or "fps=60.0"
-        final match =
-            RegExp(r'(?:refreshRate|fps)[:=]\s*(\d+\.?\d*)').firstMatch(output);
+        final match = RegExp(
+          r'(?:refreshRate|fps)[:=]\s*(\d+\.?\d*)',
+        ).firstMatch(output);
         return match?.group(1);
       }
     } catch (_) {}
