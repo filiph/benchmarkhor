@@ -170,6 +170,7 @@ Before the DUT is ready for unattended benchmarking, several one-time setup step
 ### 1. Networking and ADB Stability
 - **Static DHCP reservation:** Ensure the DUT has a fixed IP address so `DUT_ADDRESS` stays valid across reboots.
 - **Persistent ADB over TCP/IP:** `adb tcpip 5555` (or setting `persist.adb.tcp.port` via a build prop / root) must be applied and **survive DUT reboots**. This generally requires root.
+- IF using Tailscale, install the Tailscale app, connect. Then go to Settings > Networking > VPN, click on the Gear icon next to Tailscale, and enable **Always-on VPN**.
 
 ### 2. The ADB Authorisation Trap
 See the [The ADB authorisation trap](#the-adb-authorisation-trap) section above for details on how to handle the initial "Allow USB debugging?" prompt.
@@ -196,6 +197,30 @@ To minimize background interference during trials:
 - Disable automatic system updates in Developer Options or System settings.
 - Enable "Do Not Disturb" mode.
 - (Optional) Uninstall or disable unnecessary background apps.
+
+### 6. Display Orientation (Portrait Mode)
+For certain benchmarks, it is desirable to have the display in portrait mode (e.g., to match a typical mobile phone usage). For the Orange Pi 5B, this can be set once via ADB and will persist across reboots.
+
+Run these commands once from your workstation:
+
+```sh
+# Disable auto-rotation (accelerometer)
+adb shell settings put system accelerometer_rotation 0
+
+# Set rotation to portrait (90 degrees clockwise)
+# 0 = 0°, 1 = 90°, 2 = 180°, 3 = 270°
+adb shell settings put system user_rotation 1
+```
+
+Orange Pi 5B does _not_ follow these instructions because it has
+a `setprop` override. For Orange Pi 5B (and similar devices), you'll need to:
+
+```
+adb shell setprop persist.sys.app.rotation original
+adb reboot
+```
+
+**Note:** These settings are persistent. You can verify the current rotation state by observing the display attached to the HDMI port.
 
 Per `REQUIREMENTS.md` §10, once the trial lifecycle is implemented, an
 `unauthorized` `adb get-state` must surface verbatim in the API response

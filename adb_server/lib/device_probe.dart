@@ -156,6 +156,18 @@ class DeviceProbe {
     await capture('model', 'getprop ro.product.model');
     await capture('abi_list', 'getprop ro.product.cpu.abilist');
 
+    // Display metadata
+    await capture('display_size', 'wm size');
+    await capture('display_density', 'wm density');
+    await capture('display_rotation', 'settings get system user_rotation');
+    await capture(
+        'display_orientation_prop', 'getprop persist.sys.orientation');
+
+    final refreshRate = await _getRefreshRate();
+    if (refreshRate != null) {
+      metadata['display_refresh_rate'] = refreshRate;
+    }
+
     if (warnings.isNotEmpty) {
       metadata['warnings'] = warnings;
     }
@@ -182,6 +194,20 @@ class DeviceProbe {
         }
       }
     }
+    return null;
+  }
+
+  Future<String?> _getRefreshRate() async {
+    try {
+      final res = await adb.shell('dumpsys display');
+      if (res.exitCode == 0) {
+        final output = res.stdout as String;
+        // Common pattern: "refreshRate 60.0" or "fps=60.0"
+        final match =
+            RegExp(r'(?:refreshRate|fps)[:=]\s*(\d+\.?\d*)').firstMatch(output);
+        return match?.group(1);
+      }
+    } catch (_) {}
     return null;
   }
 }
