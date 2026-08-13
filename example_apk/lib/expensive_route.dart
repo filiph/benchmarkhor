@@ -4,8 +4,6 @@
 // const, the ListView builds all 1000 of its items eagerly, and every item
 // holds a fresh row of Text widgets. Making it faster would invalidate every
 // .benchmark baseline recorded from this app.
-//
-// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables
 
 import 'package:flutter/material.dart';
 
@@ -21,14 +19,14 @@ class ExpensiveRoute extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text('Dogs'),
+        title: const Text('Dogs'),
       ),
       body: Column(
         children: [
           SizedBox(
             height: 200,
             child: Image.asset(
-              key: Key('dog_photo'),
+              key: const Key('dog_photo'),
               'assets/bond+friend.jpg',
               fit: BoxFit.cover,
             ),
@@ -47,6 +45,7 @@ class ExpensiveRoute extends StatelessWidget {
 
 /// A single row of the [ExpensiveRoute]'s list: its own index, followed by
 /// ten Text widgets counting from 1 to 10.
+/// Every 10th element is an image.
 class _ExpensiveItem extends StatelessWidget {
   final int index;
 
@@ -55,24 +54,26 @@ class _ExpensiveItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 56,
-            child: Text(
-              '#$index',
-              style: Theme.of(context).textTheme.labelSmall,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: (index % 10 == 0)
+          ? Image.asset('assets/bond+friend.jpg', fit: BoxFit.cover)
+          : Row(
+              children: [
+                SizedBox(
+                  width: 56,
+                  child: Text(
+                    '#$index',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [for (var n = 1; n <= 10; n++) Text('$n')],
+                  ),
+                ),
+              ],
             ),
-          ),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [for (var n = 1; n <= 10; n++) Text('$n')],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

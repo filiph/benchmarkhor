@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "name": "upside-of-const-n150-portrait-and-less-server-overhead",
-  "description": "Compare baseline (no const anywhere) with a proper const version (n = 150, portrait, less server overhead)",
+  "name": "upside-of-smaller-image",
+  "description": "Compare baseline (full size JPG) with a version with scaled down image",
   "variants": {
     "baseline": {
       "apk": "baseline.apk",

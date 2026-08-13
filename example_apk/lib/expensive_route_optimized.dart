@@ -20,7 +20,7 @@ class ExpensiveRouteOptimized extends StatelessWidget {
             height: 200,
             child: Image.asset(
               key: const Key('dog_photo'),
-              'assets/bond+friend.jpg',
+              'assets/bond+friend-smaller.jpg',
               fit: BoxFit.cover,
             ),
           ),
@@ -28,8 +28,6 @@ class ExpensiveRouteOptimized extends StatelessWidget {
             child: ListView.builder(
               itemCount: unoptimized.itemCount,
               itemBuilder: (c, i) => _ExpensiveItem(index: i),
-              // The following is here as an additional potential optimization.
-              // prototypeItem: const _ExpensiveItem(index: 42),
             ),
           ),
         ],
@@ -38,8 +36,9 @@ class ExpensiveRouteOptimized extends StatelessWidget {
   }
 }
 
-/// A single row of the [ExpensiveRouteOptimized]'s list: its own index, followed by
+/// A single row of the [ExpensiveRoute]'s list: its own index, followed by
 /// ten Text widgets counting from 1 to 10.
+/// Every 10th element is an image.
 class _ExpensiveItem extends StatelessWidget {
   final int index;
 
@@ -49,34 +48,25 @@ class _ExpensiveItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 56,
-            child: Text(
-              '#$index',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-          ),
-          const Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: (index % 10 == 0)
+          ? Image.asset('assets/bond+friend-smaller.jpg', fit: BoxFit.cover)
+          : Row(
               children: [
-                Text('1'),
-                Text('2'),
-                Text('3'),
-                Text('4'),
-                Text('5'),
-                Text('6'),
-                Text('7'),
-                Text('8'),
-                Text('9'),
-                Text('10'),
+                SizedBox(
+                  width: 56,
+                  child: Text(
+                    '#$index',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [for (var n = 1; n <= 10; n++) Text('$n')],
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
