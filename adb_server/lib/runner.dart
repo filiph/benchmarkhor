@@ -54,22 +54,26 @@ class Runner {
 
       if (pidMatch != null) {
         final lockPid = int.parse(pidMatch.group(1)!);
-        final lockTime =
-            atMatch != null ? DateTime.tryParse(atMatch.group(1)!) : null;
+        final lockTime = atMatch != null
+            ? DateTime.tryParse(atMatch.group(1)!)
+            : null;
 
         if (await _isPidAlive(lockPid, startedAt: lockTime)) {
           throw StateError(
-              'Lock file exists and PID $lockPid is alive. Another runner is active.');
+            'Lock file exists and PID $lockPid is alive. Another runner is active.',
+          );
         } else {
           _log.warning(
-              'Lock file belongs to dead PID $lockPid or is stale. Stealing lock.');
+            'Lock file belongs to dead PID $lockPid or is stale. Stealing lock.',
+          );
           await lockFile.delete();
         }
       } else {
         // Malformed lock file, safer to fail and require manual deletion?
         // Or steal it? Let's fail for safety if we can't parse it.
         throw StateError(
-            'Lock file exists but is malformed. Delete it manually: ${lockFile.path}');
+          'Lock file exists but is malformed. Delete it manually: ${lockFile.path}',
+        );
       }
     }
 
@@ -88,12 +92,20 @@ class Runner {
     _runningSessionId = sessionId;
 
     // Async execution
-    unawaited(_run(sessionId).onError((e, st) {
-      _log.severe('Session $sessionId failed with unhandled error', e, st);
-    }).whenComplete(() {
-      _runningSessionId = null;
-      statusMessage = null;
-    }));
+    unawaited(
+      _run(sessionId)
+          .onError((e, st) {
+            _log.severe(
+              'Session $sessionId failed with unhandled error',
+              e,
+              st,
+            );
+          })
+          .whenComplete(() {
+            _runningSessionId = null;
+            statusMessage = null;
+          }),
+    );
 
     return sessionId;
   }
@@ -104,7 +116,8 @@ class Runner {
     // Create lock file
     final lockFile = sessionStore.lockFile();
     await lockFile.writeAsString(
-        'pid: $pid, session: $sessionId, at: ${DateTime.now().toUtc()}');
+      'pid: $pid, session: $sessionId, at: ${DateTime.now().toUtc()}',
+    );
 
     SessionStatus status = (await sessionStore.readStatus(sessionId))!;
     SessionSpec spec = await sessionStore.readSessionSpec(sessionId);
@@ -142,7 +155,9 @@ class Runner {
         // Wait for adbd to restart and reconnect
         await Future<void>.delayed(const Duration(seconds: 5));
         if (!await adb.connect()) {
-          log('Warning: Failed to reconnect after adb root. Proceeding as non-root.');
+          log(
+            'Warning: Failed to reconnect after adb root. Proceeding as non-root.',
+          );
         }
       } else {
         log('Warning: adb root failed. Profiles may fail if root is required.');
@@ -157,16 +172,22 @@ class Runner {
         defaultProfile = await _findDefaultProfile(model, 'performance');
         defaultReset = await _findDefaultProfile(model, 'reset');
         if (defaultProfile != null) {
-          log('Auto-detected device model "$model", using default profile $defaultProfile');
+          log(
+            'Auto-detected device model "$model", using default profile $defaultProfile',
+          );
         }
         if (defaultReset != null) {
-          log('Auto-detected device model "$model", using default reset profile $defaultReset');
+          log(
+            'Auto-detected device model "$model", using default reset profile $defaultReset',
+          );
         }
       }
 
-      for (int round = status.roundsCompleted + 1;
-          round <= spec.rounds;
-          round++) {
+      for (
+        int round = status.roundsCompleted + 1;
+        round <= spec.rounds;
+        round++
+      ) {
         log('Starting Round $round/${spec.rounds}');
 
         final variants = spec.variants.keys.toList()..shuffle();
@@ -176,8 +197,16 @@ class Runner {
           log('Starting Trial $trialId (Variant: $variantName)');
 
           await _runTrial(
-              sessionId, trialId, variantName, round, spec, adb, probe, log,
-              autoProfile: defaultProfile);
+            sessionId,
+            trialId,
+            variantName,
+            round,
+            spec,
+            adb,
+            probe,
+            log,
+            autoProfile: defaultProfile,
+          );
 
           // Check for cancellation between trials
           status = (await sessionStore.readStatus(sessionId))!;
@@ -201,7 +230,8 @@ class Runner {
       } else {
         log('Error during session: $e\n$st');
         await sessionStore.writeStatus(
-            status.transitionTo(SessionState.failed, error: e.toString()));
+          status.transitionTo(SessionState.failed, error: e.toString()),
+        );
       }
     } finally {
       final resetFile = config.deviceResetFile ?? defaultReset;
@@ -248,246 +278,285 @@ class Runner {
     await trialDir.create(recursive: true);
 
     final adbLogFile = sessionStore.trialAdbLogFile(sessionId, trialId);
+    final adbLogSink = adbLogFile.openWrite(mode: FileMode.append);
     final trialAdb = Adb(
       adbPath: config.adbPath,
       deviceAddress: config.dutAddress,
-      adbLog: adbLogFile,
+      adbLogSink: adbLogSink,
       environment: environment,
     );
     final trialProbe = DeviceProbe(trialAdb);
 
     final startedAt = DateTime.now().toUtc();
 
-    // 0. Apply Device Profile
-    ({String content, String sha256})? profileResult;
-    final profileFile = config.deviceProfileFile ?? autoProfile;
-    if (profileFile != null) {
-      log('Applying device profile from $profileFile...');
-      profileResult = await _applyProfile(trialAdb, profileFile, log);
-    }
-
-    // 1. Thermal Gate
-    final warnings = <String>[];
-    if (config.thermalGateCelsius != null) {
-      log('Thermal gating...');
-      final timeout = DateTime.now()
-          .add(Duration(seconds: config.thermalGateTimeoutSeconds));
-      bool gated = false;
-      while (DateTime.now().isBefore(timeout)) {
-        final p = await trialProbe.probe();
-        final tsMap = p['thermalservice'] as Map<String, dynamic>?;
-        final isThrottling = tsMap?['is_throttling'] == true;
-        final statusLevel = tsMap?['status_level'] as int?;
-        final throttlingStr = isThrottling
-            ? 'throttled (status: ${statusLevel ?? 'unknown'})'
-            : 'normal (status: ${statusLevel ?? 0})';
-
-        final temps = p['temperatures'] as List<Map<String, String>>?;
-        final maxTemp = temps
-                ?.map((t) => double.tryParse(t['temp'] ?? '0') ?? 0)
-                .reduce(max) ??
-            0;
-        // temps are often in millicelsius
-        final tempC = maxTemp > 1000 ? maxTemp / 1000 : maxTemp;
-
-        if (tempC < config.thermalGateCelsius!) {
-          log('Temperature $tempC C ($throttlingStr) is below threshold ${config.thermalGateCelsius} C.');
-          gated = true;
-          break;
-        }
-        log('Temperature $tempC C ($throttlingStr) is too high, waiting...');
-        await Future<void>.delayed(const Duration(seconds: 10));
-      }
-
-      if (!gated) {
-        final msg =
-            'Thermal gate timeout after ${config.thermalGateTimeoutSeconds}s. Proceeding anyway.';
-        log(msg);
-        warnings.add(msg);
-      }
-    }
-
-    // 2. Pre-run snapshot
-    log('Capturing pre-run snapshot...');
-    final deviceBefore = await trialProbe.probe();
-    await sessionStore.deviceDir.create(recursive: true);
-    await sessionStore.writeAtomic(
-      sessionStore.lastSnapshotFile(),
-      const JsonEncoder.withIndent('  ').convert(deviceBefore),
-    );
-
-    bool thermalThrottled = false;
-    int? maxThermalStatus;
-
-    void updateThermalState(Map<String, dynamic> probeResult) {
-      final ts = probeResult['thermalservice'];
-      if (ts is Map) {
-        if (ts['is_throttling'] == true) {
-          thermalThrottled = true;
-        }
-        final level = ts['status_level'] as int?;
-        if (level != null) {
-          maxThermalStatus = max(maxThermalStatus ?? 0, level);
-        }
-      }
-    }
-
-    updateThermalState(deviceBefore);
-
-    // 3. Clean device state
-    log('Cleaning device state...');
-    await trialAdb.shell('rm -rf ${spec.deviceResultDir}',
-        timeout: const Duration(minutes: 1));
-    await trialAdb.shell('mkdir -p ${spec.deviceResultDir}',
-        timeout: const Duration(minutes: 1));
-
-    // 4. Install
-    final variant = spec.variants[variantName]!;
-    log('Installing APKs for $variantName...');
-    final apkPath =
-        p.join(sessionStore.sessionDir(sessionId).path, variant.apk);
-    final testApkPath =
-        p.join(sessionStore.sessionDir(sessionId).path, variant.testApk);
-
-    await trialAdb.install(apkPath, timeout: const Duration(minutes: 5));
-    await trialAdb.install(testApkPath, timeout: const Duration(minutes: 5));
-
-    // 5. Precompile
-    if (config.precompilePackage) {
-      log('Precompiling package ${spec.package}...');
-      await trialAdb.shell('cmd package compile -m speed -f ${spec.package}',
-          timeout: const Duration(minutes: 5));
-    }
-
-    // 6. Launch
-    log('Launching instrumentation...');
-    await trialAdb.clearLogcat();
-    final logcatFile = sessionStore.trialLogcatFile(sessionId, trialId);
-    final logcatProcess = await trialAdb.startLogcat(logcatFile);
-
-    String? benchDoneMarker;
-    final logcatSub = logcatProcess.lines.listen((line) {
-      if (line.contains('BENCH_DONE') || line.contains('BENCH_FAILED')) {
-        benchDoneMarker = line;
-      }
-    });
-
     try {
-      ProcessResult? instrumentationResult;
-      final instrumentationFuture = trialAdb.run([
-        'shell',
-        'am',
-        'instrument',
-        '-w',
-        '-r',
-        '${spec.testPackage}/${spec.instrumentationRunner}'
-      ], timeout: Duration.zero).then((res) => instrumentationResult = res);
-
-      // Give it a moment to fail early (e.g. wrong runner name, package not found)
-      await Future.any([
-        instrumentationFuture,
-        Future<void>.delayed(const Duration(seconds: 2)),
-      ]);
-
-      if (instrumentationResult != null &&
-          instrumentationResult!.exitCode != 0) {
-        throw Exception(
-            'Instrumentation failed to start (exit ${instrumentationResult!.exitCode}):\n'
-            '${instrumentationResult!.stdout}\n${instrumentationResult!.stderr}');
+      // 0. Apply Device Profile
+      ({String content, String sha256})? profileResult;
+      final profileFile = config.deviceProfileFile ?? autoProfile;
+      if (profileFile != null) {
+        log('Applying device profile from $profileFile...');
+        profileResult = await _applyProfile(trialAdb, profileFile, log);
       }
 
-      // 7. Wait for completion (Contract)
-      log('Waiting for completion...');
-      final timeout =
-          spec.trialTimeoutSeconds ?? config.defaultTrialTimeoutSeconds;
-      final deadline = DateTime.now().add(Duration(seconds: timeout));
+      // 1. Thermal Gate
+      final warnings = <String>[];
+      if (config.thermalGateCelsius != null) {
+        log('Thermal gating...');
+        final timeout = DateTime.now().add(
+          Duration(seconds: config.thermalGateTimeoutSeconds),
+        );
+        bool gated = false;
+        while (DateTime.now().isBefore(timeout)) {
+          final p = await trialProbe.probeVolatile();
+          final tsMap = p['thermalservice'] as Map<String, dynamic>?;
+          final isThrottling = tsMap?['is_throttling'] == true;
+          final statusLevel = tsMap?['status_level'] as int?;
+          final throttlingStr = isThrottling
+              ? 'throttled (status: ${statusLevel ?? 'unknown'})'
+              : 'normal (status: ${statusLevel ?? 0})';
+
+          final temps = p['temperatures'] as List<Map<String, dynamic>>?;
+          final maxTemp =
+              temps
+                  ?.map(
+                    (t) => double.tryParse(t['temp'] as String? ?? '0') ?? 0,
+                  )
+                  .reduce(max) ??
+              0;
+          // temps are often in millicelsius
+          final tempC = maxTemp > 1000 ? maxTemp / 1000 : maxTemp;
+
+          if (tempC < config.thermalGateCelsius!) {
+            log(
+              'Temperature $tempC C ($throttlingStr) is below threshold ${config.thermalGateCelsius} C.',
+            );
+            gated = true;
+            break;
+          }
+          log('Temperature $tempC C ($throttlingStr) is too high, waiting...');
+          await Future<void>.delayed(const Duration(seconds: 10));
+        }
+
+        if (!gated) {
+          final msg =
+              'Thermal gate timeout after ${config.thermalGateTimeoutSeconds}s. Proceeding anyway.';
+          log(msg);
+          warnings.add(msg);
+        }
+      }
+
+      // 2. Pre-run snapshot
+      log('Capturing pre-run snapshot...');
+      final deviceStatic = await trialProbe.probeStatic();
+      final deviceVolatile = await trialProbe.probeVolatile();
+      final deviceBefore = {...deviceStatic, ...deviceVolatile};
+
+      await sessionStore.deviceDir.create(recursive: true);
+      await sessionStore.writeAtomic(
+        sessionStore.lastSnapshotFile(),
+        const JsonEncoder.withIndent('  ').convert(deviceBefore),
+      );
+
+      bool thermalThrottled = false;
+      int? maxThermalStatus;
+
+      void updateThermalState(Map<String, dynamic> probeResult) {
+        final ts = probeResult['thermalservice'];
+        if (ts is Map) {
+          if (ts['is_throttling'] == true) {
+            thermalThrottled = true;
+          }
+          final level = ts['status_level'] as int?;
+          if (level != null) {
+            maxThermalStatus = max(maxThermalStatus ?? 0, level);
+          }
+        }
+      }
+
+      updateThermalState(deviceBefore);
+
+      // 3. Clean device state
+      log('Cleaning device state...');
+      await trialAdb.shell(
+        'rm -rf ${spec.deviceResultDir}',
+        timeout: const Duration(minutes: 1),
+      );
+      await trialAdb.shell(
+        'mkdir -p ${spec.deviceResultDir}',
+        timeout: const Duration(minutes: 1),
+      );
+
+      // 4. Install
+      final variant = spec.variants[variantName]!;
+      log('Installing APKs for $variantName...');
+      final apkPath = p.join(
+        sessionStore.sessionDir(sessionId).path,
+        variant.apk,
+      );
+      final testApkPath = p.join(
+        sessionStore.sessionDir(sessionId).path,
+        variant.testApk,
+      );
+
+      await trialAdb.install(apkPath, timeout: const Duration(minutes: 5));
+      await trialAdb.install(testApkPath, timeout: const Duration(minutes: 5));
+
+      // 5. Precompile
+      if (config.precompilePackage) {
+        log('Precompiling package ${spec.package}...');
+        await trialAdb.shell(
+          'cmd package compile -m speed -f ${spec.package}',
+          timeout: const Duration(minutes: 5),
+        );
+      }
+
+      // 6. Launch
+      log('Launching instrumentation...');
+      await trialAdb.clearLogcat();
+      final logcatFile = sessionStore.trialLogcatFile(sessionId, trialId);
+      final logcatProcess = await trialAdb.startLogcat(logcatFile);
+
+      String? benchDoneMarker;
+      final logcatSub = logcatProcess.lines.listen((line) {
+        if (line.contains('BENCH_DONE') || line.contains('BENCH_FAILED')) {
+          benchDoneMarker = line;
+        }
+      });
 
       bool finished = false;
       int consecutivePidMissing = 0;
+      ProcessResult? instrumentationResult;
+      final timeout =
+          spec.trialTimeoutSeconds ?? config.defaultTrialTimeoutSeconds;
 
-      while (DateTime.now().isBefore(deadline)) {
-        // Immediate cancellation check
-        final currentStatus = await sessionStore.readStatus(sessionId);
-        if (currentStatus?.state == SessionState.cancelled) {
-          throw CancelledException('Session cancelled during trial poll.');
+      try {
+        final instrumentationFuture = trialAdb
+            .run([
+              'shell',
+              'am',
+              'instrument',
+              '-w',
+              '-r',
+              '${spec.testPackage}/${spec.instrumentationRunner}',
+            ], timeout: Duration.zero)
+            .then((res) => instrumentationResult = res);
+
+        // Give it a moment to fail early (e.g. wrong runner name, package not found)
+        await Future.any([
+          instrumentationFuture,
+          Future<void>.delayed(const Duration(seconds: 2)),
+        ]);
+
+        if (instrumentationResult != null &&
+            instrumentationResult!.exitCode != 0) {
+          throw Exception(
+            'Instrumentation failed to start (exit ${instrumentationResult!.exitCode}):\n'
+            '${instrumentationResult!.stdout}\n${instrumentationResult!.stderr}',
+          );
         }
 
-        // Check thermal status & temperature alongside trial completion check
-        final pollProbe = await trialProbe.probe();
-        updateThermalState(pollProbe);
-        final tsMap = pollProbe['thermalservice'] as Map<String, dynamic>?;
-        final isThrottling = tsMap?['is_throttling'] == true;
-        final statusLevel = tsMap?['status_level'] as int?;
-        final pollThrottlingStr = isThrottling
-            ? 'throttled (status: ${statusLevel ?? 'unknown'})'
-            : 'normal (status: ${statusLevel ?? 0})';
+        // 7. Wait for completion (Contract)
+        log('Waiting for completion...');
+        final deadline = DateTime.now().add(Duration(seconds: timeout));
 
-        final temps = pollProbe['temperatures'] as List<Map<String, String>>?;
-        final maxTemp = temps
-                ?.map((t) => double.tryParse(t['temp'] ?? '0') ?? 0)
-                .reduce(max) ??
-            0;
-        final tempC = maxTemp > 1000 ? maxTemp / 1000 : maxTemp;
-        log('Trial poll: temp=${tempC.toStringAsFixed(1)} C, thermal_status=$pollThrottlingStr');
-
-        // Priority 1: Sentinel file
-        final sentinel = await trialAdb
-            .shell('test -f ${spec.deviceResultDir}/DONE && echo YES');
-        if ((sentinel.stdout as String).contains('YES')) {
-          log('Sentinel file DONE found.');
-          finished = true;
-          break;
-        }
-
-        final failed = await trialAdb
-            .shell('test -f ${spec.deviceResultDir}/FAILED && echo YES');
-        if ((failed.stdout as String).contains('YES')) {
-          log('Sentinel file FAILED found.');
-          break;
-        }
-
-        // Priority 2: Logcat marker
-        if (benchDoneMarker != null) {
-          log('Marker found in logcat: $benchDoneMarker');
-          if (benchDoneMarker!.contains('BENCH_DONE')) {
-            finished = true;
+        while (DateTime.now().isBefore(deadline)) {
+          // Immediate cancellation check
+          final currentStatus = await sessionStore.readStatus(sessionId);
+          if (currentStatus?.state == SessionState.cancelled) {
+            throw CancelledException('Session cancelled during trial poll.');
           }
-          break;
-        }
 
-        // Priority 3: Process gone
-        final pidof = await trialAdb.shell('pidof ${spec.package}',
-            timeout: const Duration(seconds: 10));
-        if ((pidof.stdout as String).trim().isEmpty) {
-          consecutivePidMissing++;
-          if (consecutivePidMissing >= 2) {
-            log('Process disappeared without sentinel for 2 polls.');
+          // Check thermal status & temperature alongside trial completion check
+          // using the lightweight volatile probe that also checks sentinels.
+          final pollProbe = await trialProbe.probeVolatile(
+            doneFile: '${spec.deviceResultDir}/DONE',
+            failedFile: '${spec.deviceResultDir}/FAILED',
+          );
+          updateThermalState(pollProbe);
+          final tsMap = pollProbe['thermalservice'] as Map<String, dynamic>?;
+          final isThrottling = tsMap?['is_throttling'] == true;
+          final statusLevel = tsMap?['status_level'] as int?;
+          final pollThrottlingStr = isThrottling
+              ? 'throttled (status: ${statusLevel ?? 'unknown'})'
+              : 'normal (status: ${statusLevel ?? 0})';
+
+          final temps =
+              pollProbe['temperatures'] as List<Map<String, dynamic>>?;
+          final maxTemp =
+              temps
+                  ?.map(
+                    (t) => double.tryParse(t['temp'] as String? ?? '0') ?? 0,
+                  )
+                  .reduce(max) ??
+              0;
+          final tempC = maxTemp > 1000 ? maxTemp / 1000 : maxTemp;
+          log(
+            'Trial poll: temp=${tempC.toStringAsFixed(1)} C, '
+            'thermal_status=$pollThrottlingStr',
+          );
+
+          // Priority 1: Sentinel file
+          final sentinel = pollProbe['sentinel'] as String?;
+          if (sentinel == 'DONE') {
+            log('Sentinel file DONE found (via probe).');
+            finished = true;
+            break;
+          } else if (sentinel == 'FAILED') {
+            log('Sentinel file FAILED found (via probe).');
             break;
           }
-        } else {
-          consecutivePidMissing = 0;
+
+          // Priority 2: Logcat marker
+          if (benchDoneMarker != null) {
+            log('Marker found in logcat: $benchDoneMarker');
+            if (benchDoneMarker!.contains('BENCH_DONE')) {
+              finished = true;
+            }
+            break;
+          }
+
+          // Priority 3: Process gone
+          final pidof = await trialAdb.shell(
+            'pidof ${spec.package}',
+            timeout: const Duration(seconds: 10),
+          );
+          if ((pidof.stdout as String).trim().isEmpty) {
+            consecutivePidMissing++;
+            if (consecutivePidMissing >= 2) {
+              log('Process disappeared without sentinel for 2 polls.');
+              break;
+            }
+          } else {
+            consecutivePidMissing = 0;
+          }
+
+          await Future<void>.delayed(
+            Duration(seconds: config.pollIntervalSeconds),
+          );
         }
-
-        await Future<void>.delayed(
-            Duration(seconds: config.pollIntervalSeconds));
+      } finally {
+        await logcatSub.cancel();
+        await logcatProcess.stop();
       }
-
-      await logcatSub.cancel();
-      await logcatProcess.stop();
 
       // 8. Pull results
       log('Pulling results...');
       final resultsDir = sessionStore.trialResultsDir(sessionId, trialId);
       await resultsDir.create(recursive: true);
-      await trialAdb.pull(spec.deviceResultDir, resultsDir.path,
-          timeout: const Duration(minutes: 5));
+      await trialAdb.pull(
+        spec.deviceResultDir,
+        resultsDir.path,
+        timeout: const Duration(minutes: 5),
+      );
 
       // 8b. Generate Results Index
       await _generateResultsIndex(resultsDir, log);
 
       // 9. Post-run snapshot
       log('Capturing post-run snapshot...');
-      final deviceAfter = await trialProbe.probe();
+      final devicePostStatic = await trialProbe.probeStatic();
+      final devicePostVolatile = await trialProbe.probeVolatile();
+      final deviceAfter = {...devicePostStatic, ...devicePostVolatile};
       updateThermalState(deviceAfter);
 
       if (thermalThrottled) {
@@ -526,21 +595,33 @@ class Runner {
         if (instrumentationResult != null &&
             instrumentationResult!.exitCode != 0) {
           throw Exception(
-              'Instrumentation failed (exit ${instrumentationResult!.exitCode}):\n'
-              '${instrumentationResult!.stdout}\n${instrumentationResult!.stderr}');
+            'Instrumentation failed (exit ${instrumentationResult!.exitCode}):\n'
+            '${instrumentationResult!.stdout}\n${instrumentationResult!.stderr}',
+          );
         }
         if (consecutivePidMissing >= 2) {
           throw Exception(
-              'Trial process disappeared unexpectedly without reporting completion.');
+            'Trial process disappeared unexpectedly without reporting completion.',
+          );
         }
         throw Exception('Trial failed or timed out after ${timeout}s.');
       }
     } finally {
       log('Uninstalling APKs...');
-      await trialAdb.uninstall(spec.package,
-          timeout: const Duration(minutes: 1));
-      await trialAdb.uninstall(spec.testPackage,
-          timeout: const Duration(minutes: 1));
+      try {
+        await trialAdb.uninstall(
+          spec.package,
+          timeout: const Duration(minutes: 1),
+        );
+        await trialAdb.uninstall(
+          spec.testPackage,
+          timeout: const Duration(minutes: 1),
+        );
+      } catch (e) {
+        log('Warning: Failed to uninstall: $e');
+      }
+      await adbLogSink.flush();
+      await adbLogSink.close();
     }
   }
 
@@ -553,8 +634,10 @@ class Runner {
       await for (final entity in dir.list()) {
         if (entity is Directory) {
           final dirName = p.basename(entity.path);
-          final dirNameClean =
-              dirName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+          final dirNameClean = dirName.toLowerCase().replaceAll(
+            RegExp(r'[^a-z0-9]'),
+            '',
+          );
           if (dirNameClean == modelClean) {
             final profileFile = File(p.join(entity.path, '$type.sh'));
             if (await profileFile.exists()) {
@@ -570,7 +653,10 @@ class Runner {
   }
 
   Future<({String content, String sha256})?> _applyProfile(
-      Adb adb, String? profilePath, void Function(String) log) async {
+    Adb adb,
+    String? profilePath,
+    void Function(String) log,
+  ) async {
     if (profilePath == null) return null;
     final file = File(profilePath);
     if (!await file.exists()) {
@@ -595,7 +681,9 @@ class Runner {
   }
 
   Future<void> _generateResultsIndex(
-      Directory resultsDir, void Function(String) log) async {
+    Directory resultsDir,
+    void Function(String) log,
+  ) async {
     final index = <Map<String, dynamic>>[];
     await for (final entity in resultsDir.list(recursive: true)) {
       if (entity is File) {
@@ -605,9 +693,12 @@ class Runner {
         try {
           lines = utf8.decode(bytes, allowMalformed: true).split('\n').length;
         } catch (e) {
-          log('Warning: Failed to decode ${p.basename(entity.path)} as UTF-8 for line count. It may be a binary file.');
+          log(
+            'Warning: Failed to decode ${p.basename(entity.path)} as UTF-8 for line count. It may be a binary file.',
+          );
           _log.warning(
-              'Failed to decode ${entity.path} as UTF-8 for line count: $e');
+            'Failed to decode ${entity.path} as UTF-8 for line count: $e',
+          );
         }
         index.add({
           'filename': p.relative(entity.path, from: resultsDir.path),
@@ -617,8 +708,9 @@ class Runner {
         });
       }
     }
-    final indexFile =
-        File(p.join(resultsDir.parent.path, 'results_index.json'));
+    final indexFile = File(
+      p.join(resultsDir.parent.path, 'results_index.json'),
+    );
     await sessionStore.writeAtomic(
       indexFile,
       const JsonEncoder.withIndent('  ').convert(index),
@@ -637,17 +729,23 @@ class Runner {
       // Robustness check: is it the SAME process?
       // We check if the process started BEFORE the lock file was written.
       try {
-        final psRes =
-            await Process.run('ps', ['-p', pid.toString(), '-o', 'etimes=']);
+        final psRes = await Process.run('ps', [
+          '-p',
+          pid.toString(),
+          '-o',
+          'etimes=',
+        ]);
         if (psRes.exitCode == 0) {
           final elapsedSeconds = int.tryParse(psRes.stdout.toString().trim());
           if (elapsedSeconds != null) {
-            final processStartedAt =
-                DateTime.now().subtract(Duration(seconds: elapsedSeconds));
+            final processStartedAt = DateTime.now().subtract(
+              Duration(seconds: elapsedSeconds),
+            );
             // Give it a bit of buffer (2 seconds) to account for clock skew/timing.
             // If the process started AFTER the lock was written, it's a reuse.
-            return processStartedAt
-                .isBefore(startedAt.add(const Duration(seconds: 2)));
+            return processStartedAt.isBefore(
+              startedAt.add(const Duration(seconds: 2)),
+            );
           }
         }
       } catch (e) {

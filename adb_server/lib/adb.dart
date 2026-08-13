@@ -13,12 +13,14 @@ class Adb {
   final String adbPath;
   final String deviceAddress;
   final File? adbLog;
+  final IOSink? adbLogSink;
   final Map<String, String>? environment;
 
   Adb({
     required this.adbPath,
     required this.deviceAddress,
     this.adbLog,
+    this.adbLogSink,
     this.environment,
   });
 
@@ -33,6 +35,7 @@ class Adb {
       ...arguments,
     ];
 
+    final startedAt = DateTime.now().toUtc();
     final stopwatch = Stopwatch()..start();
     ProcessResult result;
     if (timeout != Duration.zero) {
@@ -61,18 +64,25 @@ class Adb {
       result = await Process.run(adbPath, fullArgs, environment: environment);
     }
     stopwatch.stop();
+    final finishedAt = DateTime.now().toUtc();
 
-    if (adbLog != null) {
+    if (adbLogSink != null || adbLog != null) {
       final logEntry = StringBuffer()
-        ..writeln('--- ${DateTime.now().toUtc().toIso8601String()} ---')
-        ..writeln('Command: $adbPath ${fullArgs.join(' ')}')
+        ..writeln('--- Command: $adbPath ${fullArgs.join(' ')} ---')
+        ..writeln('Started: ${startedAt.toIso8601String()}')
+        ..writeln('Finished: ${finishedAt.toIso8601String()}')
         ..writeln('Exit code: ${result.exitCode}')
         ..writeln('Duration: ${stopwatch.elapsed}')
         ..writeln('Stdout:\n${result.stdout}')
         ..writeln('Stderr:\n${result.stderr}')
         ..writeln();
-      await adbLog!.writeAsString(logEntry.toString(),
-          mode: FileMode.append, flush: true);
+
+      if (adbLogSink != null) {
+        adbLogSink!.write(logEntry.toString());
+      } else if (adbLog != null) {
+        await adbLog!.writeAsString(logEntry.toString(),
+            mode: FileMode.append, flush: true);
+      }
     }
 
     if (result.exitCode != 0) {

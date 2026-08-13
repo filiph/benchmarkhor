@@ -38,6 +38,57 @@ void main(List<String> arguments) {
     return;
   }
 
+  if (cmd.contains('UPTIME:') || cmd.contains('cat /proc/uptime')) {
+    // This is likely our new volatile probe script or an old individual command
+    if (cmd.contains('UPTIME:')) {
+      print('UPTIME: 1234.56 789.01');
+      print('LOADAVG: 0.1 0.2 0.3 1/100 1234');
+      print('MEMINFO: MemTotal: 8000000 kB');
+      print('DATE: 2026-08-13T12:00:00+0000');
+      print('CPU_ONLINE: 0-7');
+      for (var i = 0; i < 8; i++) {
+        print(
+            'FREQ /sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq: 1800000');
+      }
+      for (var i = 0; i < 2; i++) {
+        print(
+            'THERMAL /sys/class/thermal/thermal_zone$i/type: cpu-thermal | 35000');
+      }
+      print('THERMALSERVICE START');
+      final throttling =
+          Platform.environment['FAKE_ADB_THERMAL_THROTTLING'] == 'true';
+      final status = Platform.environment['FAKE_ADB_THERMAL_STATUS'] ??
+          (throttling ? '2' : '0');
+      print('IsThrottling: $throttling');
+      print('Thermal Status: $status');
+      print('THERMALSERVICE END');
+
+      // Handle sentinels
+      final doneMatch =
+          RegExp(r'if \[ -f "([^"]+)" \]; then echo "SENTINEL: DONE"; fi')
+              .firstMatch(cmd);
+      if (doneMatch != null) {
+        final doneFile = doneMatch.group(1)!;
+        if (File(doneFile).existsSync()) {
+          print('SENTINEL: DONE');
+        }
+      }
+      final failedMatch =
+          RegExp(r'if \[ -f "([^"]+)" \]; then echo "SENTINEL: FAILED"; fi')
+              .firstMatch(cmd);
+      if (failedMatch != null) {
+        final failedFile = failedMatch.group(1)!;
+        if (File(failedFile).existsSync()) {
+          print('SENTINEL: FAILED');
+        }
+      }
+      return;
+    } else {
+      print('1234.56 789.01');
+      return;
+    }
+  }
+
   if (cmd.contains('dumpsys thermalservice')) {
     final throttling =
         Platform.environment['FAKE_ADB_THERMAL_THROTTLING'] == 'true';
