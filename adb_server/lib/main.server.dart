@@ -1,19 +1,26 @@
+/// The entrypoint for the server environment.
+library;
+
 import 'dart:io';
 
+import 'package:jaspr/server.dart';
 import 'package:logging/logging.dart';
+import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
-import 'package:adb_server/api.dart';
-import 'package:adb_server/config.dart';
-import 'package:adb_server/logging.dart';
-import 'package:adb_server/runner.dart';
-import 'package:adb_server/session_store.dart';
-import 'package:path/path.dart' as p;
+import 'api.dart';
+import 'config.dart';
+import 'logging.dart';
+import 'main.server.options.dart';
+import 'runner.dart';
+import 'session_store.dart';
 
 final _log = Logger('adb_server');
 
 Future<void> main(List<String> arguments) async {
+  Jaspr.initializeApp(options: defaultServerOptions);
+
   final Config config;
   try {
     config = Config.fromEnvironment(Platform.environment);
@@ -51,7 +58,7 @@ Future<void> main(List<String> arguments) async {
   final api = Api(config: config, sessionStore: sessionStore, runner: runner);
   final handler = const Pipeline()
       .addMiddleware(logRequests())
-      .addHandler(api.router.call);
+      .addHandler(api.handler);
 
   final server = await shelf_io.serve(handler, '0.0.0.0', config.port);
   _log.info(

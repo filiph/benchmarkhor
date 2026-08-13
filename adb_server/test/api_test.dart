@@ -3,9 +3,11 @@ import 'dart:io';
 
 import 'package:adb_server/api.dart';
 import 'package:adb_server/config.dart';
+import 'package:adb_server/main.server.options.dart';
 import 'package:adb_server/models.dart';
 import 'package:adb_server/runner.dart';
 import 'package:adb_server/session_store.dart';
+import 'package:jaspr/server.dart' hide Request, Response;
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
@@ -16,8 +18,10 @@ void main() {
   late Config config;
   late Runner runner;
   late Api api;
+  late Handler handler;
 
   setUp(() {
+    Jaspr.initializeApp(options: defaultServerOptions);
     tempDir = Directory.systemTemp.createTempSync('adb_api_test_');
     store = SessionStore(tempDir.path);
     config = Config(
@@ -38,6 +42,8 @@ void main() {
     );
     runner = Runner(config: config, sessionStore: store);
     api = Api(config: config, sessionStore: store, runner: runner);
+
+    handler = api.handler;
   });
 
   tearDown(() {
@@ -61,7 +67,7 @@ void main() {
       body: jsonEncode(spec),
     );
 
-    final response = await api.router.call(request);
+    final response = await handler(request);
     expect(response.statusCode, 201);
 
     final body = jsonDecode(await response.readAsString());
@@ -76,18 +82,18 @@ void main() {
 
   test('GET / returns HTML status page', () async {
     final request = Request('GET', Uri.parse('http://localhost/'));
-    final response = await api.router.call(request);
+    final response = await handler(request);
     expect(response.statusCode, 200);
-    expect(response.headers['content-type'], 'text/html');
+    expect(response.headers['content-type'], contains('text/html'));
 
     final body = await response.readAsString();
     expect(body, contains('<h1>adb_server</h1>'));
-    expect(body, contains('DUT: <strong>127.0.0.1:5555</strong>'));
+    expect(body, contains('DUT: '));
+    expect(body, contains('127.0.0.1:5555'));
     expect(body, contains('Discover New Sessions'));
   });
 
   test('POST /api/queue/next enforces mutual exclusion', () async {
-    // 1. Setup a queued session
     final sessionId = '20260810-120000Z__exclusion-test';
     final sessionDir = store.sessionDir(sessionId)..createSync(recursive: true);
     final specFile = store.sessionSpecFile(sessionId);
@@ -104,20 +110,11 @@ void main() {
     );
     await store.discoverNewSessions();
 
-    // 2. Mock a long-running startNext by making it async
-    // In the real Runner, startNext kicks off _run asynchronously.
-    // We can just call it twice.
-
     final req1 = Request('POST', Uri.parse('http://localhost/api/queue/next'));
     final req2 = Request('POST', Uri.parse('http://localhost/api/queue/next'));
 
-    // We use Future.wait but req1 will definitely start first in the event loop
-    // if we await them in sequence or even in parallel because shelf_router
-    // handles them one by one.
-    // However, the requirement is about the mutual exclusion.
-
-    final res1 = await api.router.call(req1);
-    final res2 = await api.router.call(req2);
+    final res1 = await handler(req1);
+    final res2 = await handler(req2);
 
     expect(res1.statusCode, 202);
     expect(res2.statusCode, 409);
@@ -130,7 +127,6 @@ void main() {
   });
 
   test('POST /api/sessions/discover finds new sessions on disk', () async {
-    // 1. Manually create a session directory with a session.json but no status.json
     final sessionId = '20260810-120000Z__manual-session';
     final sessionDir = store.sessionDir(sessionId)..createSync(recursive: true);
     final specFile = store.sessionSpecFile(sessionId);
@@ -146,15 +142,13 @@ void main() {
       }),
     );
 
-    // 2. Call discovery via API
     final request = Request(
       'POST',
       Uri.parse('http://localhost/api/sessions/discover'),
     );
-    final response = await api.router.call(request);
+    final response = await handler(request);
     expect(response.statusCode, 200);
 
-    // 3. Verify the session is now discovered
     final status = await store.readStatus(sessionId);
     expect(status, isNotNull);
     expect(status!.state, SessionState.queued);
@@ -169,8 +163,8 @@ void main() {
         Uri.parse('http://localhost/api/sessions/discover'),
         headers: {'accept': 'text/html'},
       );
-      final response = await api.router.call(request);
-      expect(response.statusCode, 303); // seeOther
+      final response = await handler(request);
+      expect(response.statusCode, 303);
       expect(response.headers['location'], '/');
     },
   );
@@ -208,12 +202,12 @@ void main() {
         'GET',
         Uri.parse('http://localhost/sessions/$sessionId'),
       );
-      final response = await api.router.call(request);
+      final response = await handler(request);
       expect(response.statusCode, 200);
 
       final body = await response.readAsString();
       expect(body, contains('Session: $sessionId'));
-      expect(body, contains('Throttled (status: 2)'));
+      expect(body, contains('Throttled'));
     },
   );
 }

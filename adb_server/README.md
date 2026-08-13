@@ -29,10 +29,21 @@ Not implemented yet (see `REQUIREMENTS.md` for the full spec of each):
 
 ## Running locally
 
+For active development with hot-reloading:
+
 ```sh
 cd adb_server
 dart pub get
-DUT_ADDRESS=192.168.1.42:5555 DATA_DIR=/tmp/adb_server_data dart run bin/server.dart
+dart pub global activate jaspr_cli
+DUT_ADDRESS=192.168.1.42:5555 DATA_DIR=./data jaspr serve
+```
+
+To build and run the Jaspr production server executable locally:
+
+```sh
+cd adb_server
+jaspr build
+DUT_ADDRESS=192.168.1.42:5555 DATA_DIR=./data ./build/jaspr/app
 ```
 
 Then:

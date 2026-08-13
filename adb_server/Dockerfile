@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
-# ---- Stage 1: build the AOT-compiled Dart binary -----------------------
-FROM dart:3.12-sdk AS build
+# ---- Stage 1: build the AOT-compiled Dart binary with Jaspr --------------
+FROM dart:stable AS build
 
 WORKDIR /app
 
@@ -12,7 +12,8 @@ RUN dart pub get
 # Copy the rest of the source and compile.
 COPY . .
 RUN dart pub get --offline
-RUN dart compile exe bin/server.dart -o /app/server
+RUN dart pub global activate jaspr_cli
+RUN dart pub global run jaspr_cli:jaspr build
 
 # ---- Stage 2: slim runtime with a pinned adb -----------------------------
 FROM debian:bookworm-slim AS runtime
@@ -36,7 +37,7 @@ ENV TZ=Europe/Prague
 ENV GIT_COMMIT=${GIT_COMMIT}
 
 WORKDIR /app
-COPY --from=build /app/server /app/server
+COPY --from=build /app/build/jaspr/ /app/
 COPY --from=build /app/profiles /app/profiles
 
 # Runs as root deliberately: the adb key persisted under /root/.android
@@ -49,4 +50,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -fsS "http://localhost:${PORT:-8080}/health" || exit 1
 
-ENTRYPOINT ["/app/server"]
+ENTRYPOINT ["/app/app"]

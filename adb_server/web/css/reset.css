@@ -1,0 +1,217 @@
+/* Source: https://gist.github.com/mindplay-dk/62243f634cdcce4f43d943c36378137d */
+
+/* Padding and borders should not change an element's declared size. */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* Browser margin/padding defaults vary wildly across elements and vendors.
+   Start from zero - handle spacing intentionally via the design system. */
+* {
+    margin: 0;
+    padding: 0;
+}
+
+/* Prevents flex/grid children from overflowing their container.
+   The default min-width: auto on flex and grid children causes overflow bugs
+   that are notoriously confusing to debug. */
+* {
+    min-width: 0;
+}
+
+/* Hidden means hidden: !important is warranted here. */
+[hidden] {
+    display: none !important;
+}
+
+/* Allows CSS transitions to/from intrinsic keyword sizes (auto, min-content, etc.).
+   Only meaningful for users who haven't requested reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+    html {
+        interpolate-size: allow-keywords;
+    }
+}
+
+/* Prevent adjustments of font size after orientation changes in iOS. */
+html {
+    -webkit-text-size-adjust: 100%; /* Safari, iOS Safari */
+    text-size-adjust: 100%;         /* Chrome, Edge, Firefox Android */
+}
+
+/* Ensures the page occupies at least the full viewport.
+   dvh accounts for mobile browser UI (address bar, navigation)
+   and overrides the vh fallback in browsers that support it. */
+body {
+    min-height: 100vh;
+    min-height: 100svh;
+}
+
+/* Reserves space for the scrollbar, when the scrollbar is not showing.
+   Prevents flicker when changes on the page cause the scrollbar to toggle. */
+html {
+    scrollbar-gutter: stable;
+}
+
+/* Scroll events captured by the scrolling area you're pointing at, by default. */
+html {
+    overscroll-behavior: contain;
+}
+
+/* Antialiased rendering looks better on high-DPI (retina) screens.
+   On lower-DPI displays, subpixel antialiasing (the default) can be
+   sharper, so this is slightly lossy on older monitors.
+   Enable kerning and ligatures at small font-sizes by default. */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-smooth: always;
+    text-rendering: optimizeLegibility;
+}
+
+/* A unitless line-height avoids inheritance math issues.
+   The smaller default line-height for h-elements avoids excessive
+   line-height when your design system (likely) applies larger fonts.
+   WCAG recommends at least 1.5 for body copy. */
+body {
+    line-height: 1.5;
+}
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.1;
+}
+
+/* Prevents long URLs or unbreakable strings from blowing out their container. */
+p, h1, h2, h3, h4, h5, h6 {
+    overflow-wrap: break-word;
+}
+
+/* Smarter line-breaking:
+   'pretty' avoids widows (lone words on the last line of a paragraph).
+   'balance' distributes heading text more evenly across lines.
+   Harmless in browsers that don't support them. */
+p {
+    text-wrap: pretty;
+}
+h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+}
+
+/* Headings carry semantic meaning, not visual weight.
+   h1–h6 sizing and boldness should come from your design system. */
+h1, h2, h3, h4, h5, h6 {
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+/* Inline embedded content has a gap at the bottom caused by baseline alignment.
+   Block display removes it; max-width prevents overflow.
+   height: auto preserves aspect ratio when max-width constrains the width. */
+img, picture, video, canvas, svg, embed, iframe, object, audio {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/* Exemption for SVG icons (Heroicons/Lucide/Phosphor, etc.) with explicit sizes:
+   these should not be constrained. */
+svg[width][height] {
+    max-width: revert;
+}
+
+/* Strips visual chrome from buttons so they can be styled from scratch. */
+/*button {
+    background: none;
+    border: none;
+}*/
+/* Filip: we actually use the OS button for the old-school vibe */
+button {
+    padding: 0.1em 0.3em;
+}
+
+/* Form elements use OS-level fonts and ignore font inheritance by default. */
+input, button, textarea, select {
+    font: inherit;
+}
+
+/* Strips OS-level native styling from interactive elements.
+   Leaves border and background intact, providing accessibility by default.
+   Visual styling should be handled by the design system. */
+/*input, button, textarea, select {
+    -webkit-appearance: none;
+    appearance: none;
+}*/
+
+/* Anything interactive should signal clickability.
+   'button' attribute targets [type="button"], [type="submit"], etc. */
+button,
+[role="button"],
+label,
+summary,
+select {
+    cursor: pointer;
+}
+
+/* Inherit color by default so links don't always appear in browser-default blue.
+   Text-decoration is intentionally left as underlined for accessibility. */
+a {
+    color: inherit;
+}
+
+/* Removes bullets/numbers.
+   list markers should be an explicit choice, not a default. */
+ul, ol {
+    list-style: none;
+}
+
+/* Tables default to separated borders with spacing between cells.
+   For any custom table design, you'll want to collapse the borders. */
+table {
+    border-collapse: collapse;
+}
+
+/* Browsers apply bold to <th> elements.
+   Boldness in tables should be controlled by your design system. */
+th {
+    font-weight: inherit;
+}
+
+/* Fieldsets have a surprise border and padding that most UIs don't want. */
+fieldset {
+    border: none;
+    padding: 0;
+}
+
+/* More of a normalization, but these are inconsistently styled in some browsers. */
+sub,
+sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+}
+sub { bottom: -0.25em; }
+sup { top: -0.5em; }
+
+/* Ensures monospace elements render at the same size as surrounding text. */
+pre, code, kbd, samp {
+    font-family: monospace;
+    font-size: inherit;
+}
+
+/* Browser-generated quotation marks are rarely wanted in a design system. */
+blockquote,
+q {
+    quotes: none;
+}
+blockquote::before,
+blockquote::after,
+q::before,
+q::after {
+    content: none;
+}
+
+/* Creates an explicit stacking context on the app root.
+   Prevents z-index bleed from portals, modals, or tooltips
+   from leaking out unexpectedly. */
+#root {
+    isolation: isolate;
+}
