@@ -367,3 +367,184 @@ int calculateBootstrapSampleSize({
   }
   return result;
 }
+
+/// Result of a statistical significance test on paired differences.
+final class SignificanceResult {
+  /// Whether there is statistically significant evidence of improvement
+  /// of at least the SESOI (or rejection of H0).
+  final bool isSignificant;
+
+  /// The observed absolute t-statistic of the sample.
+  final double tStatistic;
+
+  /// The critical value against which [tStatistic] was compared.
+  final double tCritical;
+
+  /// Whether [tCritical] was calibrated via bootstrap-t, or fell back
+  /// to the parametric Student's t critical value.
+  final bool isCalibrated;
+
+  /// The sample mean difference.
+  final double meanDiff;
+
+  const SignificanceResult({
+    required this.isSignificant,
+    required this.tStatistic,
+    required this.tCritical,
+    required this.isCalibrated,
+    required this.meanDiff,
+  });
+
+  @override
+  String toString() =>
+      'SignificanceResult(isSignificant: $isSignificant, meanDiff: $meanDiff, |t|: $tStatistic, tCrit: $tCritical, calibrated: $isCalibrated)';
+}
+
+/// Computes the win rate (proportion of paired measurements where the variant
+/// won against baseline).
+///
+/// For performance timings where lower is better ([lowerIsBetter] is true),
+/// a negative difference (`variant - baseline < 0`) is a win (1.0), zero difference
+/// is a tie (0.5), and a positive difference is a loss (0.0).
+///
+/// Returns null if [diffs] is empty.
+double? calculateWinRate(List<double> diffs, {bool lowerIsBetter = true}) {
+  if (diffs.isEmpty) return null;
+  var wins = 0.0;
+  for (final d in diffs) {
+    if (d == 0.0) {
+      wins += 0.5;
+    } else if (lowerIsBetter ? d < 0.0 : d > 0.0) {
+      wins += 1.0;
+    }
+  }
+  return wins / diffs.length;
+}
+
+/// Tests whether there is statistically significant evidence of improvement
+/// of at least [sesoi] (as a fraction of [baseMean]) in the paired differences [diffs]
+/// at significance level [alpha].
+///
+/// For frame timings where lower is better ([lowerIsBetter] is true), an improvement
+/// requires a negative mean difference ([meanDiff] <= -sesoi * baseMean) and a
+/// one-tailed rejection of the null hypothesis at level [alpha].
+///
+/// Uses [calibratedCriticalValue] when [diffs] has at least [kMinPilotForCalibration]
+/// observations and [calibrated] is true, otherwise falling back to [studentTCriticalValue].
+SignificanceResult testSignificance({
+  required List<double> diffs,
+  double? baseMean,
+  double? sesoi,
+  double alpha = 0.05,
+  bool lowerIsBetter = true,
+  bool calibrated = true,
+  int seed = 0,
+  int nCalibrationSims = 20000,
+}) {
+  if (diffs.length < 2) {
+    throw ArgumentError.value(diffs, 'diffs', 'needs at least 2 values');
+  }
+  if (alpha <= 0 || alpha >= 1) {
+    throw ArgumentError.value(alpha, 'alpha', 'must be in (0, 1)');
+  }
+
+  var sum = 0.0;
+  for (final d in diffs) {
+    sum += d;
+  }
+  final meanDiff = sum / diffs.length;
+  final noise = [for (final d in diffs) d - meanDiff];
+
+  // For one-tailed test at alpha, we use two-tailed alpha of min(1.0, 2 * alpha).
+  final twoTailedAlpha = min(1.0 - 1e-9, alpha * 2.0);
+
+  if (noise.every((d) => d == 0.0)) {
+    final isImprovement = lowerIsBetter ? meanDiff < 0.0 : meanDiff > 0.0;
+    final meetsSesoi = baseMean == null ||
+        sesoi == null ||
+        (lowerIsBetter
+            ? meanDiff <= -baseMean.abs() * sesoi.abs()
+            : meanDiff >= baseMean.abs() * sesoi.abs());
+    return SignificanceResult(
+      isSignificant: isImprovement && meetsSesoi,
+      tStatistic: meanDiff == 0.0 ? 0.0 : double.infinity,
+      tCritical: double.infinity,
+      isCalibrated: false,
+      meanDiff: meanDiff,
+    );
+  }
+
+  final tStat = _absT(diffs);
+  final usedCalibration = calibrated && diffs.length >= kMinPilotForCalibration;
+  final actualCalSims = _calibrationSimsFor(diffs.length, nCalibrationSims);
+  final tCrit = usedCalibration
+      ? calibratedCriticalValue(
+          centeredNoise: noise,
+          nRounds: diffs.length,
+          alpha: twoTailedAlpha,
+          nSims: actualCalSims,
+          seed: seed,
+        )
+      : studentTCriticalValue(diffs.length - 1, twoTailedAlpha);
+
+  final isImprovement = lowerIsBetter ? meanDiff < 0.0 : meanDiff > 0.0;
+  final meetsSesoi = baseMean == null ||
+      sesoi == null ||
+      (lowerIsBetter
+          ? meanDiff <= -baseMean.abs() * sesoi.abs()
+          : meanDiff >= baseMean.abs() * sesoi.abs());
+
+  final isSignificant = isImprovement && meetsSesoi && tStat > tCrit;
+
+  return SignificanceResult(
+    isSignificant: isSignificant,
+    tStatistic: tStat,
+    tCritical: tCrit,
+    isCalibrated: usedCalibration,
+    meanDiff: meanDiff,
+  );
+}
+
+/// Estimates the statistical power to detect an effect of magnitude [sesoi]
+/// (as a fraction of [baseMean]) with significance level [alpha] given the
+/// observed noise in [diffs] at the current sample size (`diffs.length`).
+///
+/// Returns null if [diffs] has fewer than 2 values, or if [baseMean] or [sesoi] is 0.
+double? estimatePower({
+  required List<double> diffs,
+  required double baseMean,
+  required double sesoi,
+  double alpha = 0.05,
+  int nSims = 5000,
+  int seed = 0,
+  bool calibrated = true,
+  int nCalibrationSims = 20000,
+}) {
+  if (diffs.length < 2 || baseMean == 0 || sesoi == 0) return null;
+  if (alpha <= 0 || alpha >= 1) {
+    throw ArgumentError.value(alpha, 'alpha', 'must be in (0, 1)');
+  }
+
+  var sum = 0.0;
+  for (final d in diffs) {
+    sum += d;
+  }
+  final meanDiff = sum / diffs.length;
+  final noise = [for (final d in diffs) d - meanDiff];
+
+  if (noise.every((d) => d == 0.0)) {
+    return 1.0;
+  }
+
+  final trueEffect = (baseMean * sesoi).abs();
+  return estimatePowerAt(
+    centeredNoise: noise,
+    trueEffect: trueEffect,
+    nRounds: diffs.length,
+    alpha: alpha,
+    nSims: nSims,
+    seed: seed,
+    calibrated: calibrated,
+    nCalibrationSims: nCalibrationSims,
+  );
+}

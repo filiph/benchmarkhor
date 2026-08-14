@@ -315,6 +315,79 @@ void main() {
           'Bootstrap suggested minimum sample size for build_mean_change_alt:',
         ),
       );
+      expect(
+        result.stdout,
+        matches(
+          RegExp(r'\[(\*| ) win:\s*(\d+|--)%\]\s+.*\bbuild_mean_change_alt\b'),
+        ),
+      );
+    });
+
+    test('logs asterisk marker and win rate for significant changes', () async {
+      final sessionDir = Directory(p.join(tempDir.path, 'session_sig'));
+      final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
+      await trialsDir.create(recursive: true);
+
+      final sessionJson = File(p.join(sessionDir.path, 'session.json'));
+      await sessionJson.writeAsString(
+        jsonEncode({
+          'schema_version': 1,
+          'variants': {
+            'base': {'apk': 'base.apk'},
+            'alt': {'apk': 'alt.apk'},
+          },
+        }),
+      );
+
+      // Distinct, non-zero difference across rounds
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-001',
+        variantName: 'base',
+        round: 1,
+        buildTimes: [100.0, 102.0],
+        rasterTimes: [20.0, 20.0],
+      );
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-002',
+        variantName: 'alt',
+        round: 1,
+        buildTimes: [10.0, 12.0],
+        rasterTimes: [20.0, 20.0],
+      );
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-003',
+        variantName: 'base',
+        round: 2,
+        buildTimes: [101.0, 103.0],
+        rasterTimes: [20.0, 20.0],
+      );
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-004',
+        variantName: 'alt',
+        round: 2,
+        buildTimes: [11.0, 13.0],
+        rasterTimes: [20.0, 20.0],
+      );
+
+      final outDir = Directory(p.join(tempDir.path, 'out_sig'));
+
+      final result = await Process.run('dart', [
+        'run',
+        'bin/extract_dat.dart',
+        sessionDir.path,
+        '-o',
+        outDir.path,
+      ]);
+
+      expect(result.exitCode, equals(0));
+      expect(
+        result.stdout,
+        matches(RegExp(r'\[\* win:100%\]\s+.*\bbuild_mean_change_alt\b')),
+      );
     });
   });
 }

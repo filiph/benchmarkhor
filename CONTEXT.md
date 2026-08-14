@@ -74,3 +74,12 @@ The estimated minimum number of trials or rounds required per variant to achieve
 
 ### Calibrated Bootstrap
 An empirical critical value calculation (studentized bootstrap-t resampling) that holds the false-positive rate at $\alpha$ under skewed noise distributions. It is enabled by default for sample size estimation, falling back to the parametric Student's t critical value when the pilot observation count is small ($n < 20$).
+
+### Win Rate
+The proportion of paired rounds in which the variant outperforms the baseline (e.g., $\text{change} < 0$, with ties credited as $0.5$), measuring the non-parametric effect size of the comparison.
+
+### Statistical Power
+The probability that an experiment will detect a true effect of at least the **SESOI** when one exists, given the observed noise distribution, sample size, and significance level ($\alpha$).
+
+### Significance Test
+A hypothesis test evaluating whether there is statistically significant evidence of improvement of at least the **SESOI** ($\bar{d} \le -\text{SESOI} \times \text{baseMean}$ and one-tailed $p < \alpha$) using the **Calibrated Bootstrap**.

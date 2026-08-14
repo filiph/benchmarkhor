@@ -612,26 +612,30 @@ void _writeChangeAggregatesForTiming({
       log.fine('$designation data length is less than 2, cannot create stats');
     } else {
       final baseStats = Statistic.from(baseData, name: '$designation baseline');
-      final varStats = Statistic.from(varData, name: '$designation variant');
       final changeStats = Statistic.from(changes, name: designation);
-
-      final medianIsDifferent = varStats.isDifferentFrom(baseStats);
-      final meanIsDifferent =
-          (varStats.lowerBound < baseStats.lowerBound &&
-              varStats.upperBound < baseStats.lowerBound) ||
-          (varStats.lowerBound > baseStats.upperBound &&
-              varStats.upperBound > baseStats.upperBound);
-
-      final significanceMarker = (medianIsDifferent && meanIsDifferent)
-          ? 'BOTH'
-          : medianIsDifferent
-          ? 'medi'
-          : meanIsDifferent
-          ? 'mean'
-          : '    ';
-      log.info('$significanceMarker ${changeStats.toString()}');
-
       final baseMean = baseStats.mean.toDouble();
+
+      SignificanceResult? sigResult;
+      try {
+        sigResult = testSignificance(
+          diffs: changes,
+          baseMean: baseMean,
+          sesoi: bootstrapSesoi,
+          alpha: bootstrapAlpha,
+        );
+      } catch (_) {
+        sigResult = null;
+      }
+
+      final winRate = calculateWinRate(changes);
+
+      final sigChar = (sigResult?.isSignificant ?? false) ? '*' : ' ';
+      final winRateStr = winRate != null
+          ? '${(winRate * 100).round().toString().padLeft(3)}%'
+          : ' --%';
+      final prefix = '[$sigChar win:$winRateStr]';
+
+      log.info('$prefix ${changeStats.toString()}');
 
       int? sampleSize;
       String? unavailableBecause;

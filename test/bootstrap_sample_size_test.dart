@@ -683,6 +683,165 @@ void main() {
         );
       },
     );
+
+    group('calculateWinRate', () {
+      test('returns null on empty list', () {
+        expect(calculateWinRate([]), isNull);
+      });
+
+      test('calculates correct win rate with lowerIsBetter true', () {
+        // 2 wins (-5, -2), 1 tie (0), 1 loss (3) -> (2 + 0.5) / 4 = 2.5 / 4 = 0.625
+        expect(calculateWinRate([-5.0, -2.0, 0.0, 3.0]), equals(0.625));
+        expect(calculateWinRate([-10.0, -5.0]), equals(1.0));
+        expect(calculateWinRate([10.0, 5.0]), equals(0.0));
+        expect(calculateWinRate([0.0, 0.0]), equals(0.5));
+      });
+
+      test('calculates correct win rate with lowerIsBetter false', () {
+        // Higher is better: 2 wins (5, 2), 1 tie (0), 1 loss (-3)
+        expect(
+          calculateWinRate([5.0, 2.0, 0.0, -3.0], lowerIsBetter: false),
+          equals(0.625),
+        );
+      });
+    });
+
+    group('testSignificance', () {
+      test('throws on insufficient diffs or invalid alpha', () {
+        expect(() => testSignificance(diffs: [1.0]), throwsArgumentError);
+        expect(
+          () => testSignificance(diffs: [1.0, 2.0], alpha: 0.0),
+          throwsArgumentError,
+        );
+        expect(
+          () => testSignificance(diffs: [1.0, 2.0], alpha: 1.0),
+          throwsArgumentError,
+        );
+      });
+
+      test('handles zero-variance edge cases cleanly', () {
+        final zeroDiffs = testSignificance(diffs: [0.0, 0.0, 0.0]);
+        expect(zeroDiffs.isSignificant, isFalse);
+        expect(zeroDiffs.tStatistic, equals(0.0));
+
+        // Negative diff is an improvement (lower is better)
+        final constImprovement = testSignificance(
+          diffs: [-5.0, -5.0, -5.0],
+          baseMean: 100.0,
+          sesoi: 0.05,
+        );
+        expect(constImprovement.isSignificant, isTrue);
+        expect(constImprovement.tStatistic, equals(double.infinity));
+
+        // Positive diff is a regression (not an improvement)
+        final constRegression = testSignificance(
+          diffs: [5.0, 5.0, 5.0],
+          baseMean: 100.0,
+          sesoi: 0.05,
+        );
+        expect(constRegression.isSignificant, isFalse);
+      });
+
+      test('rejects H0 for large clear improvement meeting SESOI', () {
+        final diffs = [-10.0, -12.0, -11.0, -9.5, -10.5, -11.2, -10.8, -9.8];
+        final res = testSignificance(
+          diffs: diffs,
+          baseMean: 100.0,
+          sesoi: 0.05,
+          alpha: 0.05,
+        );
+        expect(res.isSignificant, isTrue);
+        expect(res.tStatistic, greaterThan(res.tCritical));
+      });
+
+      test('does not reject H0 when improvement is below SESOI', () {
+        // Significant difference of ~1.0, but SESOI requires 5.0 (5% of 100)
+        final diffs = [-1.0, -1.2, -1.1, -0.95, -1.05, -1.12, -1.08, -0.98];
+        final res = testSignificance(
+          diffs: diffs,
+          baseMean: 100.0,
+          sesoi: 0.05,
+          alpha: 0.05,
+        );
+        expect(res.isSignificant, isFalse);
+      });
+
+      test('does not reject H0 for regression (worsening times)', () {
+        final diffs = [10.0, 12.0, 11.0, 9.5, 10.5, 11.2, 10.8, 9.8];
+        final res = testSignificance(
+          diffs: diffs,
+          baseMean: 100.0,
+          sesoi: 0.05,
+          alpha: 0.05,
+        );
+        expect(res.isSignificant, isFalse);
+      });
+
+      test('does not reject H0 for centered random noise', () {
+        final diffs = [-2.0, 2.1, -1.8, 1.9, -0.5, 0.4, -1.0, 1.1];
+        final res = testSignificance(diffs: diffs, alpha: 0.05);
+        expect(res.isSignificant, isFalse);
+      });
+
+      test('uses calibration only when pilot >= 20 and calibrated is true', () {
+        final smallDiffs = List.generate(
+          19,
+          (i) => (i % 2 == 0 ? 1.0 : -1.0) * (i + 1),
+        );
+        final resSmall = testSignificance(diffs: smallDiffs);
+        expect(resSmall.isCalibrated, isFalse);
+
+        final largeDiffs = List.generate(
+          25,
+          (i) => (i % 2 == 0 ? 1.0 : -1.0) * (i + 1),
+        );
+        final resLarge = testSignificance(diffs: largeDiffs);
+        expect(resLarge.isCalibrated, isTrue);
+
+        final resParametric = testSignificance(
+          diffs: largeDiffs,
+          calibrated: false,
+        );
+        expect(resParametric.isCalibrated, isFalse);
+      });
+    });
+
+    group('estimatePower', () {
+      test('returns null for invalid / degenerate parameters', () {
+        expect(estimatePower(diffs: [1.0], baseMean: 100.0, sesoi: 0.05), isNull);
+        expect(estimatePower(diffs: [1.0, 2.0], baseMean: 0.0, sesoi: 0.05), isNull);
+        expect(estimatePower(diffs: [1.0, 2.0], baseMean: 100.0, sesoi: 0.0), isNull);
+      });
+
+      test('returns 1.0 on zero variance with non-zero effect', () {
+        final power = estimatePower(
+          diffs: [2.0, 2.0, 2.0, 2.0],
+          baseMean: 100.0,
+          sesoi: 0.05,
+        );
+        expect(power, equals(1.0));
+      });
+
+      test('power scales with SESOI and sample size', () {
+        final noise = normalNoise(50, 10.0);
+        final powerSmallSesoi = estimatePower(
+          diffs: noise,
+          baseMean: 100.0,
+          sesoi: 0.01,
+          nSims: 1000,
+        );
+        final powerLargeSesoi = estimatePower(
+          diffs: noise,
+          baseMean: 100.0,
+          sesoi: 0.10,
+          nSims: 1000,
+        );
+
+        expect(powerSmallSesoi, isNotNull);
+        expect(powerLargeSesoi, isNotNull);
+        expect(powerLargeSesoi!, greaterThan(powerSmallSesoi!));
+      });
+    });
   }, timeout: const Timeout(Duration(minutes: 2)));
 }
 
