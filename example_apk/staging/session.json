@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "name": "upside-of-smaller-image",
-  "description": "Compare baseline (full size JPG) with a version with scaled down image",
+  "name": "upside-of-smaller-image-set-height",
+  "description": "Compare baseline (full size JPG) with a version with scaled down image (but height is the same)",
   "variants": {
     "baseline": {
       "apk": "baseline.apk",

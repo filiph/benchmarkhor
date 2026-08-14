@@ -56,7 +56,10 @@ class _ExpensiveItem extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: (index % 10 == 0)
-          ? Image.asset('assets/bond+friend.jpg', fit: BoxFit.cover)
+          ? SizedBox(
+              height: 100,
+              child: Image.asset('assets/bond+friend.jpg', fit: BoxFit.cover),
+            )
           : Row(
               children: [
                 SizedBox(
