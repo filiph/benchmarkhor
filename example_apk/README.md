@@ -46,6 +46,15 @@ one. The two Dart Trial files are near-identical on purpose; if you change the
 workload in one, change it in the other, or the **Variants** stop being
 comparable and nothing will warn you.
 
+That hand-maintained invariant is why **this app is not a template.** A real
+project's **Variants** are git states, not two code paths in one tree, so it owns
+one Trial per performance concern and builds it once per commit — see
+[ADR 0005](../doc/adr/0005-a-variant-is-a-git-state.md). This app is exempt
+because a fixture has to produce an **APK Pair** per Variant from a single clone,
+with no history to lean on. Anyone setting up benchmarks for an actual app wants
+the `filiph-benchmarkhor-prepare-apks` skill and `adb_server`'s `/llms.txt`, not
+a copy of this directory's shape.
+
 ## Running the Trial
 
 ```sh

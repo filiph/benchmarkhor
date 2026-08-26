@@ -10,6 +10,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'adb.dart';
 import 'config.dart';
 import 'device_probe.dart';
+import 'llms_txt.dart';
 import 'logging.dart';
 import 'models.dart';
 import 'runner.dart';
@@ -104,39 +105,62 @@ class Api {
     return Cascade().add(router.call).add(jasprHandler).handler;
   }
 
+  /// Builds the shelf [Router] from [kApiRouteTable] so the `/llms.txt`
+  /// inventory cannot drift from the live registrations.
   Router get router {
     final router = Router();
 
-    router.get('/health', _health);
-    router.get('/api/sessions', _listSessions);
-    router.post('/api/sessions', _submitSession);
-    router.post('/api/sessions/discover', _discoverSessions);
-    router.get('/api/sessions/<id>', _sessionDetail);
-    router.post('/api/sessions/<id>/cancel', _cancelSession);
-    router.post('/api/sessions/<id>/requeue', _requeueSession);
-    router.post('/api/queue/next', _queueNext);
-    router.get('/api/device', _deviceProbe);
-    router.get(
-      '/api/sessions/<id>/trials/<trial>/results/<file>',
-      _serveResult,
-    );
-    router.get(
-      '/api/sessions/<id>/trials/<trial>/adb.log',
-      _serveTrialArtifact,
-    );
-    router.get(
-      '/api/sessions/<id>/trials/<trial>/logcat.txt',
-      _serveTrialArtifact,
-    );
-    router.get(
-      '/api/sessions/<id>/trials/<trial>/trial.json',
-      _serveTrialArtifact,
-    );
-    router.get('/api/sessions/<id>/log', _sessionLog);
-    router.get('/api/logs/server.log', _serverLog);
+    for (final route in kApiRouteTable) {
+      // '/' is served by the Jaspr cascade fallback, not the shelf router.
+      if (route.path == '/') continue;
+
+      final handler = _handlerFor(route);
+      switch (route.method) {
+        case 'GET':
+          router.get(route.path, handler);
+        case 'POST':
+          router.post(route.path, handler);
+        default:
+          throw UnsupportedError(
+            'Unsupported method in kApiRouteTable: ${route.method} ${route.path}',
+          );
+      }
+    }
 
     return router;
   }
+
+  /// Maps a [kApiRouteTable] entry to its handler. Throws if a table row has
+  /// no handler — that is how drift fails loudly at first request setup.
+  Function _handlerFor(ApiRoute route) => switch ((route.method, route.path)) {
+    ('GET', '/health') => _health,
+    ('GET', '/llms.txt') => _llmsTxt,
+    ('GET', '/api/sessions') => _listSessions,
+    ('POST', '/api/sessions') => _submitSession,
+    ('POST', '/api/sessions/discover') => _discoverSessions,
+    ('GET', '/api/sessions/<id>') => _sessionDetail,
+    ('POST', '/api/sessions/<id>/cancel') => _cancelSession,
+    ('POST', '/api/sessions/<id>/requeue') => _requeueSession,
+    ('POST', '/api/queue/next') => _queueNext,
+    ('GET', '/api/device') => _deviceProbe,
+    ('GET', '/api/sessions/<id>/trials/<trial>/results/<file>') => _serveResult,
+    ('GET', '/api/sessions/<id>/trials/<trial>/adb.log') => _serveTrialArtifact,
+    ('GET', '/api/sessions/<id>/trials/<trial>/logcat.txt') =>
+      _serveTrialArtifact,
+    ('GET', '/api/sessions/<id>/trials/<trial>/trial.json') =>
+      _serveTrialArtifact,
+    ('GET', '/api/sessions/<id>/log') => _sessionLog,
+    ('GET', '/api/logs/server.log') => _serverLog,
+    _ => throw StateError(
+      'No handler wired for ${route.method} ${route.path} — '
+      'add it to Api._handlerFor or remove it from kApiRouteTable.',
+    ),
+  };
+
+  Response _llmsTxt(Request request) => Response.ok(
+    generateLlmsTxt(gitCommit: config.gitCommit),
+    headers: {'content-type': 'text/plain; charset=utf-8'},
+  );
 
   Response _json(Object? body, {int status = 200}) => Response(
     status,

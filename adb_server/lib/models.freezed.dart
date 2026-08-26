@@ -15,7 +15,16 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$VariantSpec {
 
- String get apk; String get testApk;
+ String get apk; String get testApk;/// Documentation-only provenance of the git state this **Variant** was
+/// built from, e.g. `git 4f2a1c9 (dirty)` or
+/// `uncommitted working tree 2026-08-26T10:12Z`.
+///
+/// Nothing resolves this string — it is not a ref, a path, or a URL.
+/// It exists because a **Variant** is a git state (ADR 0005), and a
+/// Session Directory whose Variants came from unnamed commits cannot be
+/// interpreted a week later. Optional and additive: omitted from
+/// `session.json` is fine; `schema_version` stays at 1.
+ String? get source;
 /// Create a copy of VariantSpec
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +37,16 @@ $VariantSpecCopyWith<VariantSpec> get copyWith => _$VariantSpecCopyWithImpl<Vari
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is VariantSpec&&(identical(other.apk, apk) || other.apk == apk)&&(identical(other.testApk, testApk) || other.testApk == testApk));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is VariantSpec&&(identical(other.apk, apk) || other.apk == apk)&&(identical(other.testApk, testApk) || other.testApk == testApk)&&(identical(other.source, source) || other.source == source));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,apk,testApk);
+int get hashCode => Object.hash(runtimeType,apk,testApk,source);
 
 @override
 String toString() {
-  return 'VariantSpec(apk: $apk, testApk: $testApk)';
+  return 'VariantSpec(apk: $apk, testApk: $testApk, source: $source)';
 }
 
 
@@ -48,7 +57,7 @@ abstract mixin class $VariantSpecCopyWith<$Res>  {
   factory $VariantSpecCopyWith(VariantSpec value, $Res Function(VariantSpec) _then) = _$VariantSpecCopyWithImpl;
 @useResult
 $Res call({
- String apk, String testApk
+ String apk, String testApk, String? source
 });
 
 
@@ -65,11 +74,12 @@ class _$VariantSpecCopyWithImpl<$Res>
 
 /// Create a copy of VariantSpec
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? apk = null,Object? testApk = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? apk = null,Object? testApk = null,Object? source = freezed,}) {
   return _then(_self.copyWith(
 apk: null == apk ? _self.apk : apk // ignore: cast_nullable_to_non_nullable
 as String,testApk: null == testApk ? _self.testApk : testApk // ignore: cast_nullable_to_non_nullable
-as String,
+as String,source: freezed == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -154,10 +164,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String apk,  String testApk)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String apk,  String testApk,  String? source)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _VariantSpec() when $default != null:
-return $default(_that.apk,_that.testApk);case _:
+return $default(_that.apk,_that.testApk,_that.source);case _:
   return orElse();
 
 }
@@ -175,10 +185,10 @@ return $default(_that.apk,_that.testApk);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String apk,  String testApk)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String apk,  String testApk,  String? source)  $default,) {final _that = this;
 switch (_that) {
 case _VariantSpec():
-return $default(_that.apk,_that.testApk);case _:
+return $default(_that.apk,_that.testApk,_that.source);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -195,10 +205,10 @@ return $default(_that.apk,_that.testApk);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String apk,  String testApk)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String apk,  String testApk,  String? source)?  $default,) {final _that = this;
 switch (_that) {
 case _VariantSpec() when $default != null:
-return $default(_that.apk,_that.testApk);case _:
+return $default(_that.apk,_that.testApk,_that.source);case _:
   return null;
 
 }
@@ -208,13 +218,23 @@ return $default(_that.apk,_that.testApk);case _:
 
 /// @nodoc
 
-@JsonSerializable(fieldRename: FieldRename.snake)
+@JsonSerializable(fieldRename: FieldRename.snake, includeIfNull: false)
 class _VariantSpec extends VariantSpec {
-  const _VariantSpec({this.apk = 'app.apk', this.testApk = 'app-test.apk'}): super._();
+  const _VariantSpec({this.apk = 'app.apk', this.testApk = 'app-test.apk', this.source}): super._();
   factory _VariantSpec.fromJson(Map<String, dynamic> json) => _$VariantSpecFromJson(json);
 
 @override@JsonKey() final  String apk;
 @override@JsonKey() final  String testApk;
+/// Documentation-only provenance of the git state this **Variant** was
+/// built from, e.g. `git 4f2a1c9 (dirty)` or
+/// `uncommitted working tree 2026-08-26T10:12Z`.
+///
+/// Nothing resolves this string — it is not a ref, a path, or a URL.
+/// It exists because a **Variant** is a git state (ADR 0005), and a
+/// Session Directory whose Variants came from unnamed commits cannot be
+/// interpreted a week later. Optional and additive: omitted from
+/// `session.json` is fine; `schema_version` stays at 1.
+@override final  String? source;
 
 /// Create a copy of VariantSpec
 /// with the given fields replaced by the non-null parameter values.
@@ -229,16 +249,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _VariantSpec&&(identical(other.apk, apk) || other.apk == apk)&&(identical(other.testApk, testApk) || other.testApk == testApk));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _VariantSpec&&(identical(other.apk, apk) || other.apk == apk)&&(identical(other.testApk, testApk) || other.testApk == testApk)&&(identical(other.source, source) || other.source == source));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,apk,testApk);
+int get hashCode => Object.hash(runtimeType,apk,testApk,source);
 
 @override
 String toString() {
-  return 'VariantSpec(apk: $apk, testApk: $testApk)';
+  return 'VariantSpec(apk: $apk, testApk: $testApk, source: $source)';
 }
 
 
@@ -249,7 +269,7 @@ abstract mixin class _$VariantSpecCopyWith<$Res> implements $VariantSpecCopyWith
   factory _$VariantSpecCopyWith(_VariantSpec value, $Res Function(_VariantSpec) _then) = __$VariantSpecCopyWithImpl;
 @override @useResult
 $Res call({
- String apk, String testApk
+ String apk, String testApk, String? source
 });
 
 
@@ -266,11 +286,12 @@ class __$VariantSpecCopyWithImpl<$Res>
 
 /// Create a copy of VariantSpec
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? apk = null,Object? testApk = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? apk = null,Object? testApk = null,Object? source = freezed,}) {
   return _then(_VariantSpec(
 apk: null == apk ? _self.apk : apk // ignore: cast_nullable_to_non_nullable
 as String,testApk: null == testApk ? _self.testApk : testApk // ignore: cast_nullable_to_non_nullable
-as String,
+as String,source: freezed == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

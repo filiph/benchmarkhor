@@ -31,10 +31,21 @@ abstract class VariantSpec with _$VariantSpec {
   const VariantSpec._();
 
   // ignore: invalid_annotation_target
-  @JsonSerializable(fieldRename: FieldRename.snake)
+  @JsonSerializable(fieldRename: FieldRename.snake, includeIfNull: false)
   const factory VariantSpec({
     @Default('app.apk') String apk,
     @Default('app-test.apk') String testApk,
+
+    /// Documentation-only provenance of the git state this **Variant** was
+    /// built from, e.g. `git 4f2a1c9 (dirty)` or
+    /// `uncommitted working tree 2026-08-26T10:12Z`.
+    ///
+    /// Nothing resolves this string — it is not a ref, a path, or a URL.
+    /// It exists because a **Variant** is a git state (ADR 0005), and a
+    /// Session Directory whose Variants came from unnamed commits cannot be
+    /// interpreted a week later. Optional and additive: omitted from
+    /// `session.json` is fine; `schema_version` stays at 1.
+    String? source,
   }) = _VariantSpec;
 
   factory VariantSpec.fromJson(Map<String, dynamic> json) =>

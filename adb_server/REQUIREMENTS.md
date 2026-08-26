@@ -122,11 +122,13 @@ Design a minimal schema, roughly:
   "variants": {
     "baseline": {
       "apk": "baseline.apk",
-      "test_apk": "baseline-test.apk"
+      "test_apk": "baseline-test.apk",
+      "source": "git 4f2a1c9"
     },
     "improved": {
       "apk": "improved.apk",
-      "test_apk": "improved-test.apk"
+      "test_apk": "improved-test.apk",
+      "source": "git 4f2a1c9 (dirty) + WIP scroll fix"
     }
   },
   "package": "com.example.example_apk",
@@ -143,6 +145,8 @@ Design a minimal schema, roughly:
 `instrumentation_runner` is the `android:name` of the `<instrumentation>` element in the **test APK**'s manifest, which for a Flutter `androidTest` APK is `androidx.test.runner.AndroidJUnitRunner`. It is *not* `dev.flutter.plugins.integration_test.FlutterTestRunner`: that is a JUnit runner named in a `@RunWith` annotation inside the test APK (see `example_apk/android/app/src/androidTest/.../MainActivityTest.java`), not an `android.app.Instrumentation`, and `am instrument` fails outright if handed it.
 
 `rounds` = how many **Rounds** the server executes. Each Round involves running every **Variant** once, in random order, with a fresh install/uninstall cycle per **Trial**.
+
+`source` (optional, on each **Variant**) is a free-form provenance string recording which git state that **Variant** was built from, e.g. `git 4f2a1c9 (dirty)`. Documentation only — nothing resolves it. It exists because a **Variant** is a git state (ADR 0005). Additive on `schema_version` 1: omitted is fine; existing `session.json` files parse unchanged.
 
 Validate the schema on read. A malformed `session.json` must move the session to state `invalid` **immediately, with the parse error recorded in `status.json`** -- never retried in a loop.
 
@@ -186,6 +190,7 @@ Bind `0.0.0.0` on a configurable port (default `8080`). All JSON responses, `app
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Liveness. Returns version, uptime, `busy: bool`, config summary. |
+| `GET` | `/llms.txt` | Agent briefing (`text/plain`): Session Directory lifecycle, `session.json` schema, completion contract, build traps. No auth, no adb. |
 | `GET` | `/api/sessions` | List sessions. Optional `?state=queued`. Returns summaries, newest first. |
 | `GET` | `/api/sessions/<id>` | Full detail: merged `session.json` + `status.json` + list of trials. |
 | `POST` | `/api/sessions` | Create a session. See below. |

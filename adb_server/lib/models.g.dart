@@ -9,10 +9,15 @@ part of 'models.dart';
 _VariantSpec _$VariantSpecFromJson(Map<String, dynamic> json) => _VariantSpec(
   apk: json['apk'] as String? ?? 'app.apk',
   testApk: json['test_apk'] as String? ?? 'app-test.apk',
+  source: json['source'] as String?,
 );
 
 Map<String, dynamic> _$VariantSpecToJson(_VariantSpec instance) =>
-    <String, dynamic>{'apk': instance.apk, 'test_apk': instance.testApk};
+    <String, dynamic>{
+      'apk': instance.apk,
+      'test_apk': instance.testApk,
+      'source': ?instance.source,
+    };
 
 _SessionSpec _$SessionSpecFromJson(Map<String, dynamic> json) => _SessionSpec(
   schemaVersion:
