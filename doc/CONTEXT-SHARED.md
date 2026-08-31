@@ -71,11 +71,11 @@ _Avoid_: Sample, tick, data point
 ### The measurements
 
 **Metric**:
-One number summarising all the **Frames** of a single **Trial** — a mean, a
-minimum, a maximum, a percentile, a **Superquantile**. A Metric turns a Trial
-into a point that can be compared with the same Metric of another Trial. It says
-nothing about *which* timing of a Frame is being summarised; build timing and
-raster timing are each summarised by the full set of Metrics.
+One number summarising all the **Frames** of a single **Trial** — a count ($n$),
+a mean, a minimum, a maximum, a percentile, a **Superquantile**. A Metric turns
+a Trial into a point that can be compared with the same Metric of another Trial.
+It says nothing about *which* timing of a Frame is being summarised; build timing
+and raster timing are each summarised by the full set of Metrics.
 _Avoid_: Statistic, aggregate, measure, score
 
 **Firsts**:
@@ -93,6 +93,12 @@ Trial than the single Frame a percentile happens to land on. Where a percentile
 answers "how bad is the frame at the edge of the tail", a Superquantile answers
 "how bad is the tail".
 _Avoid_: CVaR, expected shortfall, tail mean, average excess
+
+**Trial Duration**:
+The wall-clock duration of a single **Trial** from start to finish (`finishedAt - startedAt`),
+measured in microseconds. Like **Temperature**, it is an observation across a Trial used
+for sanity checking and comparing total execution overhead across **Variants**.
+_Avoid_: Wall time, run length, execution time
 
 ## Flagged ambiguities
 

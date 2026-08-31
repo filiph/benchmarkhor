@@ -4,10 +4,11 @@
 ///   dart bin/extract_dat.dart <session_path> [--output <dir>]
 ///
 /// This script creates .dat files for each trial and, for each variant, one
-/// value per trial for every metric (mean, min, max, p95, p99, p95
+/// value per trial for every metric (n, first, mean, min, max, p95, p99, p95
 /// superquantile), for both the build and the raster timing. When frames carry
 /// a `phase` tag, the metrics are also written per phase. It also writes
-/// `temperature.dat` with the device temperature at the end of each round.
+/// `duration_<variant>.dat` with the trial rendering duration in microseconds,
+/// and `temperature.dat` with the device temperature at the end of each round.
 /// It also writes change .dat files relative to the baseline variant (the first
 /// variant listed in session.json).
 library;
@@ -176,6 +177,8 @@ void main(List<String> arguments) async {
     final rasterTimes = <num>[];
     final buildTimesByPhase = <String, List<num>>{};
     final rasterTimesByPhase = <String, List<num>>{};
+    int? minVsyncStart;
+    int? maxRasterFinish;
 
     for (final line in framesFile.readAsLinesSync()) {
       if (line.trim().isEmpty) continue;
@@ -184,6 +187,20 @@ void main(List<String> arguments) async {
         final buildUs = frame['buildUs'] as num?;
         final rasterUs = frame['rasterUs'] as num?;
         final phase = (frame['phase'] as String?)?.trim() ?? '';
+        final vsyncStart = (frame['vsyncStart'] as num?)?.toInt();
+        final rasterFinish = (frame['rasterFinish'] as num?)?.toInt();
+
+        if (vsyncStart != null) {
+          if (minVsyncStart == null || vsyncStart < minVsyncStart) {
+            minVsyncStart = vsyncStart;
+          }
+        }
+        if (rasterFinish != null) {
+          if (maxRasterFinish == null || rasterFinish > maxRasterFinish) {
+            maxRasterFinish = rasterFinish;
+          }
+        }
+
         if (buildUs != null) {
           buildTimes.add(buildUs);
           if (phase.isNotEmpty) {
@@ -206,12 +223,22 @@ void main(List<String> arguments) async {
       continue;
     }
 
+    int? trialDurationUs;
+    if (minVsyncStart != null && maxRasterFinish != null) {
+      trialDurationUs = maxRasterFinish - minVsyncStart;
+    } else {
+      stderr.writeln(
+        'Warning: No valid vsyncStart/rasterFinish timestamps found for $trialId',
+      );
+    }
+
     final trialData = TrialData(
       trialId,
       buildTimes,
       rasterTimes,
       buildTimesByPhase,
       rasterTimesByPhase,
+      durationUs: trialDurationUs,
     );
     variantTrials.putIfAbsent(variantName, () => []).add(trialData);
     roundTrials.putIfAbsent(calculatedRound, () => {})[variantName] = trialData;
@@ -246,6 +273,17 @@ void main(List<String> arguments) async {
       variantName,
       trials.map((t) => t.rasterTimes).toList(),
     );
+
+    final durations = trials
+        .map((t) => t.durationUs)
+        .whereType<int>()
+        .toList();
+    if (durations.isNotEmpty) {
+      _writeDat(
+        p.join(outputDir.path, 'duration_$variantName.dat'),
+        durations,
+      );
+    }
 
     // Phases are optional. Frames without a phase tag are only part of the
     // all-phases aggregates above.
@@ -285,6 +323,19 @@ void main(List<String> arguments) async {
   final phases = _phasesOf(allTrialsList);
 
   for (final v in nonBaselineVariants) {
+    // Duration change aggregates
+    _writeChangeAggregatesForDuration(
+      outputDirPath: outputDir.path,
+      baselineVariant: baselineVariant,
+      variantName: v,
+      maxRound: maxRound,
+      roundTrials: roundTrials,
+      bootstrapSesoi: bootstrapSesoi,
+      bootstrapAlpha: bootstrapAlpha,
+      bootstrapPower: bootstrapPower,
+      log: log,
+    );
+
     // All-phases change aggregates
     _writeChangeAggregatesForTiming(
       outputDirPath: outputDir.path,
@@ -428,6 +479,7 @@ void _writeAggregates(
   String variantName,
   List<List<num>> trialsData,
 ) {
+  final ns = <double>[];
   final firsts = <double>[];
   final means = <double>[];
   final mins = <double>[];
@@ -438,6 +490,7 @@ void _writeAggregates(
 
   for (final data in trialsData) {
     if (data.isEmpty) continue;
+    ns.add(data.length.toDouble());
     firsts.add(data.first.toDouble());
     final sorted = List<num>.from(data)..sort();
     p95Superquantiles.add(superquantile(sorted, 0.95));
@@ -461,6 +514,7 @@ void _writeAggregates(
     p99s.add(percentile(sorted, 0.99));
   }
 
+  _writeDat(p.join(outputDirPath, '${timing}_n_$variantName.dat'), ns);
   _writeDat(p.join(outputDirPath, '${timing}_first_$variantName.dat'), firsts);
   _writeDat(p.join(outputDirPath, '${timing}_mean_$variantName.dat'), means);
   _writeDat(p.join(outputDirPath, '${timing}_min_$variantName.dat'), mins);
@@ -475,12 +529,14 @@ void _writeAggregates(
 
 Metrics? _computeMetrics(List<num> data) {
   if (data.isEmpty) return null;
+  final n = data.length.toDouble();
   final first = data.first.toDouble();
   final sorted = List<num>.from(data)..sort();
   final p95sq = superquantile(sorted, 0.95);
   if (data.length == 1) {
     final only = data.single.toDouble();
     return Metrics(
+      n: n,
       first: only,
       mean: only,
       min: only,
@@ -493,6 +549,7 @@ Metrics? _computeMetrics(List<num> data) {
   final doubleList = data.map((e) => e.toDouble()).toList();
   final stats = Statistic.from(doubleList);
   return Metrics(
+    n: n,
     first: first,
     mean: stats.mean.toDouble(),
     min: stats.min.toDouble(),
@@ -504,6 +561,7 @@ Metrics? _computeMetrics(List<num> data) {
 }
 
 final class Metrics {
+  final double n;
   final double first;
   final double mean;
   final double min;
@@ -513,6 +571,7 @@ final class Metrics {
   final double p95superquantile;
 
   const Metrics({
+    required this.n,
     required this.first,
     required this.mean,
     required this.min,
@@ -524,6 +583,8 @@ final class Metrics {
 
   double getMetric(MetricType type) {
     switch (type) {
+      case MetricType.n:
+        return n;
       case MetricType.first:
         return first;
       case MetricType.mean:
@@ -542,7 +603,7 @@ final class Metrics {
   }
 }
 
-enum MetricType { first, mean, min, max, p95, p99, p95superquantile }
+enum MetricType { n, first, mean, min, max, p95, p99, p95superquantile }
 
 void _writeChangeAggregatesForTiming({
   required String outputDirPath,
@@ -605,78 +666,144 @@ void _writeChangeAggregatesForTiming({
       _writeDat(p.join(outputDirPath, '$designation.dat'), changes);
     }
 
-    // Show statistical difference.
-    final baseData = baseMetricsList.map((m) => m.getMetric(metric));
-    final varData = varMetricsList.map((met) => met.getMetric(metric));
-    if (baseData.length < 2 || varData.length < 2) {
-      log.fine('$designation data length is less than 2, cannot create stats');
-    } else {
-      final baseStats = Statistic.from(baseData, name: '$designation baseline');
-      final changeStats = Statistic.from(changes, name: designation);
-      final baseMean = baseStats.mean.toDouble();
+    final baseData = baseMetricsList.map((m) => m.getMetric(metric)).toList();
+    final varData = varMetricsList.map((met) => met.getMetric(metric)).toList();
+    _logStatsAndSampleSize(
+      designation: designation,
+      baseData: baseData,
+      varData: varData,
+      changes: changes,
+      bootstrapSesoi: bootstrapSesoi,
+      bootstrapAlpha: bootstrapAlpha,
+      bootstrapPower: bootstrapPower,
+      log: log,
+    );
+  }
+}
 
-      SignificanceResult? sigResult;
-      try {
-        sigResult = testSignificance(
-          diffs: changes,
-          baseMean: baseMean,
-          sesoi: bootstrapSesoi,
-          alpha: bootstrapAlpha,
-        );
-      } catch (_) {
-        sigResult = null;
-      }
+void _writeChangeAggregatesForDuration({
+  required String outputDirPath,
+  required String baselineVariant,
+  required String variantName,
+  required int maxRound,
+  required Map<int, Map<String, TrialData>> roundTrials,
+  required double bootstrapSesoi,
+  required double bootstrapAlpha,
+  required double bootstrapPower,
+  required Logger log,
+}) {
+  final changes = <double>[];
+  final baseDurations = <double>[];
+  final varDurations = <double>[];
 
-      final winRate = calculateWinRate(changes);
+  for (var r = 1; r <= maxRound; r++) {
+    final baseTrial = roundTrials[r]?[baselineVariant];
+    final varTrial = roundTrials[r]?[variantName];
+    if (baseTrial == null || varTrial == null) continue;
+    if (baseTrial.durationUs == null || varTrial.durationUs == null) continue;
 
-      final sigChar = (sigResult?.isSignificant ?? false) ? '*' : ' ';
-      final winRateStr = winRate != null
-          ? '${(winRate * 100).round().toString().padLeft(3)}%'
-          : ' --%';
-      final prefix = '[$sigChar win:$winRateStr]';
+    final change = (varTrial.durationUs! - baseTrial.durationUs!).toDouble();
+    changes.add(change);
+    baseDurations.add(baseTrial.durationUs!.toDouble());
+    varDurations.add(varTrial.durationUs!.toDouble());
+  }
 
-      log.info('$prefix ${changeStats.toString()}');
+  final designation = 'duration_change_$variantName';
+  if (changes.isNotEmpty) {
+    _writeDat(p.join(outputDirPath, '$designation.dat'), changes);
+  }
 
-      int? sampleSize;
-      String? unavailableBecause;
-      try {
-        sampleSize = calculateBootstrapSampleSize(
-          diffs: changes,
-          baseMean: baseMean,
-          sesoi: bootstrapSesoi,
-          alpha: bootstrapAlpha,
-          power: bootstrapPower,
-        );
-      } on ArgumentError catch (e) {
-        // The library refuses degenerate pilots (fewer than 2 diffs, or zero
-        // variance - e.g. a quantized metric that returned the same value every
-        // round). That is a real "cannot be computed", not an error to swallow
-        // silently, so we say so and carry on with the other metrics.
-        unavailableBecause = e.message?.toString() ?? e.toString();
-      }
+  _logStatsAndSampleSize(
+    designation: designation,
+    baseData: baseDurations,
+    varData: varDurations,
+    changes: changes,
+    bootstrapSesoi: bootstrapSesoi,
+    bootstrapAlpha: bootstrapAlpha,
+    bootstrapPower: bootstrapPower,
+    log: log,
+  );
+}
 
-      final usedCalibration = changes.length >= kMinPilotForCalibration;
-      final calibrationSuffix = usedCalibration
-          ? ''
-          : ' (parametric; pilot too small to calibrate)';
+void _logStatsAndSampleSize({
+  required String designation,
+  required List<double> baseData,
+  required List<double> varData,
+  required List<double> changes,
+  required double bootstrapSesoi,
+  required double bootstrapAlpha,
+  required double bootstrapPower,
+  required Logger log,
+}) {
+  if (baseData.length < 2 || varData.length < 2) {
+    log.fine('$designation data length is less than 2, cannot create stats');
+    return;
+  }
 
-      if (sampleSize == null) {
-        log.info(
-          'Bootstrap suggested minimum sample size for $designation: '
-          'unavailable ($unavailableBecause)',
-        );
-      } else if (sampleSize >= kDefaultMaxN) {
-        log.info(
-          'Bootstrap suggested minimum sample size for $designation: '
-          '>10000 (effect too small to detect within budget)$calibrationSuffix',
-        );
-      } else {
-        log.info(
-          'Bootstrap suggested minimum sample size for $designation: '
-          '$sampleSize$calibrationSuffix',
-        );
-      }
-    }
+  final baseStats = Statistic.from(baseData, name: '$designation baseline');
+  final changeStats = Statistic.from(changes, name: designation);
+  final baseMean = baseStats.mean.toDouble();
+
+  SignificanceResult? sigResult;
+  try {
+    sigResult = testSignificance(
+      diffs: changes,
+      baseMean: baseMean,
+      sesoi: bootstrapSesoi,
+      alpha: bootstrapAlpha,
+    );
+  } catch (_) {
+    sigResult = null;
+  }
+
+  final winRate = calculateWinRate(changes);
+
+  final sigChar = (sigResult?.isSignificant ?? false) ? '*' : ' ';
+  final winRateStr = winRate != null
+      ? '${(winRate * 100).round().toString().padLeft(3)}%'
+      : ' --%';
+  final prefix = '[$sigChar win:$winRateStr]';
+
+  log.info('$prefix ${changeStats.toString()}');
+
+  int? sampleSize;
+  String? unavailableBecause;
+  try {
+    sampleSize = calculateBootstrapSampleSize(
+      diffs: changes,
+      baseMean: baseMean,
+      sesoi: bootstrapSesoi,
+      alpha: bootstrapAlpha,
+      power: bootstrapPower,
+    );
+  } on ArgumentError catch (e) {
+    // The library refuses degenerate pilots (fewer than 2 diffs, or zero
+    // variance - e.g. a quantized metric that returned the same value every
+    // round). That is a real "cannot be computed", not an error to swallow
+    // silently, so we say so and carry on with the other metrics.
+    unavailableBecause = e.message?.toString() ?? e.toString();
+  }
+
+  final usedCalibration = changes.length >= kMinPilotForCalibration;
+  final calibrationSuffix = usedCalibration
+      ? ''
+      : ' (parametric; pilot too small to calibrate)';
+
+  if (sampleSize == null) {
+    log.info(
+      'Bootstrap suggested minimum sample size for $designation: '
+      'unavailable ($unavailableBecause)',
+    );
+  } else if (sampleSize >= kDefaultMaxN) {
+    log.info(
+      'Bootstrap suggested minimum sample size for $designation: '
+      '>10000 (effect too small to detect within budget)$calibrationSuffix',
+    );
+  } else {
+    log.info(
+      'Bootstrap suggested minimum sample size for $designation: '
+      '$sampleSize$calibrationSuffix',
+    );
   }
 }
 
@@ -728,11 +855,15 @@ class TrialData {
   /// Raster times of only those frames tagged with a given phase.
   final Map<String, List<num>> rasterTimesByPhase;
 
+  /// The duration of the trial in microseconds (max(rasterFinish) - min(vsyncStart)).
+  final int? durationUs;
+
   TrialData(
     this.id,
     this.buildTimes,
     this.rasterTimes,
     this.buildTimesByPhase,
-    this.rasterTimesByPhase,
-  );
+    this.rasterTimesByPhase, {
+    this.durationUs,
+  });
 }
