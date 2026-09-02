@@ -51,5 +51,59 @@ void main() {
       expect(result.exitCode, 0);
       expect(result.stdout, startsWith('<?xml'));
     });
+
+    test('line removes common prefix by default and supports --no-remove-common-prefix', () async {
+      final defaultResult = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'line',
+        'test/fixtures/sample_a.dat',
+        'test/fixtures/sample_b.dat',
+      ]);
+      expect(defaultResult.exitCode, 0);
+      expect(defaultResult.stdout, contains('>a<'));
+      expect(defaultResult.stdout, contains('>b<'));
+      expect(defaultResult.stdout, isNot(contains('>sample_a<')));
+      expect(defaultResult.stdout, isNot(contains('>sample_b<')));
+
+      final noPrefixResult = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'line',
+        '--no-remove-common-prefix',
+        'test/fixtures/sample_a.dat',
+        'test/fixtures/sample_b.dat',
+      ]);
+      expect(noPrefixResult.exitCode, 0);
+      expect(noPrefixResult.stdout, contains('>sample_a<'));
+      expect(noPrefixResult.stdout, contains('>sample_b<'));
+    });
+
+    test('violin removes common prefix by default and supports --no-remove-common-prefix', () async {
+      final defaultResult = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'violin',
+        'test/fixtures/sample_a.dat',
+        'test/fixtures/sample_b.dat',
+      ]);
+      expect(defaultResult.exitCode, 0);
+      expect(defaultResult.stdout, contains('>a<'));
+      expect(defaultResult.stdout, contains('>b<'));
+      expect(defaultResult.stdout, isNot(contains('>sample_a<')));
+      expect(defaultResult.stdout, isNot(contains('>sample_b<')));
+
+      final noPrefixResult = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'violin',
+        '--no-remove-common-prefix',
+        'test/fixtures/sample_a.dat',
+        'test/fixtures/sample_b.dat',
+      ]);
+      expect(noPrefixResult.exitCode, 0);
+      expect(noPrefixResult.stdout, contains('>sample_a<'));
+      expect(noPrefixResult.stdout, contains('>sample_b<'));
+    });
   });
 }
