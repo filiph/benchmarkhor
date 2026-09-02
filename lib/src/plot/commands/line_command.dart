@@ -5,6 +5,7 @@ import 'package:benchmarkhor/src/plot/dat_parser.dart';
 import 'package:benchmarkhor/src/plot/labels.dart';
 import 'package:benchmarkhor/src/plot/line/line_data.dart';
 import 'package:benchmarkhor/src/plot/line/line_renderer.dart';
+import 'package:benchmarkhor/src/plot/theme.dart';
 
 class LineCommand extends Command<void> {
   @override
@@ -16,12 +17,19 @@ class LineCommand extends Command<void> {
       'file, overlaid on shared axes.';
 
   LineCommand() {
-    argParser.addFlag(
-      'remove-common-prefix',
-      help: 'Find and remove common prefix (split on _) from labels.',
-      defaultsTo: true,
-      negatable: true,
-    );
+    argParser
+      ..addFlag(
+        'remove-common-prefix',
+        help: 'Find and remove common prefix (split on _) from labels.',
+        defaultsTo: true,
+        negatable: true,
+      )
+      ..addOption(
+        'theme',
+        help: 'Color theme for the plot.',
+        allowed: ['dark', 'light'],
+        defaultsTo: 'dark',
+      );
   }
 
   @override
@@ -29,6 +37,8 @@ class LineCommand extends Command<void> {
     final inputs = argResults!.rest;
     final removeCommonPrefix =
         argResults!['remove-common-prefix'] as bool? ?? true;
+    final themeName = argResults!['theme'] as String? ?? 'dark';
+    final theme = PlotTheme.fromName(themeName);
 
     if (inputs.isEmpty) {
       usageException('At least one .dat file is required.');
@@ -47,7 +57,7 @@ class LineCommand extends Command<void> {
       lines.add(LineData.compute(label, values));
     }
 
-    final svg = buildLineSvg(lines);
+    final svg = buildLineSvg(lines, theme: theme);
     stdout.write(svg);
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:benchmarkhor/src/plot/svg.dart';
+import 'package:benchmarkhor/src/plot/theme.dart';
 import 'package:benchmarkhor/src/plot/violin/violin_data.dart';
 import 'package:benchmarkhor/src/plot/y_axis.dart';
 
@@ -8,7 +9,10 @@ import 'package:benchmarkhor/src/plot/y_axis.dart';
 // SVG rendering
 // ---------------------------------------------------------------------------
 
-String buildViolinSvg(List<ViolinData> violins) {
+String buildViolinSvg(
+  List<ViolinData> violins, {
+  PlotTheme theme = PlotTheme.dark,
+}) {
   // Plot range: the span of values the plot commits to showing. Values
   // outside of it are excluded (and summarised in a note instead).
   double plotMaximum = 0;
@@ -52,7 +56,7 @@ String buildViolinSvg(List<ViolinData> violins) {
   final axisX = marginLeft;
   buf.writeln(
     '<line x1="$axisX" y1="$marginTop" x2="$axisX" '
-    'y2="${marginTop + plotHeight}" stroke="#ccc" stroke-width="1.5"/>',
+    'y2="${marginTop + plotHeight}" stroke="${theme.axisLine}" stroke-width="1.5"/>',
   );
 
   // --- Tick marks and labels ---
@@ -62,19 +66,19 @@ String buildViolinSvg(List<ViolinData> violins) {
     // Tick mark
     buf.writeln(
       '<line x1="${axisX - 6}" y1="$ty" x2="$axisX" y2="$ty" '
-      'stroke="#ccc" stroke-width="1.2"/>',
+      'stroke="${theme.axisLine}" stroke-width="1.2"/>',
     );
     // Light grid line
     buf.writeln(
       '<line x1="$axisX" y1="$ty" x2="${axisX + plotWidth}" y2="$ty" '
-      'stroke="#333" stroke-width="0.8"/>',
+      'stroke="${theme.gridLine}" stroke-width="0.8"/>',
     );
     // Label
     final label = formatTick(tick);
     buf.writeln(
       '<text x="${axisX - 10}" y="${ty + 4}" '
       'text-anchor="end" font-family="Arial,sans-serif" '
-      'font-size="12" fill="#ccc">$label</text>',
+      'font-size="12" fill="${theme.secondaryText}">$label</text>',
     );
   }
 
@@ -83,7 +87,7 @@ String buildViolinSvg(List<ViolinData> violins) {
     final y0 = toSvgY(0);
     buf.writeln(
       '<line x1="$axisX" y1="$y0" x2="${axisX + plotWidth}" y2="$y0" '
-      'stroke="#eee" stroke-width="1.5"/>',
+      'stroke="${theme.zeroLine}" stroke-width="1.5"/>',
     );
   }
 
@@ -134,7 +138,7 @@ String buildViolinSvg(List<ViolinData> violins) {
     buf.writeln(
       '<text x="$slotCenterX" y="${marginTop + plotHeight + 25}" '
       'text-anchor="middle" font-family="Arial,sans-serif" '
-      'font-size="14" font-weight="bold" fill="#eee">${v.label}</text>',
+      'font-size="14" font-weight="bold" fill="${theme.primaryText}">${v.label}</text>',
     );
 
     // --- Box plot ---
@@ -154,24 +158,24 @@ String buildViolinSvg(List<ViolinData> violins) {
     buf.writeln(
       '<line x1="$slotCenterX" y1="$yWhiskerHi" '
       'x2="$slotCenterX" y2="$yQ3" '
-      'stroke="white" stroke-width="1.5"/>',
+      'stroke="${theme.boxPlot}" stroke-width="1.5"/>',
     );
     buf.writeln(
       '<line x1="$slotCenterX" y1="$yQ1" '
       'x2="$slotCenterX" y2="$yWhiskerLo" '
-      'stroke="white" stroke-width="1.5"/>',
+      'stroke="${theme.boxPlot}" stroke-width="1.5"/>',
     );
 
     // Whisker caps (horizontal)
     buf.writeln(
       '<line x1="${slotCenterX - 8}" y1="$yWhiskerHi" '
       'x2="${slotCenterX + 8}" y2="$yWhiskerHi" '
-      'stroke="white" stroke-width="1.5"/>',
+      'stroke="${theme.boxPlot}" stroke-width="1.5"/>',
     );
     buf.writeln(
       '<line x1="${slotCenterX - 8}" y1="$yWhiskerLo" '
       'x2="${slotCenterX + 8}" y2="$yWhiskerLo" '
-      'stroke="white" stroke-width="1.5"/>',
+      'stroke="${theme.boxPlot}" stroke-width="1.5"/>',
     );
 
     // Notched IQR box polygon
@@ -188,21 +192,21 @@ String buildViolinSvg(List<ViolinData> violins) {
 
     buf.writeln(
       '<polygon points="$notchBoxPoints" '
-      'fill="none" stroke="white" stroke-width="2"/>',
+      'fill="none" stroke="${theme.boxPlot}" stroke-width="2"/>',
     );
 
     // Median line across notch waist
     buf.writeln(
       '<line x1="$xNotchLeft" y1="$yMedian" '
       'x2="$xNotchRight" y2="$yMedian" '
-      'stroke="white" stroke-width="2.5"/>',
+      'stroke="${theme.boxPlot}" stroke-width="2.5"/>',
     );
 
     // Median label to the right of notch waist
     final formattedMedian = formatTick(v.median);
     buf.writeln(
       '<text x="${xRight + 8}" y="${yMedian + 4}" '
-      'font-family="Arial,sans-serif" font-size="11" fill="#ccc">'
+      'font-family="Arial,sans-serif" font-size="11" fill="${theme.secondaryText}">'
       '<title>Median</title>' // Same function as HTML's `title` attribute.
       'μ<tspan font-size="8" dy="2">½</tspan>'
       '<tspan font-size="11" dy="-2"> = $formattedMedian</tspan>'
@@ -228,7 +232,7 @@ String buildViolinSvg(List<ViolinData> violins) {
       final oy = toSvgY(o);
       buf.writeln(
         '<circle cx="$slotCenterX" cy="$oy" r="3" '
-        'stroke="white" opacity="0.7"/>',
+        'stroke="${theme.boxPlot}" opacity="0.7"/>',
       );
     }
 
@@ -239,7 +243,7 @@ String buildViolinSvg(List<ViolinData> violins) {
       buf.writeln(
         '<text x="$slotCenterX" y="${marginTop - 10}" '
         'text-anchor="middle" font-family="Arial,sans-serif" '
-        'font-size="11" fill="#aaa">$note</text>',
+        'font-size="11" fill="${theme.mutedText}">$note</text>',
       );
     }
     if (excludedBelowCount > 0) {
@@ -248,7 +252,7 @@ String buildViolinSvg(List<ViolinData> violins) {
       buf.writeln(
         '<text x="$slotCenterX" y="${marginTop + plotHeight + 12}" '
         'text-anchor="middle" font-family="Arial,sans-serif" '
-        'font-size="11" fill="#aaa">$note</text>',
+        'font-size="11" fill="${theme.mutedText}">$note</text>',
       );
     }
   }

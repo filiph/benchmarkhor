@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:benchmarkhor/src/plot/dat_parser.dart';
 import 'package:benchmarkhor/src/plot/svg.dart';
+import 'package:benchmarkhor/src/plot/theme.dart';
 import 'package:benchmarkhor/src/plot/violin/violin_data.dart';
 import 'package:benchmarkhor/src/plot/violin/violin_renderer.dart';
 import 'package:test/test.dart';
@@ -12,7 +13,7 @@ const plotBottom = marginTop + plotHeight;
 double? zeroLineY(String svg) {
   final match = RegExp(
     r'<line x1="[\d.]+" y1="([\d.]+)" x2="[\d.]+" '
-    r'y2="[\d.]+" stroke="#eee"',
+    r'y2="[\d.]+" stroke="(?:#eee|#111)"',
   ).firstMatch(svg);
   return match == null ? null : double.parse(match.group(1)!);
 }
@@ -31,6 +32,34 @@ void main() {
 
       expect(svg, startsWith('<?xml'));
       expect(svg, contains('<svg'));
+    });
+
+    test('renders with dark theme colors by default', () {
+      final values = <num>[100, 110, 120, 130, 140, 10000];
+      final violin = ViolinData.compute('sample_a', values);
+      final svg = buildViolinSvg([violin]);
+
+      expect(svg, contains('stroke="#ccc"')); // axis / ticks
+      expect(svg, contains('stroke="#333"')); // grid lines
+      expect(svg, contains('stroke="#eee"')); // zero line
+      expect(svg, contains('fill="#eee">sample_a</text>')); // label
+      expect(svg, contains('fill="#ccc">0</text>')); // tick label
+      expect(svg, contains('stroke="white"')); // box plot
+      expect(svg, contains('fill="#aaa">+1 outliers')); // outlier summary
+    });
+
+    test('renders with light theme colors when specified', () {
+      final values = <num>[100, 110, 120, 130, 140, 10000];
+      final violin = ViolinData.compute('sample_a', values);
+      final svg = buildViolinSvg([violin], theme: PlotTheme.light);
+
+      expect(svg, contains('stroke="#333"')); // axis / ticks
+      expect(svg, contains('stroke="#e0e0e0"')); // grid lines
+      expect(svg, contains('stroke="#111"')); // zero line
+      expect(svg, contains('fill="#111">sample_a</text>')); // label
+      expect(svg, contains('fill="#444">0</text>')); // tick label
+      expect(svg, contains('stroke="black"')); // box plot
+      expect(svg, contains('fill="#777">+1 outliers')); // outlier summary
     });
 
     test('renders the sample fixtures on shared axes', () {

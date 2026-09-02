@@ -2,13 +2,17 @@ import 'dart:math';
 
 import 'package:benchmarkhor/src/plot/line/line_data.dart';
 import 'package:benchmarkhor/src/plot/svg.dart';
+import 'package:benchmarkhor/src/plot/theme.dart';
 import 'package:benchmarkhor/src/plot/y_axis.dart';
 
 // ---------------------------------------------------------------------------
 // SVG rendering
 // ---------------------------------------------------------------------------
 
-String buildLineSvg(List<LineData> lines) {
+String buildLineSvg(
+  List<LineData> lines, {
+  PlotTheme theme = PlotTheme.dark,
+}) {
   final nonEmptyLines = lines.where((l) => l.values.isNotEmpty).toList();
 
   // X range: point index, from 0 to the longest input's last index.
@@ -59,7 +63,7 @@ String buildLineSvg(List<LineData> lines) {
   final axisX = marginLeft;
   buf.writeln(
     '<line x1="$axisX" y1="$marginTop" x2="$axisX" '
-    'y2="${marginTop + plotHeight}" stroke="#ccc" stroke-width="1.5"/>',
+    'y2="${marginTop + plotHeight}" stroke="${theme.axisLine}" stroke-width="1.5"/>',
   );
 
   // --- Tick marks and labels ---
@@ -69,19 +73,19 @@ String buildLineSvg(List<LineData> lines) {
     // Tick mark
     buf.writeln(
       '<line x1="${axisX - 6}" y1="$ty" x2="$axisX" y2="$ty" '
-      'stroke="#ccc" stroke-width="1.2"/>',
+      'stroke="${theme.axisLine}" stroke-width="1.2"/>',
     );
     // Light grid line
     buf.writeln(
       '<line x1="$axisX" y1="$ty" x2="${axisX + plotWidth}" y2="$ty" '
-      'stroke="#333" stroke-width="0.8"/>',
+      'stroke="${theme.gridLine}" stroke-width="0.8"/>',
     );
     // Label
     final label = formatTick(tick);
     buf.writeln(
       '<text x="${axisX - 10}" y="${ty + 4}" '
       'text-anchor="end" font-family="Arial,sans-serif" '
-      'font-size="12" fill="#ccc">$label</text>',
+      'font-size="12" fill="${theme.secondaryText}">$label</text>',
     );
   }
 
@@ -90,7 +94,7 @@ String buildLineSvg(List<LineData> lines) {
     final y0 = toSvgY(0);
     buf.writeln(
       '<line x1="$axisX" y1="$y0" x2="${axisX + plotWidth}" y2="$y0" '
-      'stroke="#eee" stroke-width="1.5"/>',
+      'stroke="${theme.zeroLine}" stroke-width="1.5"/>',
     );
   }
 
@@ -135,7 +139,7 @@ String buildLineSvg(List<LineData> lines) {
     );
     buf.writeln(
       '<text x="${legendX + 26}" y="${legendY + 4}" '
-      'font-family="Arial,sans-serif" font-size="12" fill="#eee">'
+      'font-family="Arial,sans-serif" font-size="12" fill="${theme.primaryText}">'
       '${l.label}</text>',
     );
   }

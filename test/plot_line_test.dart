@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:benchmarkhor/src/plot/line/line_data.dart';
 import 'package:benchmarkhor/src/plot/line/line_renderer.dart';
 import 'package:benchmarkhor/src/plot/svg.dart';
+import 'package:benchmarkhor/src/plot/theme.dart';
 import 'package:test/test.dart';
 
 const plotBottom = marginTop + plotHeight;
@@ -11,7 +12,7 @@ const plotBottom = marginTop + plotHeight;
 double? xAxisY(String svg) {
   final match = RegExp(
     r'<line x1="[\d.]+" y1="([\d.]+)" x2="[\d.]+" '
-    r'y2="[\d.]+" stroke="#eee"',
+    r'y2="[\d.]+" stroke="(?:#eee|#111)"',
   ).firstMatch(svg);
   return match == null ? null : double.parse(match.group(1)!);
 }
@@ -41,6 +42,28 @@ void main() {
       final match = RegExp(r'<polyline points="([^"]*)"').firstMatch(svg)!;
       final points = match.group(1)!.trim().split(' ');
       expect(points.length, 5);
+    });
+
+    test('renders with dark theme colors by default', () {
+      final line = LineData.compute('sample_a', [10, 20, 30]);
+      final svg = buildLineSvg([line]);
+
+      expect(svg, contains('stroke="#ccc"')); // axis / ticks
+      expect(svg, contains('stroke="#333"')); // grid lines
+      expect(svg, contains('stroke="#eee"')); // zero line
+      expect(svg, contains('fill="#eee">sample_a</text>')); // legend label
+      expect(svg, contains('fill="#ccc">20</text>')); // tick label
+    });
+
+    test('renders with light theme colors when specified', () {
+      final line = LineData.compute('sample_a', [10, 20, 30]);
+      final svg = buildLineSvg([line], theme: PlotTheme.light);
+
+      expect(svg, contains('stroke="#333"')); // axis / ticks
+      expect(svg, contains('stroke="#e0e0e0"')); // grid lines
+      expect(svg, contains('stroke="#111"')); // zero line
+      expect(svg, contains('fill="#111">sample_a</text>')); // legend label
+      expect(svg, contains('fill="#444">20</text>')); // tick label
     });
 
     test('two inputs of different lengths share axes and use two colors', () {

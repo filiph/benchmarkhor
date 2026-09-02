@@ -105,5 +105,75 @@ void main() {
       expect(noPrefixResult.stdout, contains('>sample_a<'));
       expect(noPrefixResult.stdout, contains('>sample_b<'));
     });
+
+    test('line supports --theme flag and defaults to dark', () async {
+      final defaultResult = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'line',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(defaultResult.exitCode, 0);
+      expect(defaultResult.stdout, contains('stroke="#ccc"'));
+      expect(defaultResult.stdout, contains('fill="#eee"'));
+
+      final lightResult = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'line',
+        '--theme',
+        'light',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(lightResult.exitCode, 0);
+      expect(lightResult.stdout, contains('stroke="#333"'));
+      expect(lightResult.stdout, contains('fill="#111"'));
+
+      final invalidResult = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'line',
+        '--theme',
+        'blue',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(invalidResult.exitCode, 64);
+      expect(invalidResult.stderr, contains('"blue" is not an allowed value'));
+    });
+
+    test('violin supports --theme flag and defaults to dark', () async {
+      final defaultResult = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'violin',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(defaultResult.exitCode, 0);
+      expect(defaultResult.stdout, contains('stroke="#ccc"'));
+      expect(defaultResult.stdout, contains('stroke="white"'));
+
+      final lightResult = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'violin',
+        '--theme',
+        'light',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(lightResult.exitCode, 0);
+      expect(lightResult.stdout, contains('stroke="#333"'));
+      expect(lightResult.stdout, contains('stroke="black"'));
+
+      final invalidResult = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'violin',
+        '--theme',
+        'blue',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(invalidResult.exitCode, 64);
+      expect(invalidResult.stderr, contains('"blue" is not an allowed value'));
+    });
   });
 }

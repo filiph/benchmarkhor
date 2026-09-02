@@ -6,7 +6,7 @@ This document defines the domain terms used in the `benchmarkhor` plotting utili
 
 ### Violin Plot
 A method of plotting numeric data. It is similar to a box plot, with the addition of a rotated kernel density plot on each side.
-In `benchmarkhor`, the violin plot is rendered as an SVG `<polygon>`. The output is optimized for dark backgrounds (no background color, light-colored elements).
+In `benchmarkhor`, the violin plot is rendered as an SVG `<polygon>`. The visual appearance of structural elements adapts according to the selected **Theme** (defaulting to **Dark Theme**).
 
 ### KDE (Kernel Density Estimation)
 A non-parametric way to estimate the probability density function of a random variable.
@@ -25,7 +25,7 @@ The tool divides the available `plotWidth` into equal slots based on the number 
 
 ### Box Plot
 A standardized way of displaying the distribution of data based on a five-number summary: minimum, first quartile (Q1), median, third quartile (Q3), and maximum.
-In `benchmarkhor`, the box plot is drawn on top of the violin as a notched box plot, including whiskers and outliers. It uses light-colored outlines and a transparent fill to ensure visibility on dark backgrounds.
+In `benchmarkhor`, the box plot is drawn on top of the violin as a notched box plot, including whiskers and outliers. It uses high-contrast outlines and a transparent fill to ensure visibility according to the active **Theme**.
 
 ### Notch
 A visual narrowing of the box plot around the median indicating the 95% confidence interval for the median.
@@ -83,3 +83,12 @@ The probability that an experiment will detect a true effect of at least the **S
 
 ### Significance Test
 A hypothesis test evaluating whether there is statistically significant evidence of improvement of at least the **SESOI** ($\bar{d} \le -\text{SESOI} \times \text{baseMean}$ and one-tailed $p < \alpha$) using the **Calibrated Bootstrap**.
+
+### Theme
+A visual presentation scheme for plots. Plot themes adjust the colors of structural elements (axes, grid lines, zero baseline, box plots, and typography) to ensure optimal legibility and contrast against expected background canvas colors while maintaining consistent data series palette colors.
+
+### Dark Theme
+The default **Theme**, optimized for dark background canvases. Structural elements, labels, and box plots are drawn with white or light gray strokes and fills, leaving the SVG background transparent.
+
+### Light Theme
+A **Theme** optimized for white or light background canvases. Structural elements, labels, and box plots are drawn with black or dark gray strokes and fills, leaving the SVG background transparent.
