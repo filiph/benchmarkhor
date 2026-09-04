@@ -55,7 +55,7 @@ class SvgBuffer {
 // Layout constants
 // ---------------------------------------------------------------------------
 
-const double svgWidth = 900;
+const double svgWidth = 900; /* can be 1200 for wider layouts */
 const double svgHeight = 700;
 const double marginLeft = 80;
 const double marginRight = 40;
