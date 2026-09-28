@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$VariantSpec {
 
- String get apk; String get testApk;/// Documentation-only provenance of the git state this **Variant** was
+ String get apk; String? get testApk;/// Documentation-only provenance of the git state this **Variant** was
 /// built from, e.g. `git 4f2a1c9 (dirty)` or
 /// `uncommitted working tree 2026-08-26T10:12Z`.
 ///
@@ -57,7 +57,7 @@ abstract mixin class $VariantSpecCopyWith<$Res>  {
   factory $VariantSpecCopyWith(VariantSpec value, $Res Function(VariantSpec) _then) = _$VariantSpecCopyWithImpl;
 @useResult
 $Res call({
- String apk, String testApk, String? source
+ String apk, String? testApk, String? source
 });
 
 
@@ -74,11 +74,11 @@ class _$VariantSpecCopyWithImpl<$Res>
 
 /// Create a copy of VariantSpec
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? apk = null,Object? testApk = null,Object? source = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? apk = null,Object? testApk = freezed,Object? source = freezed,}) {
   return _then(_self.copyWith(
 apk: null == apk ? _self.apk : apk // ignore: cast_nullable_to_non_nullable
-as String,testApk: null == testApk ? _self.testApk : testApk // ignore: cast_nullable_to_non_nullable
-as String,source: freezed == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as String,testApk: freezed == testApk ? _self.testApk : testApk // ignore: cast_nullable_to_non_nullable
+as String?,source: freezed == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -164,7 +164,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String apk,  String testApk,  String? source)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String apk,  String? testApk,  String? source)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _VariantSpec() when $default != null:
 return $default(_that.apk,_that.testApk,_that.source);case _:
@@ -185,7 +185,7 @@ return $default(_that.apk,_that.testApk,_that.source);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String apk,  String testApk,  String? source)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String apk,  String? testApk,  String? source)  $default,) {final _that = this;
 switch (_that) {
 case _VariantSpec():
 return $default(_that.apk,_that.testApk,_that.source);case _:
@@ -205,7 +205,7 @@ return $default(_that.apk,_that.testApk,_that.source);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String apk,  String testApk,  String? source)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String apk,  String? testApk,  String? source)?  $default,) {final _that = this;
 switch (_that) {
 case _VariantSpec() when $default != null:
 return $default(_that.apk,_that.testApk,_that.source);case _:
@@ -220,11 +220,11 @@ return $default(_that.apk,_that.testApk,_that.source);case _:
 
 @JsonSerializable(fieldRename: FieldRename.snake, includeIfNull: false)
 class _VariantSpec extends VariantSpec {
-  const _VariantSpec({this.apk = 'app.apk', this.testApk = 'app-test.apk', this.source}): super._();
+  const _VariantSpec({this.apk = 'app.apk', this.testApk, this.source}): super._();
   factory _VariantSpec.fromJson(Map<String, dynamic> json) => _$VariantSpecFromJson(json);
 
 @override@JsonKey() final  String apk;
-@override@JsonKey() final  String testApk;
+@override final  String? testApk;
 /// Documentation-only provenance of the git state this **Variant** was
 /// built from, e.g. `git 4f2a1c9 (dirty)` or
 /// `uncommitted working tree 2026-08-26T10:12Z`.
@@ -269,7 +269,7 @@ abstract mixin class _$VariantSpecCopyWith<$Res> implements $VariantSpecCopyWith
   factory _$VariantSpecCopyWith(_VariantSpec value, $Res Function(_VariantSpec) _then) = __$VariantSpecCopyWithImpl;
 @override @useResult
 $Res call({
- String apk, String testApk, String? source
+ String apk, String? testApk, String? source
 });
 
 
@@ -286,11 +286,11 @@ class __$VariantSpecCopyWithImpl<$Res>
 
 /// Create a copy of VariantSpec
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? apk = null,Object? testApk = null,Object? source = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? apk = null,Object? testApk = freezed,Object? source = freezed,}) {
   return _then(_VariantSpec(
 apk: null == apk ? _self.apk : apk // ignore: cast_nullable_to_non_nullable
-as String,testApk: null == testApk ? _self.testApk : testApk // ignore: cast_nullable_to_non_nullable
-as String,source: freezed == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as String,testApk: freezed == testApk ? _self.testApk : testApk // ignore: cast_nullable_to_non_nullable
+as String?,source: freezed == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -302,7 +302,7 @@ as String?,
 /// @nodoc
 mixin _$SessionSpec {
 
- int get schemaVersion; String get name; String get description; Map<String, VariantSpec> get variants; String get package; String get testPackage; String get instrumentationRunner; int get rounds; int? get trialTimeoutSeconds; List<String> get expectedResultFiles; String get deviceResultDir; Map<String, dynamic> get tags;
+ int get schemaVersion; String get name; String get description; Map<String, VariantSpec> get variants; String get package; String get testPackage; String get instrumentationRunner; String? get launchActivity; int get rounds; int? get trialTimeoutSeconds; List<String> get expectedResultFiles; String get deviceResultDir; Map<String, dynamic> get tags;
 /// Create a copy of SessionSpec
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -315,16 +315,16 @@ $SessionSpecCopyWith<SessionSpec> get copyWith => _$SessionSpecCopyWithImpl<Sess
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SessionSpec&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other.variants, variants)&&(identical(other.package, package) || other.package == package)&&(identical(other.testPackage, testPackage) || other.testPackage == testPackage)&&(identical(other.instrumentationRunner, instrumentationRunner) || other.instrumentationRunner == instrumentationRunner)&&(identical(other.rounds, rounds) || other.rounds == rounds)&&(identical(other.trialTimeoutSeconds, trialTimeoutSeconds) || other.trialTimeoutSeconds == trialTimeoutSeconds)&&const DeepCollectionEquality().equals(other.expectedResultFiles, expectedResultFiles)&&(identical(other.deviceResultDir, deviceResultDir) || other.deviceResultDir == deviceResultDir)&&const DeepCollectionEquality().equals(other.tags, tags));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SessionSpec&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other.variants, variants)&&(identical(other.package, package) || other.package == package)&&(identical(other.testPackage, testPackage) || other.testPackage == testPackage)&&(identical(other.instrumentationRunner, instrumentationRunner) || other.instrumentationRunner == instrumentationRunner)&&(identical(other.launchActivity, launchActivity) || other.launchActivity == launchActivity)&&(identical(other.rounds, rounds) || other.rounds == rounds)&&(identical(other.trialTimeoutSeconds, trialTimeoutSeconds) || other.trialTimeoutSeconds == trialTimeoutSeconds)&&const DeepCollectionEquality().equals(other.expectedResultFiles, expectedResultFiles)&&(identical(other.deviceResultDir, deviceResultDir) || other.deviceResultDir == deviceResultDir)&&const DeepCollectionEquality().equals(other.tags, tags));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,schemaVersion,name,description,const DeepCollectionEquality().hash(variants),package,testPackage,instrumentationRunner,rounds,trialTimeoutSeconds,const DeepCollectionEquality().hash(expectedResultFiles),deviceResultDir,const DeepCollectionEquality().hash(tags));
+int get hashCode => Object.hash(runtimeType,schemaVersion,name,description,const DeepCollectionEquality().hash(variants),package,testPackage,instrumentationRunner,launchActivity,rounds,trialTimeoutSeconds,const DeepCollectionEquality().hash(expectedResultFiles),deviceResultDir,const DeepCollectionEquality().hash(tags));
 
 @override
 String toString() {
-  return 'SessionSpec(schemaVersion: $schemaVersion, name: $name, description: $description, variants: $variants, package: $package, testPackage: $testPackage, instrumentationRunner: $instrumentationRunner, rounds: $rounds, trialTimeoutSeconds: $trialTimeoutSeconds, expectedResultFiles: $expectedResultFiles, deviceResultDir: $deviceResultDir, tags: $tags)';
+  return 'SessionSpec(schemaVersion: $schemaVersion, name: $name, description: $description, variants: $variants, package: $package, testPackage: $testPackage, instrumentationRunner: $instrumentationRunner, launchActivity: $launchActivity, rounds: $rounds, trialTimeoutSeconds: $trialTimeoutSeconds, expectedResultFiles: $expectedResultFiles, deviceResultDir: $deviceResultDir, tags: $tags)';
 }
 
 
@@ -335,7 +335,7 @@ abstract mixin class $SessionSpecCopyWith<$Res>  {
   factory $SessionSpecCopyWith(SessionSpec value, $Res Function(SessionSpec) _then) = _$SessionSpecCopyWithImpl;
 @useResult
 $Res call({
- int schemaVersion, String name, String description, Map<String, VariantSpec> variants, String package, String testPackage, String instrumentationRunner, int rounds, int? trialTimeoutSeconds, List<String> expectedResultFiles, String deviceResultDir, Map<String, dynamic> tags
+ int schemaVersion, String name, String description, Map<String, VariantSpec> variants, String package, String testPackage, String instrumentationRunner, String? launchActivity, int rounds, int? trialTimeoutSeconds, List<String> expectedResultFiles, String deviceResultDir, Map<String, dynamic> tags
 });
 
 
@@ -352,7 +352,7 @@ class _$SessionSpecCopyWithImpl<$Res>
 
 /// Create a copy of SessionSpec
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? schemaVersion = null,Object? name = null,Object? description = null,Object? variants = null,Object? package = null,Object? testPackage = null,Object? instrumentationRunner = null,Object? rounds = null,Object? trialTimeoutSeconds = freezed,Object? expectedResultFiles = null,Object? deviceResultDir = null,Object? tags = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? schemaVersion = null,Object? name = null,Object? description = null,Object? variants = null,Object? package = null,Object? testPackage = null,Object? instrumentationRunner = null,Object? launchActivity = freezed,Object? rounds = null,Object? trialTimeoutSeconds = freezed,Object? expectedResultFiles = null,Object? deviceResultDir = null,Object? tags = null,}) {
   return _then(_self.copyWith(
 schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -361,7 +361,8 @@ as String,variants: null == variants ? _self.variants : variants // ignore: cast
 as Map<String, VariantSpec>,package: null == package ? _self.package : package // ignore: cast_nullable_to_non_nullable
 as String,testPackage: null == testPackage ? _self.testPackage : testPackage // ignore: cast_nullable_to_non_nullable
 as String,instrumentationRunner: null == instrumentationRunner ? _self.instrumentationRunner : instrumentationRunner // ignore: cast_nullable_to_non_nullable
-as String,rounds: null == rounds ? _self.rounds : rounds // ignore: cast_nullable_to_non_nullable
+as String,launchActivity: freezed == launchActivity ? _self.launchActivity : launchActivity // ignore: cast_nullable_to_non_nullable
+as String?,rounds: null == rounds ? _self.rounds : rounds // ignore: cast_nullable_to_non_nullable
 as int,trialTimeoutSeconds: freezed == trialTimeoutSeconds ? _self.trialTimeoutSeconds : trialTimeoutSeconds // ignore: cast_nullable_to_non_nullable
 as int?,expectedResultFiles: null == expectedResultFiles ? _self.expectedResultFiles : expectedResultFiles // ignore: cast_nullable_to_non_nullable
 as List<String>,deviceResultDir: null == deviceResultDir ? _self.deviceResultDir : deviceResultDir // ignore: cast_nullable_to_non_nullable
@@ -451,10 +452,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int schemaVersion,  String name,  String description,  Map<String, VariantSpec> variants,  String package,  String testPackage,  String instrumentationRunner,  int rounds,  int? trialTimeoutSeconds,  List<String> expectedResultFiles,  String deviceResultDir,  Map<String, dynamic> tags)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int schemaVersion,  String name,  String description,  Map<String, VariantSpec> variants,  String package,  String testPackage,  String instrumentationRunner,  String? launchActivity,  int rounds,  int? trialTimeoutSeconds,  List<String> expectedResultFiles,  String deviceResultDir,  Map<String, dynamic> tags)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SessionSpec() when $default != null:
-return $default(_that.schemaVersion,_that.name,_that.description,_that.variants,_that.package,_that.testPackage,_that.instrumentationRunner,_that.rounds,_that.trialTimeoutSeconds,_that.expectedResultFiles,_that.deviceResultDir,_that.tags);case _:
+return $default(_that.schemaVersion,_that.name,_that.description,_that.variants,_that.package,_that.testPackage,_that.instrumentationRunner,_that.launchActivity,_that.rounds,_that.trialTimeoutSeconds,_that.expectedResultFiles,_that.deviceResultDir,_that.tags);case _:
   return orElse();
 
 }
@@ -472,10 +473,10 @@ return $default(_that.schemaVersion,_that.name,_that.description,_that.variants,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int schemaVersion,  String name,  String description,  Map<String, VariantSpec> variants,  String package,  String testPackage,  String instrumentationRunner,  int rounds,  int? trialTimeoutSeconds,  List<String> expectedResultFiles,  String deviceResultDir,  Map<String, dynamic> tags)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int schemaVersion,  String name,  String description,  Map<String, VariantSpec> variants,  String package,  String testPackage,  String instrumentationRunner,  String? launchActivity,  int rounds,  int? trialTimeoutSeconds,  List<String> expectedResultFiles,  String deviceResultDir,  Map<String, dynamic> tags)  $default,) {final _that = this;
 switch (_that) {
 case _SessionSpec():
-return $default(_that.schemaVersion,_that.name,_that.description,_that.variants,_that.package,_that.testPackage,_that.instrumentationRunner,_that.rounds,_that.trialTimeoutSeconds,_that.expectedResultFiles,_that.deviceResultDir,_that.tags);case _:
+return $default(_that.schemaVersion,_that.name,_that.description,_that.variants,_that.package,_that.testPackage,_that.instrumentationRunner,_that.launchActivity,_that.rounds,_that.trialTimeoutSeconds,_that.expectedResultFiles,_that.deviceResultDir,_that.tags);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -492,10 +493,10 @@ return $default(_that.schemaVersion,_that.name,_that.description,_that.variants,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int schemaVersion,  String name,  String description,  Map<String, VariantSpec> variants,  String package,  String testPackage,  String instrumentationRunner,  int rounds,  int? trialTimeoutSeconds,  List<String> expectedResultFiles,  String deviceResultDir,  Map<String, dynamic> tags)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int schemaVersion,  String name,  String description,  Map<String, VariantSpec> variants,  String package,  String testPackage,  String instrumentationRunner,  String? launchActivity,  int rounds,  int? trialTimeoutSeconds,  List<String> expectedResultFiles,  String deviceResultDir,  Map<String, dynamic> tags)?  $default,) {final _that = this;
 switch (_that) {
 case _SessionSpec() when $default != null:
-return $default(_that.schemaVersion,_that.name,_that.description,_that.variants,_that.package,_that.testPackage,_that.instrumentationRunner,_that.rounds,_that.trialTimeoutSeconds,_that.expectedResultFiles,_that.deviceResultDir,_that.tags);case _:
+return $default(_that.schemaVersion,_that.name,_that.description,_that.variants,_that.package,_that.testPackage,_that.instrumentationRunner,_that.launchActivity,_that.rounds,_that.trialTimeoutSeconds,_that.expectedResultFiles,_that.deviceResultDir,_that.tags);case _:
   return null;
 
 }
@@ -507,7 +508,7 @@ return $default(_that.schemaVersion,_that.name,_that.description,_that.variants,
 
 @JsonSerializable(fieldRename: FieldRename.snake, includeIfNull: false)
 class _SessionSpec extends SessionSpec {
-  const _SessionSpec({this.schemaVersion = SessionSpec.currentSchemaVersion, required this.name, this.description = '', required final  Map<String, VariantSpec> variants, required this.package, required this.testPackage, this.instrumentationRunner = 'dev.flutter.plugins.integration_test.FlutterTestRunner', this.rounds = 1, this.trialTimeoutSeconds, final  List<String> expectedResultFiles = const [], required this.deviceResultDir, final  Map<String, dynamic> tags = const {}}): _variants = variants,_expectedResultFiles = expectedResultFiles,_tags = tags,super._();
+  const _SessionSpec({this.schemaVersion = SessionSpec.currentSchemaVersion, required this.name, this.description = '', required final  Map<String, VariantSpec> variants, required this.package, required this.testPackage, this.instrumentationRunner = 'dev.flutter.plugins.integration_test.FlutterTestRunner', this.launchActivity, this.rounds = 1, this.trialTimeoutSeconds, final  List<String> expectedResultFiles = const [], required this.deviceResultDir, final  Map<String, dynamic> tags = const {}}): _variants = variants,_expectedResultFiles = expectedResultFiles,_tags = tags,super._();
   factory _SessionSpec.fromJson(Map<String, dynamic> json) => _$SessionSpecFromJson(json);
 
 @override@JsonKey() final  int schemaVersion;
@@ -523,6 +524,7 @@ class _SessionSpec extends SessionSpec {
 @override final  String package;
 @override final  String testPackage;
 @override@JsonKey() final  String instrumentationRunner;
+@override final  String? launchActivity;
 @override@JsonKey() final  int rounds;
 @override final  int? trialTimeoutSeconds;
  final  List<String> _expectedResultFiles;
@@ -554,16 +556,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SessionSpec&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other._variants, _variants)&&(identical(other.package, package) || other.package == package)&&(identical(other.testPackage, testPackage) || other.testPackage == testPackage)&&(identical(other.instrumentationRunner, instrumentationRunner) || other.instrumentationRunner == instrumentationRunner)&&(identical(other.rounds, rounds) || other.rounds == rounds)&&(identical(other.trialTimeoutSeconds, trialTimeoutSeconds) || other.trialTimeoutSeconds == trialTimeoutSeconds)&&const DeepCollectionEquality().equals(other._expectedResultFiles, _expectedResultFiles)&&(identical(other.deviceResultDir, deviceResultDir) || other.deviceResultDir == deviceResultDir)&&const DeepCollectionEquality().equals(other._tags, _tags));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SessionSpec&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other._variants, _variants)&&(identical(other.package, package) || other.package == package)&&(identical(other.testPackage, testPackage) || other.testPackage == testPackage)&&(identical(other.instrumentationRunner, instrumentationRunner) || other.instrumentationRunner == instrumentationRunner)&&(identical(other.launchActivity, launchActivity) || other.launchActivity == launchActivity)&&(identical(other.rounds, rounds) || other.rounds == rounds)&&(identical(other.trialTimeoutSeconds, trialTimeoutSeconds) || other.trialTimeoutSeconds == trialTimeoutSeconds)&&const DeepCollectionEquality().equals(other._expectedResultFiles, _expectedResultFiles)&&(identical(other.deviceResultDir, deviceResultDir) || other.deviceResultDir == deviceResultDir)&&const DeepCollectionEquality().equals(other._tags, _tags));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,schemaVersion,name,description,const DeepCollectionEquality().hash(_variants),package,testPackage,instrumentationRunner,rounds,trialTimeoutSeconds,const DeepCollectionEquality().hash(_expectedResultFiles),deviceResultDir,const DeepCollectionEquality().hash(_tags));
+int get hashCode => Object.hash(runtimeType,schemaVersion,name,description,const DeepCollectionEquality().hash(_variants),package,testPackage,instrumentationRunner,launchActivity,rounds,trialTimeoutSeconds,const DeepCollectionEquality().hash(_expectedResultFiles),deviceResultDir,const DeepCollectionEquality().hash(_tags));
 
 @override
 String toString() {
-  return 'SessionSpec(schemaVersion: $schemaVersion, name: $name, description: $description, variants: $variants, package: $package, testPackage: $testPackage, instrumentationRunner: $instrumentationRunner, rounds: $rounds, trialTimeoutSeconds: $trialTimeoutSeconds, expectedResultFiles: $expectedResultFiles, deviceResultDir: $deviceResultDir, tags: $tags)';
+  return 'SessionSpec(schemaVersion: $schemaVersion, name: $name, description: $description, variants: $variants, package: $package, testPackage: $testPackage, instrumentationRunner: $instrumentationRunner, launchActivity: $launchActivity, rounds: $rounds, trialTimeoutSeconds: $trialTimeoutSeconds, expectedResultFiles: $expectedResultFiles, deviceResultDir: $deviceResultDir, tags: $tags)';
 }
 
 
@@ -574,7 +576,7 @@ abstract mixin class _$SessionSpecCopyWith<$Res> implements $SessionSpecCopyWith
   factory _$SessionSpecCopyWith(_SessionSpec value, $Res Function(_SessionSpec) _then) = __$SessionSpecCopyWithImpl;
 @override @useResult
 $Res call({
- int schemaVersion, String name, String description, Map<String, VariantSpec> variants, String package, String testPackage, String instrumentationRunner, int rounds, int? trialTimeoutSeconds, List<String> expectedResultFiles, String deviceResultDir, Map<String, dynamic> tags
+ int schemaVersion, String name, String description, Map<String, VariantSpec> variants, String package, String testPackage, String instrumentationRunner, String? launchActivity, int rounds, int? trialTimeoutSeconds, List<String> expectedResultFiles, String deviceResultDir, Map<String, dynamic> tags
 });
 
 
@@ -591,7 +593,7 @@ class __$SessionSpecCopyWithImpl<$Res>
 
 /// Create a copy of SessionSpec
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? schemaVersion = null,Object? name = null,Object? description = null,Object? variants = null,Object? package = null,Object? testPackage = null,Object? instrumentationRunner = null,Object? rounds = null,Object? trialTimeoutSeconds = freezed,Object? expectedResultFiles = null,Object? deviceResultDir = null,Object? tags = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? schemaVersion = null,Object? name = null,Object? description = null,Object? variants = null,Object? package = null,Object? testPackage = null,Object? instrumentationRunner = null,Object? launchActivity = freezed,Object? rounds = null,Object? trialTimeoutSeconds = freezed,Object? expectedResultFiles = null,Object? deviceResultDir = null,Object? tags = null,}) {
   return _then(_SessionSpec(
 schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -600,7 +602,8 @@ as String,variants: null == variants ? _self._variants : variants // ignore: cas
 as Map<String, VariantSpec>,package: null == package ? _self.package : package // ignore: cast_nullable_to_non_nullable
 as String,testPackage: null == testPackage ? _self.testPackage : testPackage // ignore: cast_nullable_to_non_nullable
 as String,instrumentationRunner: null == instrumentationRunner ? _self.instrumentationRunner : instrumentationRunner // ignore: cast_nullable_to_non_nullable
-as String,rounds: null == rounds ? _self.rounds : rounds // ignore: cast_nullable_to_non_nullable
+as String,launchActivity: freezed == launchActivity ? _self.launchActivity : launchActivity // ignore: cast_nullable_to_non_nullable
+as String?,rounds: null == rounds ? _self.rounds : rounds // ignore: cast_nullable_to_non_nullable
 as int,trialTimeoutSeconds: freezed == trialTimeoutSeconds ? _self.trialTimeoutSeconds : trialTimeoutSeconds // ignore: cast_nullable_to_non_nullable
 as int?,expectedResultFiles: null == expectedResultFiles ? _self._expectedResultFiles : expectedResultFiles // ignore: cast_nullable_to_non_nullable
 as List<String>,deviceResultDir: null == deviceResultDir ? _self.deviceResultDir : deviceResultDir // ignore: cast_nullable_to_non_nullable

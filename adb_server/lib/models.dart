@@ -34,7 +34,7 @@ abstract class VariantSpec with _$VariantSpec {
   @JsonSerializable(fieldRename: FieldRename.snake, includeIfNull: false)
   const factory VariantSpec({
     @Default('app.apk') String apk,
-    @Default('app-test.apk') String testApk,
+    String? testApk,
 
     /// Documentation-only provenance of the git state this **Variant** was
     /// built from, e.g. `git 4f2a1c9 (dirty)` or
@@ -68,6 +68,9 @@ Map<String, dynamic> _validateSessionSpecJson(Map<String, dynamic> json) {
   if (variantsJson is! Map) {
     throw const FormatException('session.json: "variants" must be a map');
   }
+  if (variantsJson.isEmpty) {
+    throw const FormatException('session.json: "variants" must not be empty');
+  }
 
   final rounds = json['rounds'] ?? json['repetitions'];
   if (rounds != null && (rounds is! int || rounds < 1)) {
@@ -97,6 +100,26 @@ Map<String, dynamic> _validateSessionSpecJson(Map<String, dynamic> json) {
     normalized['trial_timeout_seconds'] = json['run_timeout_seconds'];
   }
 
+  if (json['launch_activity'] != null) {
+    final activity = json['launch_activity'];
+    if (activity is! String || activity.trim().isEmpty) {
+      throw const FormatException(
+        'session.json: "launch_activity" must be a non-empty string',
+      );
+    }
+    normalized['launch_activity'] = activity.trim();
+  } else {
+    final hasSingleApkVariant = variantsJson.values.any((v) {
+      if (v is Map) {
+        return v['test_apk'] == null;
+      }
+      return false;
+    });
+    if (hasSingleApkVariant) {
+      normalized['launch_activity'] = '$package/.MainActivity';
+    }
+  }
+
   return normalized;
 }
 
@@ -118,6 +141,7 @@ abstract class SessionSpec with _$SessionSpec {
     required String testPackage,
     @Default('dev.flutter.plugins.integration_test.FlutterTestRunner')
     String instrumentationRunner,
+    String? launchActivity,
     @Default(1) int rounds,
     int? trialTimeoutSeconds,
     @Default([]) List<String> expectedResultFiles,

@@ -124,6 +124,8 @@ const Map<String, String> kSessionSpecFieldDescriptions = {
   // `am instrument` fails on the rig, after the upload.
   'instrumentation_runner':
       'android:name of the <instrumentation> element registered by the Bridge APK — usually androidx.test.runner.AndroidJUnitRunner. DO NOT trust the default shown here: verify it against testInstrumentationRunner in android/app/build.gradle.kts and the <instrumentation> element in src/androidTest/AndroidManifest.xml, and set this to whatever the app actually registers. A wrong value fails at am instrument time, on the rig, after the upload.',
+  'launch_activity':
+      'Activity component to launch via am start for single-APK variants (e.g. com.example.app.MainActivity or .MainActivity). Defaults to <package>/.MainActivity when omitted for single-APK variants.',
   'rounds':
       'How many Rounds to run. Each Round executes every Variant once (order randomised). Positive integer; default 1.',
   'trial_timeout_seconds':
@@ -141,7 +143,7 @@ const Map<String, String> kVariantSpecFieldDescriptions = {
   'apk':
       'Filename of the Variant APK, resolved flat beside session.json (never a subdirectory). Default app.apk.',
   'test_apk':
-      'Filename of the Bridge APK (androidTest), resolved flat beside session.json. Default app-test.apk.',
+      'Filename of the Bridge APK (androidTest), resolved flat beside session.json. Optional for single-APK variants; default app-test.apk for instrumentation APK pairs.',
   'source':
       'Optional free-form provenance of the git state this Variant was built from (e.g. "git 4f2a1c9 (dirty)"). Documentation only — nothing resolves it. See ADR 0005.',
 };
@@ -153,7 +155,11 @@ const Map<String, String> kVariantSpecFieldDescriptions = {
 const _kWhatIsBenchmarkhor = '''
 ## What Benchmarkhor's rig is
 
-You stage a Session Directory (session.json + APK files) on the NAS. The adb_server Runner installs each Variant's APK Pair onto a real Android DUT, launches one Trial per Variant per Round via am instrument, and waits for the completion contract. You get raw per-Frame JSONL (and other result files) pulled byte-for-byte — the server never parses, averages, or summarises measurement data.
+You stage a Session Directory (session.json + APK files) on the NAS. The adb_server Runner installs each Variant onto a real Android DUT, executes one Trial per Variant per Round in randomized order, and waits for the completion contract. You get raw measurement data (and other result files) pulled byte-for-byte — the server never parses, averages, or summarises measurement data on the device or runner.
+
+Benchmarkhor supports two distinct execution pathways:
+1. **Whole Flutter App Benchmark**: Measures UI rendering performance (frame build and raster durations in `frames.jsonl`). Requires an APK Pair (Variant APK + Bridge androidTest APK) launched via `am instrument`.
+2. **Pure Dart Benchmark**: Measures algorithmic / CPU performance (iteration durations in `iterations.jsonl`). Requires only a single Harness APK launched via `am start`.
 ''';
 
 const _kSessionDirectory = '''
@@ -185,7 +191,11 @@ const _kCompletionContract = '''
 After EVERY result file has been written, closed, and flushed — and only then — the app creates a sentinel file named DONE in device_result_dir.
 
 It also prints one line to logcat:
+  BENCH_DONE <exit_code> <result_path> <diagnostic_info>
+For Flutter apps this is typically:
   BENCH_DONE <exit_code> <result_path> <n> frames
+For pure Dart benchmarks:
+  BENCH_DONE <exit_code> <result_path> <n> iterations
 (The server matches on the BENCH_DONE token; the rest is diagnostic.)
 
 On unrecoverable error: write FAILED (contents = short human reason) instead of DONE, and/or print:
@@ -201,31 +211,53 @@ Server detection priority:
 4. trial_timeout_seconds elapsed → failed; still pull whatever exists.
 ''';
 
-const _kApkPair = '''
-## APK Pair
+const _kTwoPathways = '''
+## Two execution pathways
 
-Each Variant needs an APK Pair:
-- Variant APK: holds the Dart; one Trial is compiled in via flutter build -t <trial.dart>. This is the App Under Measurement.
-- Bridge APK: the androidTest APK. Holds no Dart and no Variant — only MainActivityTest.java that launches MainActivity so the bundled Trial runs under am instrument.
+Benchmarkhor handles two kinds of benchmarks on the same Android DUT rig:
 
-The Bridge APK is Variant-agnostic. Copies for each Variant are byte-identical; each Variant gets its own file only so the Session Directory is self-contained (flat layout, one directory you can copy).
+### Pathway A: Whole Flutter App Benchmark (APK Pair via am instrument)
+- **Use case**: UI rendering performance, animations, list scrolling, route transitions.
+- **Data contract**: Produces `frames.jsonl` with per-frame build and raster timings.
+- **APK requirements**: Needs an **APK Pair** for each Variant:
+  - **Variant APK**: Holds the Flutter app and compiled Trial (`flutter build apk --profile -t integration_test/<trial>.dart`). This is the App Under Measurement.
+  - **Bridge APK**: The `androidTest` APK. Holds no Dart and no Variant — only `MainActivityTest.java` that launches `MainActivity` so the bundled Trial runs under `am instrument`. The Bridge APK is Variant-agnostic and byte-identical across Variants.
+- **Execution**: Launched via `am instrument -w -r <test_package>/<instrumentation_runner>`.
+- **session.json**: Requires `package`, `test_package`, `instrumentation_runner`, `expected_result_files: ["frames.jsonl"]`, and each Variant defines both `apk` and `test_apk`.
+
+### Pathway B: Pure Dart Benchmark (Single Harness APK via am start)
+- **Use case**: Algorithmic performance, data structures, math, CPU-bound logic, compiler optimizations.
+- **Data contract**: Produces `iterations.jsonl` with per-iteration execution durations (`durationUs`).
+- **APK requirements**: Needs only a **Single APK** (Harness APK) per Variant:
+  - Minimal Flutter/Android app hosting the pure Dart `main()` workload.
+  - No Bridge APK, no `androidTest`, and no instrumentation runner.
+- **Execution**: Launched directly via `am start -n <package>/<launch_activity>`.
+- **session.json**: Requires `package`, `launch_activity` (defaults to `<package>/.MainActivity` if omitted), `expected_result_files: ["iterations.jsonl"]`, and each Variant defines only `apk` (omits `test_apk`).
 ''';
 
 const _kBuildTraps = '''
-## Three build traps (must follow)
+## Build traps and recipes
 
-1. flutter clean FIRST before each Variant build. Gradle rewrites the APK zip in place and leaves the previous build's entries as dead space. An arm64 APK rebuilt over a universal one measured 66 MB on disk while holding 26 MB of entries. The rig reinstalls before every Trial, so that slack is paid on every install.
+### Common traps for all builds
+1. **flutter clean FIRST** before each Variant build. Gradle rewrites the APK zip in place and leaves the previous build's entries as dead space. An arm64 APK rebuilt over a universal one measured 66 MB on disk while holding 26 MB of entries. The rig reinstalls before every Trial, so that slack is paid on every install.
 
-2. --target-platform android-arm64. Without it you ship a universal APK with arm64-v8a + armeabi-v7a + x86_64 payloads, of which the DUT uses one.
+2. **--target-platform android-arm64**. Without it you ship a universal APK with arm64-v8a + armeabi-v7a + x86_64 payloads, of which the DUT uses one.
 
-3. assembleProfileAndroidTest, NOT assembleAndroidTest. testBuildType = "profile" moves the Bridge APK onto the profile buildType. Under the old debug default, Gradle also built a whole debug app APK as a side effect, and the pair only installed because Flutter's profile buildType inherits the debug signing key.
+### Pathway A build recipe (Flutter App APK Pair)
+Must set `testBuildType = "profile"` in `android/app/build.gradle.kts`. Use `assembleProfileAndroidTest`, NOT `assembleAndroidTest`. Under the old debug default, Gradle also built a whole debug app APK as a side effect, and the pair only installed because Flutter's profile buildType inherits the debug signing key.
 
-Canonical build sketch:
+Canonical Pathway A build sketch:
   flutter clean
   flutter build apk --profile --target-platform android-arm64 -t integration_test/<trial>.dart
   (cd android && ./gradlew app:assembleProfileAndroidTest)
   cp build/app/outputs/flutter-apk/app-profile.apk <sessionDir>/<variant>.apk
   cp build/app/outputs/apk/androidTest/profile/app-profile-androidTest.apk <sessionDir>/<variant>-test.apk
+
+### Pathway B build recipe (Pure Dart Single APK)
+No androidTest APK, no Bridge APK, and no gradle assembleAndroidTest tasks are needed. Simply build the profile APK:
+  flutter clean
+  flutter build apk --profile --target-platform android-arm64
+  cp build/app/outputs/flutter-apk/app-profile.apk <sessionDir>/<variant>.apk
 ''';
 
 const _kProfileDebuggable = '''
@@ -250,7 +282,7 @@ Record which git state each Variant came from in VariantSpec.source (documentati
 const _kSkillPointer = '''
 ## Agent workflow
 
-The agent-facing workflow for producing Session Directories and APK Pairs is the filiph-benchmarkhor-prepare-apks skill. Uploading/running Sessions and analysing results are out of scope of that skill.
+The agent-facing workflow for producing Session Directories, harnesses, and APKs for both pathways is the `filiph-benchmarkhor-prepare-apks` skill. Uploading/running Sessions and analysing results are out of scope of that skill.
 
 Live DUT state: GET /api/device (connects first) or GET /health. This document intentionally carries no device state and performs no adb calls.
 ''';
@@ -368,13 +400,37 @@ String _fieldReferenceSection() {
     },
   );
 
+  final pureDartExample = SessionSpec.fromJson({
+    'name': 'hash-map-lookup-perf',
+    'description':
+        'Comparing standard Map vs optimized hashing implementation',
+    'package': 'com.example.dart_benchmark_harness',
+    'launch_activity': 'com.example.dart_benchmark_harness.MainActivity',
+    'device_result_dir':
+        '/sdcard/Android/data/com.example.dart_benchmark_harness/files',
+    'rounds': 30,
+    'expected_result_files': const ['iterations.jsonl'],
+    'variants': const {
+      'baseline': {
+        'apk': 'baseline.apk',
+        'source': 'git 4f2a1c9',
+      },
+      'optimized': {
+        'apk': 'optimized.apk',
+        'source': 'git 4f2a1c9 + branch-opt',
+      },
+    },
+  });
+  final pureDartJson = Map<String, dynamic>.from(pureDartExample.toJson())
+    ..remove('test_package');
+
   buf
     ..writeln()
     ..writeln('### A complete, valid session.json')
     ..writeln()
     ..writeln(
-      'Encoded from a real SessionSpec, so it cannot disagree with the table '
-      'above. The four APK files it names sit flat in the same directory as '
+      'Encoded from a real SessionSpec for Pathway A (Flutter App APK Pair). '
+      'The four APK files it names sit flat in the same directory as '
       'session.json.',
     )
     ..writeln()
@@ -382,6 +438,21 @@ String _fieldReferenceSection() {
       const JsonEncoder.withIndent('  ').convert(
         jsonDecode(
           _encodeJson(example.toJson()),
+        ),
+      ),
+    )
+    ..writeln()
+    ..writeln('## Example session.json for Pathway B (Pure Dart Single APK)')
+    ..writeln()
+    ..writeln(
+      'Encoded from a real SessionSpec for single-APK pure-Dart benchmarks. '
+      'Notice test_apk and test_package are omitted, and expected_result_files specifies iterations.jsonl.',
+    )
+    ..writeln()
+    ..writeln(
+      const JsonEncoder.withIndent('  ').convert(
+        jsonDecode(
+          _encodeJson(pureDartJson),
         ),
       ),
     );
@@ -395,6 +466,7 @@ const _sessionOptionalKeys = {
   'description',
   'test_package',
   'instrumentation_runner',
+  'launch_activity',
   'rounds',
   'trial_timeout_seconds',
   'expected_result_files',
@@ -438,6 +510,7 @@ Applied in _validateSessionSpecJson before freezed parsing:
 - rounds: must be a positive integer when present (legacy alias: repetitions → rounds).
 - expected_result_files: must be a list when present.
 - test_package: defaults to <package>.test when omitted.
+- launch_activity: optional string component name; defaults to <package>/.MainActivity for single-APK variants.
 - trial_timeout_seconds: accepts legacy alias run_timeout_seconds.
 
 A malformed session.json yields state invalid immediately, with the parse error recorded in status.json.error. It is never retried.
@@ -460,13 +533,13 @@ String generateLlmsTxt({
     ..writeln()
     ..write(_kWhatIsBenchmarkhor)
     ..writeln()
+    ..write(_kTwoPathways)
+    ..writeln()
     ..write(_kSessionDirectory)
     ..writeln()
     ..write(_kSessionId)
     ..writeln()
     ..write(_kCompletionContract)
-    ..writeln()
-    ..write(_kApkPair)
     ..writeln()
     ..write(_kBuildTraps)
     ..writeln()

@@ -165,94 +165,177 @@ void main(List<String> arguments) async {
 
     endTemperatures.add(_endTemperature(trialJson));
 
-    final framesFile = File(
-      p.join(entity.path, 'results', 'files', 'frames.jsonl'),
-    );
-    if (!framesFile.existsSync()) {
+    final framesFile = _findResultFile(entity.path, 'frames.jsonl');
+    final iterationsFile = _findResultFile(entity.path, 'iterations.jsonl');
+
+    if (framesFile == null && iterationsFile == null) {
       stderr.writeln('Warning: frames.jsonl not found for $trialId');
       continue;
     }
 
-    final buildTimes = <num>[];
-    final rasterTimes = <num>[];
-    final buildTimesByPhase = <String, List<num>>{};
-    final rasterTimesByPhase = <String, List<num>>{};
-    int? minVsyncStart;
-    int? maxRasterFinish;
+    if (framesFile != null) {
+      final buildTimes = <num>[];
+      final rasterTimes = <num>[];
+      final buildTimesByPhase = <String, List<num>>{};
+      final rasterTimesByPhase = <String, List<num>>{};
+      int? minVsyncStart;
+      int? maxRasterFinish;
 
-    for (final line in framesFile.readAsLinesSync()) {
-      if (line.trim().isEmpty) continue;
-      try {
-        final frame = jsonDecode(line);
-        final buildUs = frame['buildUs'] as num?;
-        final rasterUs = frame['rasterUs'] as num?;
-        final phase = (frame['phase'] as String?)?.trim() ?? '';
-        final vsyncStart = (frame['vsyncStart'] as num?)?.toInt();
-        final rasterFinish = (frame['rasterFinish'] as num?)?.toInt();
+      for (final line in framesFile.readAsLinesSync()) {
+        if (line.trim().isEmpty) continue;
+        try {
+          final frame = jsonDecode(line);
+          final buildUs = frame['buildUs'] as num?;
+          final rasterUs = frame['rasterUs'] as num?;
+          final phase = (frame['phase'] as String?)?.trim() ?? '';
+          final vsyncStart = (frame['vsyncStart'] as num?)?.toInt();
+          final rasterFinish = (frame['rasterFinish'] as num?)?.toInt();
 
-        if (vsyncStart != null) {
-          if (minVsyncStart == null || vsyncStart < minVsyncStart) {
-            minVsyncStart = vsyncStart;
+          if (vsyncStart != null) {
+            if (minVsyncStart == null || vsyncStart < minVsyncStart) {
+              minVsyncStart = vsyncStart;
+            }
           }
-        }
-        if (rasterFinish != null) {
-          if (maxRasterFinish == null || rasterFinish > maxRasterFinish) {
-            maxRasterFinish = rasterFinish;
+          if (rasterFinish != null) {
+            if (maxRasterFinish == null || rasterFinish > maxRasterFinish) {
+              maxRasterFinish = rasterFinish;
+            }
           }
-        }
 
-        if (buildUs != null) {
-          buildTimes.add(buildUs);
-          if (phase.isNotEmpty) {
-            buildTimesByPhase.putIfAbsent(phase, () => []).add(buildUs);
+          if (buildUs != null) {
+            buildTimes.add(buildUs);
+            if (phase.isNotEmpty) {
+              buildTimesByPhase.putIfAbsent(phase, () => []).add(buildUs);
+            }
           }
-        }
-        if (rasterUs != null) {
-          rasterTimes.add(rasterUs);
-          if (phase.isNotEmpty) {
-            rasterTimesByPhase.putIfAbsent(phase, () => []).add(rasterUs);
+          if (rasterUs != null) {
+            rasterTimes.add(rasterUs);
+            if (phase.isNotEmpty) {
+              rasterTimesByPhase.putIfAbsent(phase, () => []).add(rasterUs);
+            }
           }
+        } catch (e) {
+          stderr.writeln('Error parsing line in ${framesFile.path}: $e');
         }
-      } catch (e) {
-        stderr.writeln('Error parsing line in ${framesFile.path}: $e');
       }
-    }
 
-    if (buildTimes.isEmpty && rasterTimes.isEmpty) {
-      stderr.writeln('Warning: No data found in ${framesFile.path}');
-      continue;
-    }
+      if (buildTimes.isEmpty && rasterTimes.isEmpty) {
+        stderr.writeln('Warning: No data found in ${framesFile.path}');
+        continue;
+      }
 
-    int? trialDurationUs;
-    if (minVsyncStart != null && maxRasterFinish != null) {
-      trialDurationUs = maxRasterFinish - minVsyncStart;
-    } else {
-      stderr.writeln(
-        'Warning: No valid vsyncStart/rasterFinish timestamps found for $trialId',
-      );
-    }
+      int? trialDurationUs;
+      if (minVsyncStart != null && maxRasterFinish != null) {
+        trialDurationUs = maxRasterFinish - minVsyncStart;
+      } else {
+        stderr.writeln(
+          'Warning: No valid vsyncStart/rasterFinish timestamps found for $trialId',
+        );
+      }
 
-    final trialData = TrialData(
-      trialId,
-      buildTimes,
-      rasterTimes,
-      buildTimesByPhase,
-      rasterTimesByPhase,
-      durationUs: trialDurationUs,
-    );
-    variantTrials.putIfAbsent(variantName, () => []).add(trialData);
-    roundTrials.putIfAbsent(calculatedRound, () => {})[variantName] = trialData;
-
-    if (argResults.flag('write-trial-files')) {
-      // Write per-trial files
-      _writeDat(
-        p.join(outputDir.path, 'build_${variantName}_$trialId.dat'),
+      final trialData = TrialData(
+        trialId,
         buildTimes,
-      );
-      _writeDat(
-        p.join(outputDir.path, 'raster_${variantName}_$trialId.dat'),
         rasterTimes,
+        buildTimesByPhase,
+        rasterTimesByPhase,
+        durationUs: trialDurationUs,
       );
+      variantTrials.putIfAbsent(variantName, () => []).add(trialData);
+      roundTrials.putIfAbsent(calculatedRound, () => {})[variantName] =
+          trialData;
+
+      if (argResults.flag('write-trial-files')) {
+        // Write per-trial files
+        _writeDat(
+          p.join(outputDir.path, 'build_${variantName}_$trialId.dat'),
+          buildTimes,
+        );
+        _writeDat(
+          p.join(outputDir.path, 'raster_${variantName}_$trialId.dat'),
+          rasterTimes,
+        );
+      }
+    } else if (iterationsFile != null) {
+      final iterationTimes = <num>[];
+      final iterationTimesByPhase = <String, List<num>>{};
+      int? minTimestampUs;
+      int? maxTimestampUs;
+      int? lastDurationUs;
+
+      for (final line in iterationsFile.readAsLinesSync()) {
+        if (line.trim().isEmpty) continue;
+        try {
+          final iter = jsonDecode(line);
+          if (iter is! Map) continue;
+          final durationUs =
+              (iter['durationUs'] ?? iter['duration_us']) as num?;
+          final timestampUs =
+              (iter['timestampUs'] ?? iter['timestamp_us']) as num?;
+          final phase = (iter['phase'] as String?)?.trim() ?? '';
+
+          if (timestampUs != null) {
+            final ts = timestampUs.toInt();
+            if (minTimestampUs == null || ts < minTimestampUs) {
+              minTimestampUs = ts;
+            }
+            if (maxTimestampUs == null || ts > maxTimestampUs) {
+              maxTimestampUs = ts;
+            }
+          }
+
+          if (durationUs != null) {
+            iterationTimes.add(durationUs);
+            lastDurationUs = durationUs.toInt();
+            if (phase.isNotEmpty) {
+              iterationTimesByPhase
+                  .putIfAbsent(phase, () => [])
+                  .add(durationUs);
+            }
+          }
+        } catch (e) {
+          stderr.writeln('Error parsing line in ${iterationsFile.path}: $e');
+        }
+      }
+
+      if (iterationTimes.isEmpty) {
+        stderr.writeln('Warning: No data found in ${iterationsFile.path}');
+        continue;
+      }
+
+      int? trialDurationUs;
+      if (minTimestampUs != null &&
+          maxTimestampUs != null &&
+          maxTimestampUs >= minTimestampUs) {
+        trialDurationUs =
+            (maxTimestampUs - minTimestampUs) + (lastDurationUs ?? 0);
+      }
+      trialDurationUs ??=
+          iterationTimes.fold<num>(0, (a, b) => a + b).toInt();
+
+      final trialData = TrialData(
+        trialId,
+        const [],
+        const [],
+        const {},
+        const {},
+        durationUs: trialDurationUs,
+        iterationTimes: iterationTimes,
+        iterationTimesByPhase: iterationTimesByPhase,
+      );
+      variantTrials.putIfAbsent(variantName, () => []).add(trialData);
+      roundTrials.putIfAbsent(calculatedRound, () => {})[variantName] =
+          trialData;
+
+      if (argResults.flag('write-trial-files')) {
+        _writeDat(
+          p.join(
+            outputDir.path,
+            'iteration_duration_${variantName}_$trialId.dat',
+          ),
+          iterationTimes,
+        );
+      }
     }
   }
 
@@ -261,18 +344,44 @@ void main(List<String> arguments) async {
     final variantName = entry.key;
     final trials = entry.value;
 
-    _writeAggregates(
-      outputDir.path,
-      'build',
-      variantName,
-      trials.map((t) => t.buildTimes).toList(),
+    final hasFrames = trials.any(
+      (t) => t.buildTimes.isNotEmpty || t.rasterTimes.isNotEmpty,
     );
-    _writeAggregates(
-      outputDir.path,
-      'raster',
-      variantName,
-      trials.map((t) => t.rasterTimes).toList(),
-    );
+    final hasIterations = trials.any((t) => t.iterationTimes.isNotEmpty);
+
+    if (hasFrames) {
+      _writeAggregates(
+        outputDir.path,
+        'build',
+        variantName,
+        trials.map((t) => t.buildTimes).toList(),
+      );
+      _writeAggregates(
+        outputDir.path,
+        'raster',
+        variantName,
+        trials.map((t) => t.rasterTimes).toList(),
+      );
+    }
+
+    if (hasIterations) {
+      _writeAggregates(
+        outputDir.path,
+        'iteration_duration',
+        variantName,
+        trials.map((t) => t.iterationTimes).toList(),
+      );
+      final meanIterationDurations = trials
+          .map((t) => _computeMetrics(t.iterationTimes)?.mean)
+          .whereType<double>()
+          .toList();
+      if (meanIterationDurations.isNotEmpty) {
+        _writeDat(
+          p.join(outputDir.path, 'iteration_duration_$variantName.dat'),
+          meanIterationDurations,
+        );
+      }
+    }
 
     final durations = trials
         .map((t) => t.durationUs)
@@ -285,23 +394,37 @@ void main(List<String> arguments) async {
       );
     }
 
-    // Phases are optional. Frames without a phase tag are only part of the
+    // Phases are optional. Frames/iterations without a phase tag are only part of the
     // all-phases aggregates above.
     for (final phase in _phasesOf(trials)) {
-      _writeAggregates(
-        outputDir.path,
-        'build',
-        '${variantName}_$phase',
-        trials.map((t) => t.buildTimesByPhase[phase] ?? const <num>[]).toList(),
-      );
-      _writeAggregates(
-        outputDir.path,
-        'raster',
-        '${variantName}_$phase',
-        trials
-            .map((t) => t.rasterTimesByPhase[phase] ?? const <num>[])
-            .toList(),
-      );
+      if (hasFrames) {
+        _writeAggregates(
+          outputDir.path,
+          'build',
+          '${variantName}_$phase',
+          trials
+              .map((t) => t.buildTimesByPhase[phase] ?? const <num>[])
+              .toList(),
+        );
+        _writeAggregates(
+          outputDir.path,
+          'raster',
+          '${variantName}_$phase',
+          trials
+              .map((t) => t.rasterTimesByPhase[phase] ?? const <num>[])
+              .toList(),
+        );
+      }
+      if (hasIterations) {
+        _writeAggregates(
+          outputDir.path,
+          'iteration_duration',
+          '${variantName}_$phase',
+          trials
+              .map((t) => t.iterationTimesByPhase[phase] ?? const <num>[])
+              .toList(),
+        );
+      }
     }
   }
 
@@ -321,6 +444,12 @@ void main(List<String> arguments) async {
   final nonBaselineVariants = variantNames.sublist(1);
   final allTrialsList = variantTrials.values.expand((t) => t).toList();
   final phases = _phasesOf(allTrialsList);
+  final hasFramesOverall = allTrialsList.any(
+    (t) => t.buildTimes.isNotEmpty || t.rasterTimes.isNotEmpty,
+  );
+  final hasIterationsOverall = allTrialsList.any(
+    (t) => t.iterationTimes.isNotEmpty,
+  );
 
   for (final v in nonBaselineVariants) {
     // Duration change aggregates
@@ -336,34 +465,8 @@ void main(List<String> arguments) async {
       log: log,
     );
 
-    // All-phases change aggregates
-    _writeChangeAggregatesForTiming(
-      outputDirPath: outputDir.path,
-      timing: 'build',
-      baselineVariant: baselineVariant,
-      variantName: v,
-      maxRound: maxRound,
-      roundTrials: roundTrials,
-      bootstrapSesoi: bootstrapSesoi,
-      bootstrapAlpha: bootstrapAlpha,
-      bootstrapPower: bootstrapPower,
-      log: log,
-    );
-    _writeChangeAggregatesForTiming(
-      outputDirPath: outputDir.path,
-      timing: 'raster',
-      baselineVariant: baselineVariant,
-      variantName: v,
-      maxRound: maxRound,
-      roundTrials: roundTrials,
-      bootstrapSesoi: bootstrapSesoi,
-      bootstrapAlpha: bootstrapAlpha,
-      bootstrapPower: bootstrapPower,
-      log: log,
-    );
-
-    // Per-phase change aggregates
-    for (final phase in phases) {
+    if (hasFramesOverall) {
+      // All-phases change aggregates
       _writeChangeAggregatesForTiming(
         outputDirPath: outputDir.path,
         timing: 'build',
@@ -371,7 +474,6 @@ void main(List<String> arguments) async {
         variantName: v,
         maxRound: maxRound,
         roundTrials: roundTrials,
-        phase: phase,
         bootstrapSesoi: bootstrapSesoi,
         bootstrapAlpha: bootstrapAlpha,
         bootstrapPower: bootstrapPower,
@@ -384,12 +486,84 @@ void main(List<String> arguments) async {
         variantName: v,
         maxRound: maxRound,
         roundTrials: roundTrials,
-        phase: phase,
         bootstrapSesoi: bootstrapSesoi,
         bootstrapAlpha: bootstrapAlpha,
         bootstrapPower: bootstrapPower,
         log: log,
       );
+
+      // Per-phase change aggregates
+      for (final phase in phases) {
+        _writeChangeAggregatesForTiming(
+          outputDirPath: outputDir.path,
+          timing: 'build',
+          baselineVariant: baselineVariant,
+          variantName: v,
+          maxRound: maxRound,
+          roundTrials: roundTrials,
+          phase: phase,
+          bootstrapSesoi: bootstrapSesoi,
+          bootstrapAlpha: bootstrapAlpha,
+          bootstrapPower: bootstrapPower,
+          log: log,
+        );
+        _writeChangeAggregatesForTiming(
+          outputDirPath: outputDir.path,
+          timing: 'raster',
+          baselineVariant: baselineVariant,
+          variantName: v,
+          maxRound: maxRound,
+          roundTrials: roundTrials,
+          phase: phase,
+          bootstrapSesoi: bootstrapSesoi,
+          bootstrapAlpha: bootstrapAlpha,
+          bootstrapPower: bootstrapPower,
+          log: log,
+        );
+      }
+    }
+
+    if (hasIterationsOverall) {
+      _writeChangeAggregatesForTiming(
+        outputDirPath: outputDir.path,
+        timing: 'iteration_duration',
+        baselineVariant: baselineVariant,
+        variantName: v,
+        maxRound: maxRound,
+        roundTrials: roundTrials,
+        bootstrapSesoi: bootstrapSesoi,
+        bootstrapAlpha: bootstrapAlpha,
+        bootstrapPower: bootstrapPower,
+        log: log,
+      );
+
+      _writeChangeAggregatesForIterationDuration(
+        outputDirPath: outputDir.path,
+        baselineVariant: baselineVariant,
+        variantName: v,
+        maxRound: maxRound,
+        roundTrials: roundTrials,
+        bootstrapSesoi: bootstrapSesoi,
+        bootstrapAlpha: bootstrapAlpha,
+        bootstrapPower: bootstrapPower,
+        log: log,
+      );
+
+      for (final phase in phases) {
+        _writeChangeAggregatesForTiming(
+          outputDirPath: outputDir.path,
+          timing: 'iteration_duration',
+          baselineVariant: baselineVariant,
+          variantName: v,
+          maxRound: maxRound,
+          roundTrials: roundTrials,
+          phase: phase,
+          bootstrapSesoi: bootstrapSesoi,
+          bootstrapAlpha: bootstrapAlpha,
+          bootstrapPower: bootstrapPower,
+          log: log,
+        );
+      }
     }
   }
 
@@ -404,12 +578,21 @@ int _parseTrialNumber(String trialId) {
   return int.tryParse(trialId.replaceAll(RegExp(r'\D'), '')) ?? 0;
 }
 
+File? _findResultFile(String entityPath, String filename) {
+  final candidate1 = File(p.join(entityPath, 'results', 'files', filename));
+  if (candidate1.existsSync()) return candidate1;
+  final candidate2 = File(p.join(entityPath, 'results', filename));
+  if (candidate2.existsSync()) return candidate2;
+  return null;
+}
+
 /// All phase tags seen in [trials], sorted for stable output.
 List<String> _phasesOf(List<TrialData> trials) {
   final phases = <String>{};
   for (final trial in trials) {
     phases.addAll(trial.buildTimesByPhase.keys);
     phases.addAll(trial.rasterTimesByPhase.keys);
+    phases.addAll(trial.iterationTimesByPhase.keys);
   }
   return phases.toList()..sort();
 }
@@ -482,6 +665,7 @@ void _writeAggregates(
   final ns = <double>[];
   final firsts = <double>[];
   final means = <double>[];
+  final medians = <double>[];
   final mins = <double>[];
   final maxs = <double>[];
   final p95s = <double>[];
@@ -498,6 +682,7 @@ void _writeAggregates(
       // A phase can consist of a single frame, which Statistic refuses.
       final only = data.single.toDouble();
       means.add(only);
+      medians.add(only);
       mins.add(only);
       maxs.add(only);
       p95s.add(only);
@@ -508,6 +693,7 @@ void _writeAggregates(
     final stats = Statistic.from(doubleList);
 
     means.add(stats.mean.toDouble());
+    medians.add(percentile(sorted, 0.50));
     mins.add(stats.min.toDouble());
     maxs.add(stats.max.toDouble());
     p95s.add(percentile(sorted, 0.95));
@@ -517,6 +703,7 @@ void _writeAggregates(
   _writeDat(p.join(outputDirPath, '${timing}_n_$variantName.dat'), ns);
   _writeDat(p.join(outputDirPath, '${timing}_first_$variantName.dat'), firsts);
   _writeDat(p.join(outputDirPath, '${timing}_mean_$variantName.dat'), means);
+  _writeDat(p.join(outputDirPath, '${timing}_median_$variantName.dat'), medians);
   _writeDat(p.join(outputDirPath, '${timing}_min_$variantName.dat'), mins);
   _writeDat(p.join(outputDirPath, '${timing}_max_$variantName.dat'), maxs);
   _writeDat(p.join(outputDirPath, '${timing}_p95_$variantName.dat'), p95s);
@@ -533,12 +720,14 @@ Metrics? _computeMetrics(List<num> data) {
   final first = data.first.toDouble();
   final sorted = List<num>.from(data)..sort();
   final p95sq = superquantile(sorted, 0.95);
+  final med = percentile(sorted, 0.50);
   if (data.length == 1) {
     final only = data.single.toDouble();
     return Metrics(
       n: n,
       first: only,
       mean: only,
+      median: only,
       min: only,
       max: only,
       p95: only,
@@ -552,6 +741,7 @@ Metrics? _computeMetrics(List<num> data) {
     n: n,
     first: first,
     mean: stats.mean.toDouble(),
+    median: med,
     min: stats.min.toDouble(),
     max: stats.max.toDouble(),
     p95: percentile(sorted, 0.95),
@@ -564,6 +754,7 @@ final class Metrics {
   final double n;
   final double first;
   final double mean;
+  final double median;
   final double min;
   final double max;
   final double p95;
@@ -574,6 +765,7 @@ final class Metrics {
     required this.n,
     required this.first,
     required this.mean,
+    required this.median,
     required this.min,
     required this.max,
     required this.p95,
@@ -589,6 +781,8 @@ final class Metrics {
         return first;
       case MetricType.mean:
         return mean;
+      case MetricType.median:
+        return median;
       case MetricType.min:
         return min;
       case MetricType.max:
@@ -603,7 +797,7 @@ final class Metrics {
   }
 }
 
-enum MetricType { n, first, mean, min, max, p95, p99, p95superquantile }
+enum MetricType { n, first, mean, median, min, max, p95, p99, p95superquantile }
 
 void _writeChangeAggregatesForTiming({
   required String outputDirPath,
@@ -636,13 +830,20 @@ void _writeChangeAggregatesForTiming({
       varData = phase == null
           ? varTrial.buildTimes
           : (varTrial.buildTimesByPhase[phase] ?? const <num>[]);
-    } else {
+    } else if (timing == 'raster') {
       baseData = phase == null
           ? baseTrial.rasterTimes
           : (baseTrial.rasterTimesByPhase[phase] ?? const <num>[]);
       varData = phase == null
           ? varTrial.rasterTimes
           : (varTrial.rasterTimesByPhase[phase] ?? const <num>[]);
+    } else {
+      baseData = phase == null
+          ? baseTrial.iterationTimes
+          : (baseTrial.iterationTimesByPhase[phase] ?? const <num>[]);
+      varData = phase == null
+          ? varTrial.iterationTimes
+          : (varTrial.iterationTimesByPhase[phase] ?? const <num>[]);
     }
 
     final baseMetrics = _computeMetrics(baseData);
@@ -679,6 +880,53 @@ void _writeChangeAggregatesForTiming({
       log: log,
     );
   }
+}
+
+void _writeChangeAggregatesForIterationDuration({
+  required String outputDirPath,
+  required String baselineVariant,
+  required String variantName,
+  required int maxRound,
+  required Map<int, Map<String, TrialData>> roundTrials,
+  required double bootstrapSesoi,
+  required double bootstrapAlpha,
+  required double bootstrapPower,
+  required Logger log,
+}) {
+  final changes = <double>[];
+  final baseMeans = <double>[];
+  final varMeans = <double>[];
+
+  for (var r = 1; r <= maxRound; r++) {
+    final baseTrial = roundTrials[r]?[baselineVariant];
+    final varTrial = roundTrials[r]?[variantName];
+    if (baseTrial == null || varTrial == null) continue;
+
+    final baseMean = _computeMetrics(baseTrial.iterationTimes)?.mean;
+    final varMean = _computeMetrics(varTrial.iterationTimes)?.mean;
+    if (baseMean == null || varMean == null) continue;
+
+    final change = varMean - baseMean;
+    changes.add(change);
+    baseMeans.add(baseMean);
+    varMeans.add(varMean);
+  }
+
+  final designation = 'iteration_duration_change_$variantName';
+  if (changes.isNotEmpty) {
+    _writeDat(p.join(outputDirPath, '$designation.dat'), changes);
+  }
+
+  _logStatsAndSampleSize(
+    designation: designation,
+    baseData: baseMeans,
+    varData: varMeans,
+    changes: changes,
+    bootstrapSesoi: bootstrapSesoi,
+    bootstrapAlpha: bootstrapAlpha,
+    bootstrapPower: bootstrapPower,
+    log: log,
+  );
 }
 
 void _writeChangeAggregatesForDuration({
@@ -858,6 +1106,12 @@ class TrialData {
   /// The duration of the trial in microseconds (max(rasterFinish) - min(vsyncStart)).
   final int? durationUs;
 
+  /// Iteration durations for pure-Dart benchmarks.
+  final List<num> iterationTimes;
+
+  /// Iteration durations of only those iterations tagged with a given phase.
+  final Map<String, List<num>> iterationTimesByPhase;
+
   TrialData(
     this.id,
     this.buildTimes,
@@ -865,5 +1119,7 @@ class TrialData {
     this.buildTimesByPhase,
     this.rasterTimesByPhase, {
     this.durationUs,
+    this.iterationTimes = const [],
+    this.iterationTimesByPhase = const {},
   });
 }

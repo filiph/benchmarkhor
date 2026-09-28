@@ -814,7 +814,250 @@ void main() {
         expect(durationChange.existsSync(), isFalse);
       },
     );
+
+    test(
+      'extracts iteration metrics and change files from iterations.jsonl',
+      () async {
+        final sessionDir = Directory(p.join(tempDir.path, 'iteration_session'));
+        final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
+        await trialsDir.create(recursive: true);
+
+        final sessionJson = File(p.join(sessionDir.path, 'session.json'));
+        await sessionJson.writeAsString(
+          jsonEncode({
+            'schema_version': 1,
+            'name': 'pure-dart-bench',
+            'variants': {
+              'baseline': {'apk': 'baseline.apk'},
+              'optimized': {'apk': 'optimized.apk'},
+            },
+            'rounds': 2,
+          }),
+        );
+
+        // Round 1:
+        // baseline: 1000, 1100, 1200 (mean: 1100, median: 1100, min: 1000, max: 1200, n: 3)
+        await _createIterationTrial(
+          trialsDir: trialsDir,
+          trialId: 'trial-001',
+          variantName: 'baseline',
+          round: 1,
+          durations: [1000, 1100, 1200],
+          timestamps: [10000, 11100, 12100],
+        );
+
+        // optimized: 800, 850, 900 (mean: 850, median: 850, min: 800, max: 900, n: 3)
+        await _createIterationTrial(
+          trialsDir: trialsDir,
+          trialId: 'trial-002',
+          variantName: 'optimized',
+          round: 1,
+          durations: [800, 850, 900],
+          timestamps: [20000, 20900, 21700],
+        );
+
+        // Round 2:
+        // optimized: 820, 850, 880 (mean: 850, median: 850, min: 820, max: 880, n: 3)
+        await _createIterationTrial(
+          trialsDir: trialsDir,
+          trialId: 'trial-003',
+          variantName: 'optimized',
+          round: 2,
+          durations: [820, 850, 880],
+          timestamps: [30000, 30900, 31720],
+        );
+
+        // baseline: 1050, 1100, 1150 (mean: 1100, median: 1100, min: 1050, max: 1150, n: 3)
+        await _createIterationTrial(
+          trialsDir: trialsDir,
+          trialId: 'trial-004',
+          variantName: 'baseline',
+          round: 2,
+          durations: [1050, 1100, 1150],
+          timestamps: [40000, 41100, 42150],
+        );
+
+        final outDir = Directory(p.join(tempDir.path, 'out_iteration'));
+
+        final result = await Process.run('dart', [
+          'run',
+          'bin/extract_dat.dart',
+          sessionDir.path,
+          '-o',
+          outDir.path,
+        ]);
+
+        expect(
+          result.exitCode,
+          equals(0),
+          reason: 'stdout:\n${result.stdout}\n\nstderr:\n${result.stderr}',
+        );
+
+        // Absolute metric files
+        final meanBase = File(
+          p.join(outDir.path, 'iteration_duration_mean_baseline.dat'),
+        );
+        final meanOpt = File(
+          p.join(outDir.path, 'iteration_duration_mean_optimized.dat'),
+        );
+        expect(meanBase.existsSync(), isTrue);
+        expect(meanOpt.existsSync(), isTrue);
+
+        final baseMeans = (await meanBase.readAsLines())
+            .where((l) => l.isNotEmpty)
+            .map(double.parse)
+            .toList();
+        final optMeans = (await meanOpt.readAsLines())
+            .where((l) => l.isNotEmpty)
+            .map(double.parse)
+            .toList();
+        expect(baseMeans, equals([1100.0, 1100.0]));
+        expect(optMeans, equals([850.0, 850.0]));
+
+        // Single-name iteration_duration_<variant>.dat
+        final iterDurBase = File(
+          p.join(outDir.path, 'iteration_duration_baseline.dat'),
+        );
+        final iterDurOpt = File(
+          p.join(outDir.path, 'iteration_duration_optimized.dat'),
+        );
+        expect(iterDurBase.existsSync(), isTrue);
+        expect(iterDurOpt.existsSync(), isTrue);
+
+        // Median files
+        final medBase = File(
+          p.join(outDir.path, 'iteration_duration_median_baseline.dat'),
+        );
+        expect(medBase.existsSync(), isTrue);
+        final baseMedians = (await medBase.readAsLines())
+            .where((l) => l.isNotEmpty)
+            .map(double.parse)
+            .toList();
+        expect(baseMedians, equals([1100.0, 1100.0]));
+
+        // N files
+        final nBase = File(
+          p.join(outDir.path, 'iteration_duration_n_baseline.dat'),
+        );
+        expect(nBase.existsSync(), isTrue);
+        final baseNs = (await nBase.readAsLines())
+            .where((l) => l.isNotEmpty)
+            .map(double.parse)
+            .toList();
+        expect(baseNs, equals([3.0, 3.0]));
+
+        // Change files
+        final changeMean = File(
+          p.join(outDir.path, 'iteration_duration_mean_change_optimized.dat'),
+        );
+        expect(changeMean.existsSync(), isTrue);
+        final changeMeans = (await changeMean.readAsLines())
+            .where((l) => l.isNotEmpty)
+            .map(double.parse)
+            .toList();
+        expect(changeMeans, equals([-250.0, -250.0]));
+
+        final changeIterDur = File(
+          p.join(outDir.path, 'iteration_duration_change_optimized.dat'),
+        );
+        expect(changeIterDur.existsSync(), isTrue);
+        final changeIterDurs = (await changeIterDur.readAsLines())
+            .where((l) => l.isNotEmpty)
+            .map(double.parse)
+            .toList();
+        expect(changeIterDurs, equals([-250.0, -250.0]));
+
+        // Total trial duration files
+        final durBase = File(p.join(outDir.path, 'duration_baseline.dat'));
+        final durOpt = File(p.join(outDir.path, 'duration_optimized.dat'));
+        final durChange = File(
+          p.join(outDir.path, 'duration_change_optimized.dat'),
+        );
+        expect(durBase.existsSync(), isTrue);
+        expect(durOpt.existsSync(), isTrue);
+        expect(durChange.existsSync(), isTrue);
+      },
+    );
+
+    test('handles empty iterations.jsonl gracefully with warning', () async {
+      final sessionDir = Directory(p.join(tempDir.path, 'empty_session'));
+      final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
+      await trialsDir.create(recursive: true);
+
+      final sessionJson = File(p.join(sessionDir.path, 'session.json'));
+      await sessionJson.writeAsString(
+        jsonEncode({
+          'schema_version': 1,
+          'name': 'empty-bench',
+          'variants': {
+            'v1': {'apk': 'app.apk'},
+          },
+          'rounds': 1,
+        }),
+      );
+
+      await _createIterationTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-001',
+        variantName: 'v1',
+        round: 1,
+        durations: [],
+      );
+
+      final outDir = Directory(p.join(tempDir.path, 'out_empty'));
+
+      final result = await Process.run('dart', [
+        'run',
+        'bin/extract_dat.dart',
+        sessionDir.path,
+        '-o',
+        outDir.path,
+      ]);
+
+      expect(result.exitCode, equals(0));
+      expect(result.stderr, contains('No data found in'));
+    });
   });
+}
+
+Future<void> _createIterationTrial({
+  required Directory trialsDir,
+  required String trialId,
+  required String variantName,
+  int? round,
+  required List<int> durations,
+  List<String>? phases,
+  List<int>? timestamps,
+  bool writeIterationsFile = true,
+}) async {
+  final tDir = Directory(p.join(trialsDir.path, trialId));
+  final resultsDir = Directory(p.join(tDir.path, 'results', 'files'));
+  await resultsDir.create(recursive: true);
+
+  final trialJson = File(p.join(tDir.path, 'trial.json'));
+  await trialJson.writeAsString(
+    jsonEncode({
+      'trial_id': trialId,
+      'variant_name': variantName,
+      if (round != null) 'round': round,
+    }),
+  );
+
+  if (!writeIterationsFile) return;
+
+  final iterFile = File(p.join(resultsDir.path, 'iterations.jsonl'));
+  final sink = iterFile.openWrite();
+  for (var i = 0; i < durations.length; i++) {
+    final map = <String, dynamic>{
+      'iteration': i + 1,
+      'durationUs': durations[i],
+      if (timestamps != null && i < timestamps.length)
+        'timestampUs': timestamps[i],
+      if (phases != null && i < phases.length) 'phase': phases[i],
+    };
+    sink.writeln(jsonEncode(map));
+  }
+  await sink.close();
 }
 
 Future<void> _createTrial({

@@ -92,3 +92,12 @@ The default **Theme**, optimized for dark background canvases. Structural elemen
 
 ### Light Theme
 A **Theme** optimized for white or light background canvases. Structural elements, labels, and box plots are drawn with black or dark gray strokes and fills, leaving the SVG background transparent.
+
+### Iteration
+A technical replicate in a pure-Dart benchmark: the repeated verbatim execution of a measured unit of work (such as an algorithmic operation or loop pass), recorded with its execution duration in microseconds (`durationUs`) and timestamp. Unlike UI benchmarks that produce **Frames**, pure-Dart benchmarks record a stream of Iterations.
+
+### Harness APK
+A minimal, headless Android/Flutter application package wrapping a pure-Dart benchmark. It provides the AOT Dart runtime on the Android DUT and is launched directly via `am start` without requiring a companion test APK.
+
+### iterations.jsonl
+The raw measurement file written by a **Harness APK** on the device during a **Trial**, containing one JSON object per **Iteration** with its duration and timestamp. Like `frames.jsonl`, it records unaggregated raw data; metric aggregation into `.dat` files is performed on the host.

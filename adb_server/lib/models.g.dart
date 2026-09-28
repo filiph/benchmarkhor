@@ -8,14 +8,14 @@ part of 'models.dart';
 
 _VariantSpec _$VariantSpecFromJson(Map<String, dynamic> json) => _VariantSpec(
   apk: json['apk'] as String? ?? 'app.apk',
-  testApk: json['test_apk'] as String? ?? 'app-test.apk',
+  testApk: json['test_apk'] as String?,
   source: json['source'] as String?,
 );
 
 Map<String, dynamic> _$VariantSpecToJson(_VariantSpec instance) =>
     <String, dynamic>{
       'apk': instance.apk,
-      'test_apk': instance.testApk,
+      'test_apk': ?instance.testApk,
       'source': ?instance.source,
     };
 
@@ -33,6 +33,7 @@ _SessionSpec _$SessionSpecFromJson(Map<String, dynamic> json) => _SessionSpec(
   instrumentationRunner:
       json['instrumentation_runner'] as String? ??
       'dev.flutter.plugins.integration_test.FlutterTestRunner',
+  launchActivity: json['launch_activity'] as String?,
   rounds: (json['rounds'] as num?)?.toInt() ?? 1,
   trialTimeoutSeconds: (json['trial_timeout_seconds'] as num?)?.toInt(),
   expectedResultFiles:
@@ -53,6 +54,7 @@ Map<String, dynamic> _$SessionSpecToJson(_SessionSpec instance) =>
       'package': instance.package,
       'test_package': instance.testPackage,
       'instrumentation_runner': instance.instrumentationRunner,
+      'launch_activity': ?instance.launchActivity,
       'rounds': instance.rounds,
       'trial_timeout_seconds': ?instance.trialTimeoutSeconds,
       'expected_result_files': instance.expectedResultFiles,

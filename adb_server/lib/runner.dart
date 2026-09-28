@@ -393,13 +393,15 @@ class Runner {
         sessionStore.sessionDir(sessionId).path,
         variant.apk,
       );
-      final testApkPath = p.join(
-        sessionStore.sessionDir(sessionId).path,
-        variant.testApk,
-      );
 
       await trialAdb.install(apkPath, timeout: const Duration(minutes: 5));
-      await trialAdb.install(testApkPath, timeout: const Duration(minutes: 5));
+      if (variant.testApk != null) {
+        final testApkPath = p.join(
+          sessionStore.sessionDir(sessionId).path,
+          variant.testApk!,
+        );
+        await trialAdb.install(testApkPath, timeout: const Duration(minutes: 5));
+      }
 
       // 5. Precompile
       if (config.precompilePackage) {
@@ -411,7 +413,6 @@ class Runner {
       }
 
       // 6. Launch
-      log('Launching instrumentation...');
       await trialAdb.clearLogcat();
       final logcatFile = sessionStore.trialLogcatFile(sessionId, trialId);
       final logcatProcess = await trialAdb.startLogcat(logcatFile);
@@ -429,30 +430,52 @@ class Runner {
       final timeout =
           spec.trialTimeoutSeconds ?? config.defaultTrialTimeoutSeconds;
 
+      final isSingleApk = variant.testApk == null;
+
       try {
-        final instrumentationFuture = trialAdb
-            .run([
-              'shell',
-              'am',
-              'instrument',
-              '-w',
-              '-r',
-              '${spec.testPackage}/${spec.instrumentationRunner}',
-            ], timeout: Duration.zero)
-            .then((res) => instrumentationResult = res);
-
-        // Give it a moment to fail early (e.g. wrong runner name, package not found)
-        await Future.any([
-          instrumentationFuture,
-          Future<void>.delayed(const Duration(seconds: 2)),
-        ]);
-
-        if (instrumentationResult != null &&
-            instrumentationResult!.exitCode != 0) {
-          throw Exception(
-            'Instrumentation failed to start (exit ${instrumentationResult!.exitCode}):\n'
-            '${instrumentationResult!.stdout}\n${instrumentationResult!.stderr}',
+        if (isSingleApk) {
+          final rawActivity =
+              spec.launchActivity ?? '${spec.package}/.MainActivity';
+          final component = rawActivity.contains('/')
+              ? rawActivity
+              : '${spec.package}/$rawActivity';
+          log('Launching activity ($component)...');
+          final launchResult = await trialAdb.shell(
+            'am start -n $component',
+            timeout: const Duration(seconds: 30),
           );
+          if (launchResult.exitCode != 0) {
+            throw Exception(
+              'Activity failed to start (exit ${launchResult.exitCode}):\n'
+              '${launchResult.stdout}\n${launchResult.stderr}',
+            );
+          }
+        } else {
+          log('Launching instrumentation...');
+          final instrumentationFuture = trialAdb
+              .run([
+                'shell',
+                'am',
+                'instrument',
+                '-w',
+                '-r',
+                '${spec.testPackage}/${spec.instrumentationRunner}',
+              ], timeout: Duration.zero)
+              .then((res) => instrumentationResult = res);
+
+          // Give it a moment to fail early (e.g. wrong runner name, package not found)
+          await Future.any([
+            instrumentationFuture,
+            Future<void>.delayed(const Duration(seconds: 2)),
+          ]);
+
+          if (instrumentationResult != null &&
+              instrumentationResult!.exitCode != 0) {
+            throw Exception(
+              'Instrumentation failed to start (exit ${instrumentationResult!.exitCode}):\n'
+              '${instrumentationResult!.stdout}\n${instrumentationResult!.stderr}',
+            );
+          }
         }
 
         // 7. Wait for completion (Contract)
@@ -592,7 +615,8 @@ class Runner {
       );
 
       if (!finished) {
-        if (instrumentationResult != null &&
+        if (!isSingleApk &&
+            instrumentationResult != null &&
             instrumentationResult!.exitCode != 0) {
           throw Exception(
             'Instrumentation failed (exit ${instrumentationResult!.exitCode}):\n'
@@ -613,10 +637,13 @@ class Runner {
           spec.package,
           timeout: const Duration(minutes: 1),
         );
-        await trialAdb.uninstall(
-          spec.testPackage,
-          timeout: const Duration(minutes: 1),
-        );
+        final variant = spec.variants[variantName];
+        if (variant?.testApk != null) {
+          await trialAdb.uninstall(
+            spec.testPackage,
+            timeout: const Duration(minutes: 1),
+          );
+        }
       } catch (e) {
         log('Warning: Failed to uninstall: $e');
       }

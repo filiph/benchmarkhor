@@ -68,6 +68,29 @@ void main() {
     await File(p.join(dir.path, 'test.apk')).create();
   }
 
+  Future<void> setupSingleApkSession(
+    String sessionId, {
+    String? launchActivity,
+  }) async {
+    final dir = Directory(p.join(store.sessionsDir.path, sessionId));
+    await dir.create(recursive: true);
+    final spec = {
+      'name': 'Single APK Session',
+      'variants': {
+        'baseline': {'apk': 'bench.apk'},
+      },
+      'package': 'com.example.bench',
+      if (launchActivity != null) 'launch_activity': launchActivity,
+      'device_result_dir': p.join(tempDir.path, 'device_sdcard'),
+      'rounds': 1,
+      'expected_result_files': ['iterations.jsonl'],
+    };
+    await File(
+      p.join(dir.path, 'session.json'),
+    ).writeAsString(jsonEncode(spec));
+    await File(p.join(dir.path, 'bench.apk')).create();
+  }
+
   Future<void> simulateAppFinishing(
     String sessionId,
     Directory deviceSdcard,
@@ -395,5 +418,77 @@ void main() {
         .trialAdbLogFile(sessionId, 'trial-001')
         .readAsString();
     expect(adbLog, contains('echo auto-detected > /sys/cpu/mode'));
+  });
+
+  test('Runner executes a single-APK session via am start', () async {
+    final sessionId = '20260809__single_apk';
+    await setupSingleApkSession(
+      sessionId,
+      launchActivity: 'com.example.bench.CustomActivity',
+    );
+    await store.discoverNewSessions();
+
+    final runner = Runner(config: config, sessionStore: store);
+
+    final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
+    await deviceSdcard.create(recursive: true);
+
+    final startedId = await runner.startNext();
+    expect(startedId, sessionId);
+    expect(runner.isBusy, isTrue);
+
+    final logFile = store.sessionLogFile(sessionId);
+    int logAttempts = 0;
+    while (logAttempts < 30) {
+      if (await logFile.exists()) {
+        final content = await logFile.readAsString();
+        if (content.contains('Waiting for completion...')) {
+          break;
+        }
+      }
+      await Future<void>.delayed(const Duration(seconds: 1));
+      logAttempts++;
+    }
+
+    await File(
+      p.join(deviceSdcard.path, 'iterations.jsonl'),
+    ).writeAsString('{"iteration":1,"durationUs":1500}\n');
+    await File(p.join(deviceSdcard.path, 'DONE')).create();
+
+    int attempts = 0;
+    while (runner.isBusy && attempts < 10) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      attempts++;
+    }
+
+    expect(runner.isBusy, isFalse);
+    final status = await store.readStatus(sessionId);
+    expect(status!.state, SessionState.done);
+
+    final sessionLog = await store.sessionLogFile(sessionId).readAsString();
+    expect(
+      sessionLog,
+      contains(
+        'Launching activity (com.example.bench/com.example.bench.CustomActivity)...',
+      ),
+    );
+    expect(sessionLog, isNot(contains('Launching instrumentation...')));
+
+    final trialDir = store.trialDir(sessionId, 'trial-001');
+    expect(
+      await File(p.join(trialDir.path, 'results/iterations.jsonl')).exists(),
+      isTrue,
+    );
+
+    final adbLog = await store
+        .trialAdbLogFile(sessionId, 'trial-001')
+        .readAsString();
+    expect(
+      adbLog,
+      contains('am start -n com.example.bench/com.example.bench.CustomActivity'),
+    );
+    expect(adbLog, isNot(contains('am instrument')));
+    expect(adbLog, contains('uninstall com.example.bench'));
+    expect(adbLog, isNot(contains('uninstall com.example.bench.test')));
   });
 }

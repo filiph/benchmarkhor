@@ -16,8 +16,8 @@ import 'package:test/test.dart';
 void main() {
   /// Keys that `includeIfNull: false` omits from a default toJson() but that
   /// must still be documented.
-  const sessionNullableKeys = {'trial_timeout_seconds'};
-  const variantNullableKeys = {'source'};
+  const sessionNullableKeys = {'trial_timeout_seconds', 'launch_activity'};
+  const variantNullableKeys = {'source', 'test_apk'};
 
   test('SessionSpec field descriptions cover toJson keys both ways', () {
     const sample = SessionSpec(
@@ -140,6 +140,25 @@ void main() {
     expect(spec.variants['baseline']!.apk, 'baseline.apk');
     expect(spec.variants['improved']!.source, isNotNull);
     expect(spec.expectedResultFiles, contains('frames.jsonl'));
+  });
+
+  test('the worked pure Dart session.json example parses as a valid SessionSpec', () {
+    final doc = generateLlmsTxt(gitCommit: 'testcommit');
+    final start = doc.indexOf('## Example session.json for Pathway B (Pure Dart Single APK)');
+    expect(start, greaterThan(-1), reason: 'the pure dart worked example section is gone');
+
+    final braceStart = doc.indexOf('{', start);
+    final braceEnd = doc.lastIndexOf('}', doc.indexOf('\n## ', start + 10));
+    final snippet = doc.substring(braceStart, braceEnd + 1);
+
+    final spec = SessionSpec.fromJson(
+      jsonDecode(snippet) as Map<String, dynamic>,
+    );
+    expect(spec.variants, hasLength(2));
+    expect(spec.variants['baseline']!.apk, 'baseline.apk');
+    expect(spec.variants['baseline']!.testApk, isNull);
+    expect(spec.launchActivity, isNotNull);
+    expect(spec.expectedResultFiles, contains('iterations.jsonl'));
   });
 
   test('no Dart toString() forms leak into the document', () {
