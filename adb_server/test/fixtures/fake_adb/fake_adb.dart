@@ -161,6 +161,10 @@ void main(List<String> arguments) {
     return;
   }
 
+  if (cmd.contains('shell chmod')) {
+    return;
+  }
+
   if (cmd.contains('shell cmd package compile')) {
     print('Success');
     return;

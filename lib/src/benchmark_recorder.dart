@@ -122,14 +122,19 @@ class BenchmarkRecorder {
 
   /// Signals benchmark failure according to the runner contract:
   ///
-  /// 1. Flushes and closes `iterations.jsonl`.
-  /// 2. Creates the `FAILED` sentinel file containing [reason] in [outputDir].
-  /// 3. Emits `BENCH_FAILED` to stdout/logcat for adb monitoring.
+  /// 1. Emits `BENCH_FAILED` to stdout/logcat immediately for adb monitoring.
+  /// 2. Flushes and closes `iterations.jsonl`.
+  /// 3. Safely creates the `FAILED` sentinel file containing [reason] in [outputDir].
   Future<void> fail(String reason) async {
-    await close();
-    final failedFile = File(p.join(outputDir.path, 'FAILED'));
-    await failedFile.writeAsString(reason);
-    // Printed to logcat on Android
+    // Printed to logcat on Android first so adb_server detects failure immediately
+    // even if disk write permissions fail.
     print('BENCH_FAILED $reason');
+    try {
+      await close();
+    } catch (_) {}
+    try {
+      final failedFile = File(p.join(outputDir.path, 'FAILED'));
+      await failedFile.writeAsString(reason);
+    } catch (_) {}
   }
 }

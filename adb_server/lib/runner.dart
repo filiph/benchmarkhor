@@ -385,6 +385,23 @@ class Runner {
         'mkdir -p ${spec.deviceResultDir}',
         timeout: const Duration(minutes: 1),
       );
+      await trialAdb.shell(
+        'chmod -R 777 ${spec.deviceResultDir}',
+        timeout: const Duration(minutes: 1),
+      );
+      final pkgDirIndex = spec.deviceResultDir.indexOf(
+        '/Android/data/${spec.package}',
+      );
+      if (pkgDirIndex != -1) {
+        final pkgDir = spec.deviceResultDir.substring(
+          0,
+          pkgDirIndex + '/Android/data/${spec.package}'.length,
+        );
+        await trialAdb.shell(
+          'chmod -R 777 $pkgDir',
+          timeout: const Duration(minutes: 1),
+        );
+      }
 
       // 4. Install
       final variant = spec.variants[variantName]!;

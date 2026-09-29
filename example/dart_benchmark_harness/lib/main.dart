@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:benchmarkhor/benchmark_recorder.dart';
 import 'package:flutter/material.dart';
 
+final statusNotifier = ValueNotifier<String>('Initializing...');
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -12,32 +14,57 @@ void main() async {
       ? BenchmarkRecorder.defaultDeviceResultDir(package)
       : Directory.current;
 
-  final recorder = BenchmarkRecorder(outputDir: resultDir);
-
-  // Run the benchmark in the background while displaying a minimal UI.
+  // Run the benchmark while displaying a minimal UI.
   runApp(const BenchmarkHarnessApp());
 
+  // Allow Flutter to render the first frame before entering CPU-intensive loops.
+  await WidgetsBinding.instance.endOfFrame;
+
+  Future<void> updateStatus(String status) async {
+    statusNotifier.value = status;
+    // Yield to the event loop and allow Flutter's engine to render the frame.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+
+  BenchmarkRecorder? recorder;
   try {
     debugPrint('Harness: starting benchmark workload...');
+    await updateStatus('Setting up recorder...');
+    recorder = BenchmarkRecorder(outputDir: resultDir);
 
     // Warmup iterations (unmeasured)
+    await updateStatus('Running warmup iterations...');
     for (var i = 0; i < 5; i++) {
       benchmarkWorkload();
     }
 
-    // Measured iterations
+    // Measured iterations (never update UI inside the measured loop!)
     const iterations = 50;
+    await updateStatus('Measuring $iterations iterations...');
     for (var i = 0; i < iterations; i++) {
       recorder.measure(() {
         benchmarkWorkload();
       });
     }
 
+    await updateStatus('Completed. Writing DONE sentinel...');
     debugPrint('Harness: completed $iterations iterations. Writing DONE sentinel.');
     await recorder.complete();
+    await updateStatus('Done.');
   } catch (e, stack) {
     debugPrint('Harness: error executing benchmark: $e\n$stack');
-    await recorder.fail(e.toString());
+    // Printed to logcat on Android first so adb_server detects failure immediately
+    // ignore: avoid_print
+    print('BENCH_FAILED $e');
+    statusNotifier.value = 'Failed: $e';
+    if (recorder != null) {
+      await recorder.fail(e.toString());
+    } else {
+      try {
+        final failedFile = File('${resultDir.path}/FAILED');
+        await failedFile.writeAsString(e.toString());
+      } catch (_) {}
+    }
   }
 }
 
@@ -47,18 +74,37 @@ void benchmarkWorkload() {
   list.sort();
 }
 
-/// Minimal visual harness to satisfy Android Activity requirements.
+/// Minimal visual harness displaying phase progress to satisfy Android Activity requirements.
 class BenchmarkHarnessApp extends StatelessWidget {
   const BenchmarkHarnessApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       home: Scaffold(
         body: Center(
-          child: Text(
-            'Running pure-Dart benchmark...',
-            style: TextStyle(fontSize: 16),
+          child: ValueListenableBuilder<String>(
+            valueListenable: statusNotifier,
+            builder: (context, status, _) {
+              return Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Pure-Dart Benchmark Harness',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      status,
+                      style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ),

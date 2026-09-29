@@ -198,8 +198,8 @@ For pure Dart benchmarks:
   BENCH_DONE <exit_code> <result_path> <n> iterations
 (The server matches on the BENCH_DONE token; the rest is diagnostic.)
 
-On unrecoverable error: write FAILED (contents = short human reason) instead of DONE, and/or print:
-  BENCH_FAILED <reason>
+On unrecoverable error: print BENCH_FAILED <reason> to logcat and/or write FAILED (contents = short human reason) instead of DONE.
+IMPORTANT: Always print BENCH_FAILED to logcat first, and guard writing FAILED with try/catch. If the error is caused by storage or permission failures, an unhandled exception while attempting to write FAILED to disk would prevent BENCH_FAILED from reaching logcat, leaving the server hanging until trial_timeout_seconds elapses.
 No DONE on failure.
 
 WHY print, not stdout.writeln: an Android app process's file descriptor 1 goes nowhere. print is routed to logcat by the Flutter engine; that is how BENCH_* lines reach adb logcat.
@@ -253,11 +253,16 @@ Canonical Pathway A build sketch:
   cp build/app/outputs/flutter-apk/app-profile.apk <sessionDir>/<variant>.apk
   cp build/app/outputs/apk/androidTest/profile/app-profile-androidTest.apk <sessionDir>/<variant>-test.apk
 
-### Pathway B build recipe (Pure Dart Single APK)
+### Pathway B build recipe and traps (Pure Dart Single APK)
 No androidTest APK, no Bridge APK, and no gradle assembleAndroidTest tasks are needed. Simply build the profile APK:
   flutter clean
   flutter build apk --profile --target-platform android-arm64
   cp build/app/outputs/flutter-apk/app-profile.apk <sessionDir>/<variant>.apk
+
+Harness traps:
+1. **Render the first frame before heavy loops**: Call `await WidgetsBinding.instance.endOfFrame;` before executing warmups or benchmark loops. Heavy synchronous computation blocks the Dart event loop, preventing Flutter from rendering the initial frame and leaving the device frozen on the splash screen.
+2. **Never update UI inside measured loops**: Use phase-based status displays (`ValueNotifier`) outside `measure()`. Always yield briefly (`await Future<void>.delayed(const Duration(milliseconds: 50));`) after setting the notifier so Flutter's rendering pipeline has event loop space and VSync time to paint the frame. Triggering Flutter layout/paint passes inside the measurement block invalidates pure Dart timings.
+3. **Resilient failure reporting**: Wrap main() in top-level try/catch. On failure, emit `print('BENCH_FAILED <reason>')` first so logcat picks it up even if result directory write permissions fail.
 ''';
 
 const _kProfileDebuggable = '''
