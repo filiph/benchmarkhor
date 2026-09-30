@@ -36,6 +36,7 @@ void main() async {
     await updateStatus('Running warmup iterations...');
     for (var i = 0; i < 5; i++) {
       benchmarkWorkload();
+      await Future<void>.delayed(Duration.zero);
     }
 
     // Measured iterations (never update UI inside the measured loop!)
@@ -45,6 +46,9 @@ void main() async {
       recorder.measure(() {
         benchmarkWorkload();
       });
+      // Yield to the event loop so Android's main looper processes window focus,
+      // input events, and lifecycle messages, preventing ANR (5,000ms timeout).
+      await Future<void>.delayed(Duration.zero);
     }
 
     await updateStatus('Completed. Writing DONE sentinel...');

@@ -262,7 +262,8 @@ No androidTest APK, no Bridge APK, and no gradle assembleAndroidTest tasks are n
 Harness traps:
 1. **Render the first frame before heavy loops**: Call `await WidgetsBinding.instance.endOfFrame;` before executing warmups or benchmark loops. Heavy synchronous computation blocks the Dart event loop, preventing Flutter from rendering the initial frame and leaving the device frozen on the splash screen.
 2. **Never update UI inside measured loops**: Use phase-based status displays (`ValueNotifier`) outside `measure()`. Always yield briefly (`await Future<void>.delayed(const Duration(milliseconds: 50));`) after setting the notifier so Flutter's rendering pipeline has event loop space and VSync time to paint the frame. Triggering Flutter layout/paint passes inside the measurement block invalidates pure Dart timings.
-3. **Resilient failure reporting**: Wrap main() in top-level try/catch. On failure, emit `print('BENCH_FAILED <reason>')` first so logcat picks it up even if result directory write permissions fail.
+3. **Prevent ANR by yielding between iterations**: Insert `await Future<void>.delayed(Duration.zero);` after each measured iteration and warmup pass. If the main thread runs heavy synchronous loops for > 5,000 ms, Android WindowManager triggers an ANR (5s FocusEvent timeout) and kills the process with SIGKILL before sentinels can be written. `recorder.measure()` stops timing before returning, so yielding delay is excluded from measurements.
+4. **Resilient failure reporting**: Wrap main() in top-level try/catch. On failure, emit `print('BENCH_FAILED <reason>')` first so logcat picks it up even if result directory write permissions fail.
 ''';
 
 const _kProfileDebuggable = '''

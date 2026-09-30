@@ -435,9 +435,17 @@ class Runner {
       final logcatProcess = await trialAdb.startLogcat(logcatFile);
 
       String? benchDoneMarker;
+      String? crashOrAnrMarker;
       final logcatSub = logcatProcess.lines.listen((line) {
         if (line.contains('BENCH_DONE') || line.contains('BENCH_FAILED')) {
           benchDoneMarker = line;
+        }
+        if (line.contains('ANR in ') ||
+            (line.contains('Waited ') && line.contains('for FocusEvent')) ||
+            line.contains('Fatal signal ') ||
+            line.contains('SIGSEGV') ||
+            line.contains('SIGABRT')) {
+          crashOrAnrMarker ??= line.trim();
         }
       });
 
@@ -641,8 +649,11 @@ class Runner {
           );
         }
         if (consecutivePidMissing >= 2) {
+          final detail = crashOrAnrMarker != null
+              ? ' (Detected in logcat: $crashOrAnrMarker)'
+              : '';
           throw Exception(
-            'Trial process disappeared unexpectedly without reporting completion.',
+            'Trial process disappeared unexpectedly without reporting completion$detail.',
           );
         }
         throw Exception('Trial failed or timed out after ${timeout}s.');
