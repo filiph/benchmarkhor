@@ -93,14 +93,19 @@ void main() {
 
   Future<void> simulateAppFinishing(
     String sessionId,
-    Directory deviceSdcard,
-  ) async {
+    Directory deviceSdcard, {
+    String trialId = 'trial-001',
+    String resultFileName = 'result.txt',
+    String resultContent = 'bench results',
+  }) async {
     final logFile = store.sessionLogFile(sessionId);
     int logAttempts = 0;
     while (logAttempts < 30) {
       if (await logFile.exists()) {
         final content = await logFile.readAsString();
-        if (content.contains('Waiting for completion...')) {
+        final trialIdx = content.indexOf('Starting Trial $trialId');
+        if (trialIdx != -1 &&
+            content.indexOf('Waiting for completion...', trialIdx) != -1) {
           break;
         }
       }
@@ -109,8 +114,8 @@ void main() {
     }
 
     await File(
-      p.join(deviceSdcard.path, 'result.txt'),
-    ).writeAsString('bench results');
+      p.join(deviceSdcard.path, resultFileName),
+    ).writeAsString(resultContent);
     await File(p.join(deviceSdcard.path, 'DONE')).create();
   }
 
@@ -488,7 +493,245 @@ void main() {
       contains('am start -n com.example.bench/com.example.bench.CustomActivity'),
     );
     expect(adbLog, isNot(contains('am instrument')));
-    expect(adbLog, contains('uninstall com.example.bench'));
-    expect(adbLog, isNot(contains('uninstall com.example.bench.test')));
+    expect(adbLog, contains('pm clear com.example.bench'));
+    expect(adbLog, isNot(contains('uninstall')));
+    expect(sessionLog, contains('Session teardown: uninstalling packages...'));
   });
+
+  test(
+    'Runner preserves UID via pm clear and skips redundant install for same variant',
+    () async {
+      final sessionId = '20260809__multitrial';
+      final dir = Directory(p.join(store.sessionsDir.path, sessionId));
+      await dir.create(recursive: true);
+      final spec = {
+        'name': 'Multi-trial Session',
+        'variants': {
+          'v1': {'apk': 'app.apk'},
+        },
+        'package': 'com.example.app',
+        'device_result_dir': p.join(tempDir.path, 'device_sdcard'),
+        'rounds': 2,
+        'expected_result_files': ['iterations.jsonl'],
+      };
+      await File(
+        p.join(dir.path, 'session.json'),
+      ).writeAsString(jsonEncode(spec));
+      await File(p.join(dir.path, 'app.apk')).create();
+      await store.discoverNewSessions();
+
+      final runner = Runner(config: config, sessionStore: store);
+      final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
+      await deviceSdcard.create(recursive: true);
+
+      await runner.startNext();
+
+      // Round 1 / trial-001
+      await simulateAppFinishing(
+        sessionId,
+        deviceSdcard,
+        trialId: 'trial-001',
+        resultFileName: 'iterations.jsonl',
+      );
+
+      // Round 2 / trial-002
+      await simulateAppFinishing(
+        sessionId,
+        deviceSdcard,
+        trialId: 'trial-002',
+        resultFileName: 'iterations.jsonl',
+      );
+
+      int attempts = 0;
+      while (runner.isBusy && attempts < 20) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        attempts++;
+      }
+
+      expect(runner.isBusy, isFalse);
+      final status = await store.readStatus(sessionId);
+      expect(status!.state, SessionState.done);
+
+      final adbLog1 = await store
+          .trialAdbLogFile(sessionId, 'trial-001')
+          .readAsString();
+      final adbLog2 = await store
+          .trialAdbLogFile(sessionId, 'trial-002')
+          .readAsString();
+
+      // Both trials should clear package instead of uninstalling
+      expect(adbLog1, contains('pm clear com.example.app'));
+      expect(adbLog1, isNot(contains('uninstall com.example.app')));
+
+      expect(adbLog2, contains('pm clear com.example.app'));
+      expect(adbLog2, isNot(contains('uninstall com.example.app')));
+
+      // Trial 1 installed APK
+      expect(adbLog1, contains('install -r -d -g'));
+
+      // Trial 2 was same variant, so it skipped install
+      expect(adbLog2, isNot(contains('install -r -d -g')));
+
+      final sessionLog = await store.sessionLogFile(sessionId).readAsString();
+      expect(
+        sessionLog,
+        contains(
+          'Variant v1 is already installed; skipping APK installation.',
+        ),
+      );
+      expect(sessionLog, contains('Session teardown: uninstalling packages...'));
+    },
+  );
+
+  test(
+    'Runner recovers autonomously from UID exhaustion during APK install',
+    () async {
+      final sessionId = '20260809__uid_recovery';
+      await setupSingleApkSession(sessionId);
+      await store.discoverNewSessions();
+
+      final failCountFile = File(
+        p.join(tempDir.path, 'fake_adb_uid_fail_count.txt'),
+      );
+      final rebootStateFile = File(
+        p.join(tempDir.path, 'fake_adb_reboot_state.txt'),
+      );
+
+      // Create a mock profile to verify profile re-application post-reboot
+      final profilesDir = Directory(
+        p.join(tempDir.path, 'profiles', 'pixel3xl'),
+      );
+      await profilesDir.create(recursive: true);
+      final profileFile = File(p.join(profilesDir.path, 'performance.sh'));
+      await profileFile.writeAsString('echo performance > /sys/cpu/mode\n');
+
+      final recoveryConfig = Config(
+        dutAddress: '100.120.184.47:5555',
+        dataDir: tempDir.path,
+        port: 8080,
+        adbPath: fakeAdbPath,
+        pollIntervalSeconds: 1,
+        defaultTrialTimeoutSeconds: 30,
+        thermalGateCelsius: null,
+        thermalGateTimeoutSeconds: 0,
+        deviceProfileFile: profileFile.path,
+        deviceResetFile: null,
+        profilesDir: p.join(tempDir.path, 'profiles'),
+        precompilePackage: false,
+        logLevel: 'info',
+        gitCommit: 'abdabdabd',
+      );
+
+      final recoveryEnvironment = {
+        'FAKE_ADB_FAIL_INSTALL_UID': 'true',
+        'FAKE_ADB_UID_FAIL_COUNT_FILE': failCountFile.path,
+        'FAKE_ADB_REBOOT_STATE_FILE': rebootStateFile.path,
+      };
+
+      final runner = Runner(
+        config: recoveryConfig,
+        sessionStore: store,
+        environment: recoveryEnvironment,
+      );
+
+      final deviceSdcard = Directory(p.join(tempDir.path, 'device_sdcard'));
+      await deviceSdcard.create(recursive: true);
+
+      await runner.startNext();
+      await simulateAppFinishing(
+        sessionId,
+        deviceSdcard,
+        trialId: 'trial-001',
+        resultFileName: 'iterations.jsonl',
+        resultContent: '{"iteration":1}\n',
+      );
+
+      int attempts = 0;
+      while (runner.isBusy && attempts < 25) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        attempts++;
+      }
+
+      expect(runner.isBusy, isFalse);
+      final status = await store.readStatus(sessionId);
+      expect(status!.state, SessionState.done);
+
+      final sessionLog = await store.sessionLogFile(sessionId).readAsString();
+      expect(
+        sessionLog,
+        contains(
+          'Detected UID exhaustion during APK install. Initiating self-healing device reboot.',
+        ),
+      );
+      expect(
+        sessionLog,
+        contains(
+          'Executing self-healing reboot to flush PackageManagerService UID table...',
+        ),
+      );
+      expect(
+        sessionLog,
+        contains('Device boot completed. Restoring device operational state...'),
+      );
+      expect(sessionLog, contains('Re-applying device profile'));
+      expect(
+        sessionLog,
+        contains('Retrying APK installation for baseline post-reboot...'),
+      );
+
+      final metadataRaw = await store
+          .trialMetadataFile(sessionId, 'trial-001')
+          .readAsString();
+      final metadata = TrialMetadata.fromJson(
+        jsonDecode(metadataRaw) as Map<String, dynamic>,
+      );
+      expect(
+        metadata.warnings.any(
+          (w) => w.contains('Detected UID exhaustion during APK install'),
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'Runner aborts immediately on non-UID install failure without rebooting',
+    () async {
+      final sessionId = '20260809__non_uid_fail';
+      await setupSingleApkSession(sessionId);
+      await store.discoverNewSessions();
+
+      final rebootStateFile = File(
+        p.join(tempDir.path, 'fake_adb_reboot_state_non_uid.txt'),
+      );
+
+      final failEnvironment = {
+        'FAKE_ADB_FAIL_INSTALL_PARSE': 'true',
+        'FAKE_ADB_REBOOT_STATE_FILE': rebootStateFile.path,
+      };
+
+      final runner = Runner(
+        config: config,
+        sessionStore: store,
+        environment: failEnvironment,
+      );
+
+      await runner.startNext();
+
+      int attempts = 0;
+      while (runner.isBusy && attempts < 15) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        attempts++;
+      }
+
+      expect(runner.isBusy, isFalse);
+      final status = await store.readStatus(sessionId);
+      expect(status!.state, SessionState.failed);
+      expect(rebootStateFile.existsSync(), isFalse);
+
+      final sessionLog = await store.sessionLogFile(sessionId).readAsString();
+      expect(sessionLog, isNot(contains('self-healing')));
+      expect(sessionLog, contains('INSTALL_PARSE_FAILED_NOT_APK'));
+    },
+  );
 }

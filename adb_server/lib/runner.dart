@@ -183,6 +183,7 @@ class Runner {
         }
       }
 
+      String? currentlyInstalledVariant;
       for (
         int round = status.roundsCompleted + 1;
         round <= spec.rounds;
@@ -206,7 +207,9 @@ class Runner {
             probe,
             log,
             autoProfile: defaultProfile,
+            currentlyInstalledVariant: currentlyInstalledVariant,
           );
+          currentlyInstalledVariant = variantName;
 
           // Check for cancellation between trials
           status = (await sessionStore.readStatus(sessionId))!;
@@ -234,6 +237,39 @@ class Runner {
         );
       }
     } finally {
+      log('Session teardown: uninstalling packages...');
+      try {
+        final teardownAdb = Adb(
+          adbPath: config.adbPath,
+          deviceAddress: config.dutAddress,
+          environment: environment,
+        );
+        if (await teardownAdb.connect()) {
+          try {
+            await teardownAdb.uninstall(
+              spec.package,
+              timeout: const Duration(minutes: 1),
+            );
+          } catch (e) {
+            log('Warning: Failed to uninstall ${spec.package}: $e');
+          }
+          final hasTestApk =
+              spec.variants.values.any((v) => v.testApk != null);
+          if (hasTestApk && spec.testPackage.isNotEmpty) {
+            try {
+              await teardownAdb.uninstall(
+                spec.testPackage,
+                timeout: const Duration(minutes: 1),
+              );
+            } catch (e) {
+              log('Warning: Failed to uninstall ${spec.testPackage}: $e');
+            }
+          }
+        }
+      } catch (e) {
+        log('Warning: Failed during session teardown uninstall: $e');
+      }
+
       final resetFile = config.deviceResetFile ?? defaultReset;
       if (resetFile != null) {
         log('Applying device reset profile from $resetFile...');
@@ -273,6 +309,7 @@ class Runner {
     DeviceProbe probe,
     void Function(String) log, {
     String? autoProfile,
+    String? currentlyInstalledVariant,
   }) async {
     final trialDir = sessionStore.trialDir(sessionId, trialId);
     await trialDir.create(recursive: true);
@@ -377,6 +414,16 @@ class Runner {
 
       // 3. Clean device state
       log('Cleaning device state...');
+      await trialAdb.forceStop(spec.package);
+      final variant = spec.variants[variantName]!;
+      if (variant.testApk != null && spec.testPackage.isNotEmpty) {
+        await trialAdb.forceStop(spec.testPackage);
+      }
+      await trialAdb.clearPackage(spec.package);
+      if (variant.testApk != null && spec.testPackage.isNotEmpty) {
+        await trialAdb.clearPackage(spec.testPackage);
+      }
+
       await trialAdb.shell(
         'rm -rf ${spec.deviceResultDir}',
         timeout: const Duration(minutes: 1),
@@ -404,20 +451,48 @@ class Runner {
       }
 
       // 4. Install
-      final variant = spec.variants[variantName]!;
-      log('Installing APKs for $variantName...');
-      final apkPath = p.join(
-        sessionStore.sessionDir(sessionId).path,
-        variant.apk,
-      );
-
-      await trialAdb.install(apkPath, timeout: const Duration(minutes: 5));
-      if (variant.testApk != null) {
-        final testApkPath = p.join(
+      if (currentlyInstalledVariant != variantName) {
+        log('Installing APKs for $variantName...');
+        final apkPath = p.join(
           sessionStore.sessionDir(sessionId).path,
-          variant.testApk!,
+          variant.apk,
         );
-        await trialAdb.install(testApkPath, timeout: const Duration(minutes: 5));
+
+        Future<void> doInstall() async {
+          await trialAdb.install(apkPath, timeout: const Duration(minutes: 5));
+          if (variant.testApk != null) {
+            final testApkPath = p.join(
+              sessionStore.sessionDir(sessionId).path,
+              variant.testApk!,
+            );
+            await trialAdb.install(
+              testApkPath,
+              timeout: const Duration(minutes: 5),
+            );
+          }
+        }
+
+        try {
+          await doInstall();
+        } catch (e) {
+          if (_isUidExhaustionError(e)) {
+            const warningMsg =
+                'Detected UID exhaustion during APK install. Initiating self-healing device reboot.';
+            log('Warning: $warningMsg: $e');
+            warnings.add(warningMsg);
+
+            await _recoverFromUidExhaustion(trialAdb, profileFile, log);
+
+            log('Retrying APK installation for $variantName post-reboot...');
+            await doInstall();
+          } else {
+            rethrow;
+          }
+        }
+      } else {
+        log(
+          'Variant $variantName is already installed; skipping APK installation.',
+        );
       }
 
       // 5. Precompile
@@ -659,22 +734,6 @@ class Runner {
         throw Exception('Trial failed or timed out after ${timeout}s.');
       }
     } finally {
-      log('Uninstalling APKs...');
-      try {
-        await trialAdb.uninstall(
-          spec.package,
-          timeout: const Duration(minutes: 1),
-        );
-        final variant = spec.variants[variantName];
-        if (variant?.testApk != null) {
-          await trialAdb.uninstall(
-            spec.testPackage,
-            timeout: const Duration(minutes: 1),
-          );
-        }
-      } catch (e) {
-        log('Warning: Failed to uninstall: $e');
-      }
       await adbLogSink.flush();
       await adbLogSink.close();
     }
@@ -733,6 +792,60 @@ class Runner {
 
     final hash = sha256.convert(utf8.encode(content)).toString();
     return (content: content, sha256: hash);
+  }
+
+  Future<void> _restoreDeviceStatePostReboot(
+    Adb adb,
+    String? profilePath,
+    void Function(String) log,
+  ) async {
+    log('Restoring device state post-reboot...');
+    log('Elevating to root...');
+    if (await adb.root()) {
+      await Future<void>.delayed(const Duration(seconds: 5));
+      if (!await adb.connect()) {
+        log(
+          'Warning: Failed to reconnect after adb root. Proceeding as non-root.',
+        );
+      }
+    } else {
+      log('Warning: adb root failed. Profiles may fail if root is required.');
+    }
+
+    if (profilePath != null) {
+      log('Re-applying device profile from $profilePath...');
+      await _applyProfile(adb, profilePath, log);
+    }
+  }
+
+  bool _isUidExhaustionError(Object error) {
+    final message = error.toString();
+    return (message.contains('INSTALL_FAILED_INSUFFICIENT_STORAGE') &&
+            message.contains('could not be assigned a valid UID')) ||
+        message.contains('could not be assigned a valid UID') ||
+        message.contains('INSTALL_FAILED_UID_CHANGED');
+  }
+
+  Future<void> _recoverFromUidExhaustion(
+    Adb adb,
+    String? profileFile,
+    void Function(String) log,
+  ) async {
+    log(
+      'Executing self-healing reboot to flush PackageManagerService UID table...',
+    );
+    await adb.reboot();
+    log('Waiting for device to complete boot...');
+    final booted = await adb.waitForBootCompleted(
+      timeout: const Duration(minutes: 5),
+    );
+    if (!booted) {
+      throw Exception(
+        'Device failed to complete boot within timeout during UID recovery.',
+      );
+    }
+    log('Device boot completed. Restoring device operational state...');
+    await _restoreDeviceStatePostReboot(adb, profileFile, log);
   }
 
   Future<void> _generateResultsIndex(

@@ -12,18 +12,59 @@ void main(List<String> arguments) {
 
   final cmd = arguments.join(' ');
 
+  if (cmd.contains('reboot')) {
+    final rebootState = Platform.environment['FAKE_ADB_REBOOT_STATE_FILE'];
+    if (rebootState != null) {
+      File(rebootState).writeAsStringSync('rebooted');
+    }
+    return;
+  }
+
   if (cmd.contains('connect')) {
+    final rebootState = Platform.environment['FAKE_ADB_REBOOT_STATE_FILE'];
+    if (rebootState != null && File(rebootState).existsSync()) {
+      final content = File(rebootState).readAsStringSync();
+      if (content == 'rebooted') {
+        File(rebootState).writeAsStringSync('connected');
+      }
+    }
     print('connected to 100.120.184.47:5555');
     return;
   }
 
   if (cmd.contains('get-state')) {
+    final rebootState = Platform.environment['FAKE_ADB_REBOOT_STATE_FILE'];
+    if (rebootState != null && File(rebootState).existsSync()) {
+      final content = File(rebootState).readAsStringSync();
+      if (content == 'rebooted') {
+        print('offline');
+        return;
+      }
+    }
     print('device');
     return;
   }
 
   if (cmd.contains('root')) {
     print('restarting adbd as root');
+    return;
+  }
+
+  if (cmd.contains('getprop sys.boot_completed')) {
+    final rebootState = Platform.environment['FAKE_ADB_REBOOT_STATE_FILE'];
+    if (rebootState != null && File(rebootState).existsSync()) {
+      final content = File(rebootState).readAsStringSync();
+      if (content == 'rebooted') {
+        print('0');
+        return;
+      }
+      if (content == 'connected') {
+        print('1');
+        return;
+      }
+    }
+    final bootVal = Platform.environment['FAKE_ADB_BOOT_COMPLETED'] ?? '1';
+    print(bootVal);
     return;
   }
 
@@ -114,11 +155,46 @@ void main(List<String> arguments) {
   }
 
   if (cmd.contains('install')) {
+    if (Platform.environment['FAKE_ADB_FAIL_INSTALL_PARSE'] == 'true') {
+      stderr.writeln(
+        'adb: failed to install: Failure [INSTALL_PARSE_FAILED_NOT_APK]',
+      );
+      exit(1);
+    }
+    if (Platform.environment['FAKE_ADB_FAIL_INSTALL_UID'] == 'true') {
+      final uidFailCountFile =
+          Platform.environment['FAKE_ADB_UID_FAIL_COUNT_FILE'];
+      if (uidFailCountFile != null) {
+        final file = File(uidFailCountFile);
+        int count = file.existsSync() ? int.parse(file.readAsStringSync().trim()) : 0;
+        if (count == 0) {
+          file.writeAsStringSync('1');
+          stderr.writeln(
+            'adb: failed to install: Failure [INSTALL_FAILED_INSUFFICIENT_STORAGE: Scanning Failed.: Package com.example.app could not be assigned a valid UID]',
+          );
+          exit(1);
+        }
+      } else {
+        stderr.writeln(
+          'adb: failed to install: Failure [INSTALL_FAILED_INSUFFICIENT_STORAGE: Scanning Failed.: Package com.example.app could not be assigned a valid UID]',
+        );
+        exit(1);
+      }
+    }
     print('Success');
     return;
   }
 
   if (cmd.contains('uninstall')) {
+    print('Success');
+    return;
+  }
+
+  if (cmd.contains('am force-stop')) {
+    return;
+  }
+
+  if (cmd.contains('pm clear')) {
     print('Success');
     return;
   }

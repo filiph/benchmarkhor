@@ -168,6 +168,66 @@ class Adb {
     return true;
   }
 
+  /// Reboots the device and awaits disconnection.
+  Future<void> reboot({
+    Duration timeout = const Duration(seconds: 30),
+    Duration disconnectTimeout = const Duration(seconds: 5),
+  }) async {
+    final result = await run(['reboot'], timeout: timeout);
+    if (result.exitCode != 0) {
+      throw Exception('Failed to issue adb reboot: ${result.stderr}');
+    }
+    // Await device disconnection
+    final deadline = DateTime.now().add(disconnectTimeout);
+    while (DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      final state = await getState(timeout: const Duration(seconds: 2));
+      if (state == null || state != 'device') {
+        break;
+      }
+    }
+  }
+
+  /// Polls the device until boot completion is reported via
+  /// `sys.boot_completed == 1`.
+  Future<bool> waitForBootCompleted({
+    Duration timeout = const Duration(minutes: 5),
+    Duration initialDelay = const Duration(seconds: 1),
+    Duration maxDelay = const Duration(seconds: 10),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    var currentDelay = initialDelay;
+
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final connected = await connect(retries: 0);
+        if (connected) {
+          final state = await getState(timeout: const Duration(seconds: 5));
+          if (state == 'device') {
+            final bootResult = await shell(
+              'getprop sys.boot_completed',
+              timeout: const Duration(seconds: 5),
+            );
+            if (bootResult.exitCode == 0 &&
+                (bootResult.stdout as String).trim() == '1') {
+              return true;
+            }
+          }
+        }
+      } catch (e) {
+        _log.fine('Waiting for boot completion: $e');
+      }
+
+      await Future<void>.delayed(currentDelay);
+      final nextMs = (currentDelay.inMilliseconds * 2).clamp(
+        initialDelay.inMilliseconds,
+        maxDelay.inMilliseconds,
+      );
+      currentDelay = Duration(milliseconds: nextMs);
+    }
+    return false;
+  }
+
   Future<ProcessResult> shell(
     String command, {
     Duration timeout = const Duration(minutes: 2),
@@ -176,12 +236,14 @@ class Adb {
   Future<void> install(
     String apkPath, {
     bool reinstall = true,
+    bool allowDowngrade = true,
     bool grantPermissions = true,
     Duration timeout = const Duration(minutes: 5),
   }) async {
     final result = await run([
       'install',
       if (reinstall) '-r',
+      if (allowDowngrade) '-d',
       if (grantPermissions) '-g',
       apkPath,
     ], timeout: timeout);
@@ -218,6 +280,13 @@ class Adb {
     Duration timeout = const Duration(seconds: 30),
   }) async {
     await shell('am force-stop $package', timeout: timeout);
+  }
+
+  Future<void> clearPackage(
+    String package, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    await shell('pm clear $package', timeout: timeout);
   }
 
   Future<void> clearLogcat({

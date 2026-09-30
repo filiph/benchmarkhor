@@ -36,4 +36,38 @@ void main() {
     expect(result.stdout, contains('Timed out'));
     expect(stopwatch.elapsed.inSeconds, lessThan(2));
   });
+
+  test('Adb.clearPackage succeeds', () async {
+    final adb = Adb(adbPath: fakeAdbPath, deviceAddress: '100.120.184.47:5555');
+    await expectLater(adb.clearPackage('com.example.app'), completes);
+  });
+
+  test('Adb.reboot and waitForBootCompleted cycle', () async {
+    final stateFile = File(
+      p.join(
+        Directory.systemTemp.path,
+        'fake_adb_reboot_${DateTime.now().millisecondsSinceEpoch}',
+      ),
+    );
+    final env = {'FAKE_ADB_REBOOT_STATE_FILE': stateFile.path};
+    final adb = Adb(
+      adbPath: fakeAdbPath,
+      deviceAddress: '100.120.184.47:5555',
+      environment: env,
+    );
+
+    try {
+      await adb.reboot(disconnectTimeout: const Duration(seconds: 2));
+      expect(stateFile.existsSync(), isTrue);
+
+      final bootCompleted = await adb.waitForBootCompleted(
+        timeout: const Duration(seconds: 5),
+        initialDelay: const Duration(milliseconds: 50),
+        maxDelay: const Duration(milliseconds: 200),
+      );
+      expect(bootCompleted, isTrue);
+    } finally {
+      if (stateFile.existsSync()) stateFile.deleteSync();
+    }
+  });
 }
