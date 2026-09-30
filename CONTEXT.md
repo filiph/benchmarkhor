@@ -101,3 +101,9 @@ A minimal, headless Android/Flutter application package wrapping a pure-Dart ben
 
 ### iterations.jsonl
 The raw measurement file written by a **Harness APK** on the device during a **Trial**, containing one JSON object per **Iteration** with its duration and timestamp. Like `frames.jsonl`, it records unaggregated raw data; metric aggregation into `.dat` files is performed on the host.
+
+### Local Runner
+A command-line benchmark harness (`bin/local_runner.dart`) that executes benchmark variants directly on the local macOS host machine in randomized rounds, capturing stdout runtime metrics (`(RunTime): ??? us`) and writing session artifacts compatible with `bin/extract_dat.dart`.
+
+### Host Execution Environment
+The local machine environment (macOS) on which benchmark trials are spawned as subprocesses, with non-privileged telemetry (thermal pressure level, hardware model, macOS version, CPU brand, load average) recorded before and after each trial.
