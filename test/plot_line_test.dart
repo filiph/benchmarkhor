@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:benchmarkhor/src/plot/line/line_data.dart';
 import 'package:benchmarkhor/src/plot/line/line_renderer.dart';
+import 'package:benchmarkhor/src/plot/plot_unit.dart';
 import 'package:benchmarkhor/src/plot/svg.dart';
 import 'package:benchmarkhor/src/plot/theme.dart';
 import 'package:test/test.dart';
@@ -70,10 +71,9 @@ void main() {
 
     test('renders with custom layout dimensions', () {
       final line = LineData.compute('sample_a', [10, 20, 30]);
-      final svg = buildLineSvg(
-        [line],
-        layout: const PlotLayout(width: 1200, height: 800),
-      );
+      final svg = buildLineSvg([
+        line,
+      ], layout: const PlotLayout(width: 1200, height: 800));
 
       expect(svg, contains('width="1200.0" height="800.0"'));
       expect(svg, contains('viewBox="0 0 1200.0 800.0"'));
@@ -157,5 +157,21 @@ void main() {
       expect(ys.reduce(max), lessThan(plotBottom));
       expect(ys.reduce(min), greaterThan(marginTop));
     });
+
+    test(
+      'with PlotUnit.ratio renders percentage tick labels and baseline at 1.0',
+      () {
+        final svg = buildLineSvg([
+          LineData.compute('a', [0.95, 1.0, 1.05]),
+        ], unit: PlotUnit.ratio);
+
+        expect(svg, contains('0.0%'));
+        expect(svg, contains('+2.0%'));
+        expect(svg, contains('-2.0%'));
+        final y1 = xAxisY(svg)!;
+        expect(y1, greaterThan(marginTop));
+        expect(y1, lessThan(plotBottom));
+      },
+    );
   });
 }

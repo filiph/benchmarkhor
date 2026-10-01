@@ -41,20 +41,23 @@ In `benchmarkhor`, whiskers extend to the most extreme data points within $1.5 \
 
 ### Plot Maximum
 The upper limit of the **Plot Range**. It is calculated by taking the maximum of all "input maxima".
-Each input maximum is defined as `median + (N * IQR)`, where `N` is the `max-outlier-coefficient`. If all measurements in an input are non-positive, its input maximum is bounded at 0.
+Each input maximum is defined as `median + (N * IQR)`, where `N` is the `max-outlier-coefficient`. If all measurements in an input fall below the baseline, its input maximum is bounded at the baseline (0.0 for magnitude metrics, 1.0 for **Change Ratio**s).
 
 ### Plot Minimum
-The lower limit of the **Plot Range**, defined symmetrically to the Plot Maximum: the minimum of all "input minima", where each input minimum is `median - (N * IQR)`. If all measurements in an input are non-negative, its input minimum is bounded at 0.
+The lower limit of the **Plot Range**, defined symmetrically to the Plot Maximum: the minimum of all "input minima", where each input minimum is `median - (N * IQR)`. If all measurements in an input fall above the baseline, its input minimum is bounded at the baseline (0.0 for magnitude metrics, 1.0 for **Change Ratio**s).
 
 ### Plot Range
-The span of data values the plot commits to showing, from **Plot Minimum** to **Plot Maximum**. Data outside the Plot Range is subject to **Outlier Exclusion**. The Plot Range always includes zero (see **Zero Anchoring**).
-The Plot Range is a Violin Plot concept only: a Line Plot never discards data, so its range is simply the span of all values (zero-anchored).
+The span of data values the plot commits to showing, from **Plot Minimum** to **Plot Maximum**. Data outside the Plot Range is subject to **Outlier Exclusion**. The Plot Range always includes the baseline (see **Baseline Anchoring**).
+The Plot Range is a Violin Plot concept only: a Line Plot never discards data, so its range is simply the span of all values (baseline-anchored).
 
 ### Axis Padding
-Extra space added beyond the **Plot Range** so that data does not touch the edge of the drawing area. Padding is added only to an end of the range that is not zero, and amounts to 5% of the Plot Range. A consequence of **Zero Anchoring**: with all-positive data the zero baseline sits flush at the bottom, with all-negative data flush at the top, and data straddling zero is padded at both ends.
+Extra space added beyond the **Plot Range** so that data does not touch the edge of the drawing area. Padding is added only to an end of the range that is not the baseline, and amounts to 5% of the Plot Range. A consequence of **Baseline Anchoring**: with data strictly on one side of baseline, the baseline sits flush against the edge, while data straddling the baseline is padded at both ends.
+
+### Baseline Anchoring
+The requirement that the **Plot Range** always contains the neutral baseline reference value: 0.0 for magnitude metrics (see **Zero Anchoring**) and 1.0 (corresponding to 0% **Relative Percentage**) when plotting a **Change Ratio**. This maintains honest visual comparisons while preserving resolution for distributions clustered near baseline.
 
 ### Zero Anchoring
-The **Plot Range** always contains the value zero, even when no measurement is near it. Benchmark values are magnitudes, so a zero baseline keeps visual differences honest. Consequently, when every measurement is positive, zero is the bottom of the range; when every measurement is negative, zero is the top.
+A specific form of **Baseline Anchoring** for magnitude metrics where the **Plot Range** always contains the value zero, even when no measurement is near it. Consequently, when every measurement is positive, zero is the bottom of the range; when every measurement is negative, zero is the top.
 
 ### Outlier Exclusion
 To prevent extreme values from compressing the main visualization, outliers falling outside the **Plot Range** are not drawn.
@@ -84,6 +87,10 @@ The proportion of paired rounds in which the baseline outperforms the variant ($
 
 ### Change Ratio
 The relative multiplier of variant performance to baseline performance ($\text{variant} / \text{baseline}$), centered at 1.0 (where values $< 1.0$ represent improvements and values $> 1.0$ represent regressions for lower-is-better metrics). Written to `.dat` files with the `_change_ratio` suffix.
+
+### Relative Percentage
+A representation of a **Change Ratio** expressed as a signed percentage difference from the baseline ($(ratio - 1.0) \times 100\%$) formatted to one decimal place. Neutral performance (1.00) is shown as $0.0\%$, regressions or increases carry an explicit positive sign (e.g., $+1.0\%$), and improvements or reductions carry a negative sign (e.g., $-50.0\%$).
+_Avoid_: Absolute percentage, ratio multiplier
 
 ### Statistical Power
 The probability that an experiment will detect a true effect of at least the **SESOI** when one exists, given the observed noise distribution, sample size, and significance level ($\alpha$).

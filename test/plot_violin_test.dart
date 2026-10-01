@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:benchmarkhor/src/plot/dat_parser.dart';
+import 'package:benchmarkhor/src/plot/plot_unit.dart';
 import 'package:benchmarkhor/src/plot/svg.dart';
 import 'package:benchmarkhor/src/plot/theme.dart';
 import 'package:benchmarkhor/src/plot/violin/violin_data.dart';
@@ -67,10 +68,9 @@ void main() {
     test('renders with custom layout dimensions', () {
       final values = parseDat('test/fixtures/sample_a.dat');
       final violin = ViolinData.compute('sample_a', values);
-      final svg = buildViolinSvg(
-        [violin],
-        layout: const PlotLayout(width: 1200, height: 800),
-      );
+      final svg = buildViolinSvg([
+        violin,
+      ], layout: const PlotLayout(width: 1200, height: 800));
 
       expect(svg, contains('width="1200.0" height="800.0"'));
       expect(svg, contains('viewBox="0 0 1200.0 800.0"'));
@@ -246,6 +246,46 @@ void main() {
       final svg = buildViolinSvg([data]);
       expect(zeroLineY(svg), closeTo(plotBottom, 1e-9));
       expect(svg, isNot(contains('-1000')));
+    });
+
+    group('with PlotUnit.ratio', () {
+      test('input range is bounded at 1.0 for all-greater-than-1.0 data', () {
+        final data = ViolinData.compute('a', [
+          1.02,
+          1.05,
+          1.10,
+          1.15,
+          1.20,
+        ], unit: PlotUnit.ratio);
+        expect(data.inputMin, 1.0);
+      });
+
+      test('input range is bounded at 1.0 for all-less-than-1.0 data', () {
+        final data = ViolinData.compute('a', [
+          0.80,
+          0.85,
+          0.90,
+          0.95,
+          0.98,
+        ], unit: PlotUnit.ratio);
+        expect(data.inputMax, 1.0);
+      });
+
+      test('renders median and ticks as percentages', () {
+        final data = ViolinData.compute('a', [
+          0.98,
+          0.99,
+          1.01,
+          1.02,
+          1.03,
+        ], unit: PlotUnit.ratio);
+        final svg = buildViolinSvg([data], unit: PlotUnit.ratio);
+
+        expect(svg, contains('0.0%'));
+        expect(svg, contains('+1.0%'));
+        expect(svg, contains('μ<tspan font-size="8" dy="2">½</tspan>'));
+        expect(svg, contains(' = +1.0%'));
+      });
     });
   });
 }

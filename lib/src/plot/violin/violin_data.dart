@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:benchmarkhor/src/plot/plot_unit.dart';
 import 'package:benchmarkhor/src/plot/stats.dart';
 import 'package:t_stats/t_stats.dart';
 
@@ -52,6 +53,7 @@ class ViolinData {
     String label,
     List<num> values, {
     double maxOutlierCoefficient = 3.0,
+    PlotUnit unit = PlotUnit.microseconds,
   }) {
     if (values.isEmpty) {
       stderr.writeln('Warning: $label has no data.');
@@ -72,11 +74,12 @@ class ViolinData {
 
     var inputMax = med + maxOutlierCoefficient * iqr;
     var inputMin = med - maxOutlierCoefficient * iqr;
-    if (sorted.isNotEmpty && sorted.first >= 0) {
-      inputMin = max(0.0, inputMin);
+    final baseline = unit.baseline;
+    if (sorted.isNotEmpty && sorted.first >= baseline) {
+      inputMin = max(baseline, inputMin);
     }
-    if (sorted.isNotEmpty && sorted.last <= 0) {
-      inputMax = min(0.0, inputMax);
+    if (sorted.isNotEmpty && sorted.last <= baseline) {
+      inputMax = min(baseline, inputMax);
     }
 
     final fenceLo = q1 - 1.5 * iqr;

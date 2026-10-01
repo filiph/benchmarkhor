@@ -1,0 +1,3 @@
+# Baseline Anchoring and Signed Relative Percentages for Ratio Plots
+
+When plotting benchmark change ratios, strict zero anchoring at 0.0 would compress subtle 1–5% performance variations into an unreadable visual band. We decided that `--unit=ratio` anchors the plot range and draws its primary reference line at 1.0 rather than 0.0, formatting all axis ticks and median callouts as signed relative percentages ($(ratio - 1.0) \times 100\%$) fixed to one decimal place. This preserves visual resolution for typical benchmark differences while maintaining honest comparisons against the neutral baseline.

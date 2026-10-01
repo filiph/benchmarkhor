@@ -1,5 +1,6 @@
 import 'package:args/command_runner.dart';
 import 'package:benchmarkhor/src/plot/layout.dart';
+import 'package:benchmarkhor/src/plot/plot_unit.dart';
 import 'package:benchmarkhor/src/plot/theme.dart';
 
 /// Base command for all plotting subcommands.
@@ -27,6 +28,12 @@ abstract class PlotCommand extends Command<void> {
         help: 'Color theme for the plot.',
         allowed: ['dark', 'light'],
         defaultsTo: 'dark',
+      )
+      ..addOption(
+        'unit',
+        help: 'How to interpret the numbers.',
+        allowed: ['microseconds', 'ratio'],
+        defaultsTo: 'microseconds',
       );
   }
 
@@ -56,5 +63,11 @@ abstract class PlotCommand extends Command<void> {
   /// Whether to remove common prefix from labels.
   bool get removeCommonPrefix {
     return argResults!['remove-common-prefix'] as bool? ?? true;
+  }
+
+  /// The unit interpretation for the numbers.
+  PlotUnit get unit {
+    final unitName = argResults!['unit'] as String? ?? 'microseconds';
+    return PlotUnit.fromString(unitName);
   }
 }

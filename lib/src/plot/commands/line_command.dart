@@ -36,7 +36,7 @@ class LineCommand extends PlotCommand {
       lines.add(LineData.compute(label, values));
     }
 
-    final svg = buildLineSvg(lines, theme: theme, layout: layout);
+    final svg = buildLineSvg(lines, theme: theme, layout: layout, unit: unit);
     stdout.write(svg);
   }
 }

@@ -48,11 +48,17 @@ class ViolinCommand extends PlotCommand {
           label,
           values,
           maxOutlierCoefficient: maxOutlierCoefficient,
+          unit: unit,
         ),
       );
     }
 
-    final svg = buildViolinSvg(violins, theme: theme, layout: layout);
+    final svg = buildViolinSvg(
+      violins,
+      theme: theme,
+      layout: layout,
+      unit: unit,
+    );
     stdout.write(svg);
   }
 }

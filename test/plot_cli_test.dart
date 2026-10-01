@@ -52,59 +52,65 @@ void main() {
       expect(result.stdout, startsWith('<?xml'));
     });
 
-    test('line removes common prefix by default and supports --no-remove-common-prefix', () async {
-      final defaultResult = await Process.run('dart', [
-        'run',
-        'bin/plot.dart',
-        'line',
-        'test/fixtures/sample_a.dat',
-        'test/fixtures/sample_b.dat',
-      ]);
-      expect(defaultResult.exitCode, 0);
-      expect(defaultResult.stdout, contains('>a<'));
-      expect(defaultResult.stdout, contains('>b<'));
-      expect(defaultResult.stdout, isNot(contains('>sample_a<')));
-      expect(defaultResult.stdout, isNot(contains('>sample_b<')));
+    test(
+      'line removes common prefix by default and supports --no-remove-common-prefix',
+      () async {
+        final defaultResult = await Process.run('dart', [
+          'run',
+          'bin/plot.dart',
+          'line',
+          'test/fixtures/sample_a.dat',
+          'test/fixtures/sample_b.dat',
+        ]);
+        expect(defaultResult.exitCode, 0);
+        expect(defaultResult.stdout, contains('>a<'));
+        expect(defaultResult.stdout, contains('>b<'));
+        expect(defaultResult.stdout, isNot(contains('>sample_a<')));
+        expect(defaultResult.stdout, isNot(contains('>sample_b<')));
 
-      final noPrefixResult = await Process.run('dart', [
-        'run',
-        'bin/plot.dart',
-        'line',
-        '--no-remove-common-prefix',
-        'test/fixtures/sample_a.dat',
-        'test/fixtures/sample_b.dat',
-      ]);
-      expect(noPrefixResult.exitCode, 0);
-      expect(noPrefixResult.stdout, contains('>sample_a<'));
-      expect(noPrefixResult.stdout, contains('>sample_b<'));
-    });
+        final noPrefixResult = await Process.run('dart', [
+          'run',
+          'bin/plot.dart',
+          'line',
+          '--no-remove-common-prefix',
+          'test/fixtures/sample_a.dat',
+          'test/fixtures/sample_b.dat',
+        ]);
+        expect(noPrefixResult.exitCode, 0);
+        expect(noPrefixResult.stdout, contains('>sample_a<'));
+        expect(noPrefixResult.stdout, contains('>sample_b<'));
+      },
+    );
 
-    test('violin removes common prefix by default and supports --no-remove-common-prefix', () async {
-      final defaultResult = await Process.run('dart', [
-        'run',
-        'bin/plot.dart',
-        'violin',
-        'test/fixtures/sample_a.dat',
-        'test/fixtures/sample_b.dat',
-      ]);
-      expect(defaultResult.exitCode, 0);
-      expect(defaultResult.stdout, contains('>a<'));
-      expect(defaultResult.stdout, contains('>b<'));
-      expect(defaultResult.stdout, isNot(contains('>sample_a<')));
-      expect(defaultResult.stdout, isNot(contains('>sample_b<')));
+    test(
+      'violin removes common prefix by default and supports --no-remove-common-prefix',
+      () async {
+        final defaultResult = await Process.run('dart', [
+          'run',
+          'bin/plot.dart',
+          'violin',
+          'test/fixtures/sample_a.dat',
+          'test/fixtures/sample_b.dat',
+        ]);
+        expect(defaultResult.exitCode, 0);
+        expect(defaultResult.stdout, contains('>a<'));
+        expect(defaultResult.stdout, contains('>b<'));
+        expect(defaultResult.stdout, isNot(contains('>sample_a<')));
+        expect(defaultResult.stdout, isNot(contains('>sample_b<')));
 
-      final noPrefixResult = await Process.run('dart', [
-        'run',
-        'bin/plot.dart',
-        'violin',
-        '--no-remove-common-prefix',
-        'test/fixtures/sample_a.dat',
-        'test/fixtures/sample_b.dat',
-      ]);
-      expect(noPrefixResult.exitCode, 0);
-      expect(noPrefixResult.stdout, contains('>sample_a<'));
-      expect(noPrefixResult.stdout, contains('>sample_b<'));
-    });
+        final noPrefixResult = await Process.run('dart', [
+          'run',
+          'bin/plot.dart',
+          'violin',
+          '--no-remove-common-prefix',
+          'test/fixtures/sample_a.dat',
+          'test/fixtures/sample_b.dat',
+        ]);
+        expect(noPrefixResult.exitCode, 0);
+        expect(noPrefixResult.stdout, contains('>sample_a<'));
+        expect(noPrefixResult.stdout, contains('>sample_b<'));
+      },
+    );
 
     test('line supports --theme flag and defaults to dark', () async {
       final defaultResult = await Process.run('dart', [
@@ -229,31 +235,129 @@ void main() {
         'test/fixtures/sample_a.dat',
       ]);
       expect(nonPositive.exitCode, 64);
-      expect(nonPositive.stderr, contains('--height must be a positive number'));
+      expect(
+        nonPositive.stderr,
+        contains('--height must be a positive number'),
+      );
     });
 
-    test('violin with invalid width or height exits with usage error', () async {
-      final nonNumeric = await Process.run('dart', [
-        'run',
-        'bin/plot.dart',
-        'violin',
-        '--width',
-        '0',
-        'test/fixtures/sample_a.dat',
-      ]);
-      expect(nonNumeric.exitCode, 64);
-      expect(nonNumeric.stderr, contains('--width must be a positive number'));
+    test(
+      'violin with invalid width or height exits with usage error',
+      () async {
+        final nonNumeric = await Process.run('dart', [
+          'run',
+          'bin/plot.dart',
+          'violin',
+          '--width',
+          '0',
+          'test/fixtures/sample_a.dat',
+        ]);
+        expect(nonNumeric.exitCode, 64);
+        expect(
+          nonNumeric.stderr,
+          contains('--width must be a positive number'),
+        );
 
-      final nonPositive = await Process.run('dart', [
-        'run',
-        'bin/plot.dart',
-        'violin',
-        '--height',
-        'bad',
-        'test/fixtures/sample_a.dat',
-      ]);
-      expect(nonPositive.exitCode, 64);
-      expect(nonPositive.stderr, contains('--height must be a positive number'));
+        final nonPositive = await Process.run('dart', [
+          'run',
+          'bin/plot.dart',
+          'violin',
+          '--height',
+          'bad',
+          'test/fixtures/sample_a.dat',
+        ]);
+        expect(nonPositive.exitCode, 64);
+        expect(
+          nonPositive.stderr,
+          contains('--height must be a positive number'),
+        );
+      },
+    );
+
+    group('--unit flag', () {
+      test('defaults to microseconds without percentage formatting', () async {
+        final result = await Process.run('dart', [
+          'run',
+          'bin/plot.dart',
+          'violin',
+          'test/fixtures/sample_a.dat',
+        ]);
+        expect(result.exitCode, 0);
+        expect(result.stdout, contains('fill="#ccc">0</text>'));
+        expect(result.stdout, isNot(contains('%')));
+      });
+
+      test(
+        'violin with --unit=ratio renders percentage ticks and medians',
+        () async {
+          final tempDir = Directory.systemTemp.createTempSync(
+            'plot_ratio_test_',
+          );
+          final datFile = File('${tempDir.path}/ratio.dat');
+          datFile.writeAsStringSync('1.00\n1.01\n1.02\n');
+
+          try {
+            final result = await Process.run('dart', [
+              'run',
+              'bin/plot.dart',
+              'violin',
+              '--unit',
+              'ratio',
+              datFile.path,
+            ]);
+            expect(result.exitCode, 0);
+            expect(result.stdout, contains('0.0%'));
+            expect(
+              result.stdout,
+              contains('μ<tspan font-size="8" dy="2">½</tspan>'),
+            );
+            expect(result.stdout, contains(' = +1.0%'));
+          } finally {
+            tempDir.deleteSync(recursive: true);
+          }
+        },
+      );
+
+      test('line with --unit=ratio renders percentage ticks', () async {
+        final tempDir = Directory.systemTemp.createTempSync(
+          'plot_ratio_line_test_',
+        );
+        final datFile = File('${tempDir.path}/ratio.dat');
+        datFile.writeAsStringSync('0.95\n1.00\n1.05\n');
+
+        try {
+          final result = await Process.run('dart', [
+            'run',
+            'bin/plot.dart',
+            'line',
+            '--unit',
+            'ratio',
+            datFile.path,
+          ]);
+          expect(result.exitCode, 0);
+          expect(result.stdout, contains('0.0%'));
+          expect(result.stdout, contains('+2.0%'));
+          expect(result.stdout, contains('-2.0%'));
+        } finally {
+          tempDir.deleteSync(recursive: true);
+        }
+      });
+
+      test('invalid --unit exits with usage error', () async {
+        final result = await Process.run('dart', [
+          'run',
+          'bin/plot.dart',
+          'violin',
+          '--unit',
+          'invalid_unit',
+          'test/fixtures/sample_a.dat',
+        ]);
+        expect(result.exitCode, 64);
+        expect(
+          result.stderr,
+          contains('"invalid_unit" is not an allowed value'),
+        );
+      });
     });
   });
 }

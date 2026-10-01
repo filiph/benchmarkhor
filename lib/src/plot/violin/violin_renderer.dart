@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:benchmarkhor/src/plot/plot_unit.dart';
 import 'package:benchmarkhor/src/plot/svg.dart';
 import 'package:benchmarkhor/src/plot/theme.dart';
 import 'package:benchmarkhor/src/plot/violin/violin_data.dart';
@@ -13,18 +14,24 @@ String buildViolinSvg(
   List<ViolinData> violins, {
   PlotTheme theme = PlotTheme.dark,
   PlotLayout layout = const PlotLayout(),
+  PlotUnit unit = PlotUnit.microseconds,
 }) {
   // Plot range: the span of values the plot commits to showing. Values
   // outside of it are excluded (and summarised in a note instead).
-  double plotMaximum = 0;
-  double plotMinimum = 0;
+  double plotMaximum = unit.baseline;
+  double plotMinimum = unit.baseline;
   for (final v in violins) {
     if (v.sorted.isEmpty) continue;
     plotMaximum = max(plotMaximum, v.inputMax);
     plotMinimum = min(plotMinimum, v.inputMin);
   }
 
-  final axis = YAxis.forRange(plotMinimum, plotMaximum, layout: layout);
+  final axis = YAxis.forRange(
+    plotMinimum,
+    plotMaximum,
+    layout: layout,
+    unit: unit,
+  );
   final ticks = axis.ticks;
   final axisMin = axis.min;
   final axisMax = axis.max;
@@ -75,7 +82,7 @@ String buildViolinSvg(
       'stroke="${theme.gridLine}" stroke-width="0.8"/>',
     );
     // Label
-    final label = formatTick(tick);
+    final label = unit.formatValue(tick);
     buf.writeln(
       '<text x="${axisX - 10}" y="${ty + 4}" '
       'text-anchor="end" font-family="Arial,sans-serif" '
@@ -83,9 +90,9 @@ String buildViolinSvg(
     );
   }
 
-  // --- y=0 axis line (highlighted) ---
-  if (axisMin <= 0 && 0 <= axisMax) {
-    final y0 = toSvgY(0);
+  // --- Baseline axis line (highlighted) ---
+  if (axis.containsBaseline) {
+    final y0 = toSvgY(unit.baseline);
     buf.writeln(
       '<line x1="$axisX" y1="$y0" x2="${axisX + layout.plotWidth}" y2="$y0" '
       'stroke="${theme.zeroLine}" stroke-width="1.5"/>',
@@ -204,7 +211,7 @@ String buildViolinSvg(
     );
 
     // Median label to the right of notch waist
-    final formattedMedian = formatTick(v.median);
+    final formattedMedian = unit.formatValue(v.median);
     buf.writeln(
       '<text x="${xRight + 8}" y="${yMedian + 4}" '
       'font-family="Arial,sans-serif" font-size="11" fill="${theme.secondaryText}">'
@@ -239,7 +246,7 @@ String buildViolinSvg(
 
     // --- Outlier notes ---
     if (excludedAboveCount > 0) {
-      final formattedMax = formatTick(excludedMax!);
+      final formattedMax = unit.formatValue(excludedMax!);
       final note = '+$excludedAboveCount outliers (max $formattedMax)';
       buf.writeln(
         '<text x="$slotCenterX" y="${layout.marginTop - 10}" '
@@ -248,7 +255,7 @@ String buildViolinSvg(
       );
     }
     if (excludedBelowCount > 0) {
-      final formattedMin = formatTick(excludedMin!);
+      final formattedMin = unit.formatValue(excludedMin!);
       final note = '+$excludedBelowCount outliers (min $formattedMin)';
       buf.writeln(
         '<text x="$slotCenterX" y="${layout.plotBottom + 12}" '

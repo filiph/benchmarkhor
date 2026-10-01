@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:benchmarkhor/src/plot/line/line_data.dart';
+import 'package:benchmarkhor/src/plot/plot_unit.dart';
 import 'package:benchmarkhor/src/plot/svg.dart';
 import 'package:benchmarkhor/src/plot/theme.dart';
 import 'package:benchmarkhor/src/plot/y_axis.dart';
@@ -13,6 +14,7 @@ String buildLineSvg(
   List<LineData> lines, {
   PlotTheme theme = PlotTheme.dark,
   PlotLayout layout = const PlotLayout(),
+  PlotUnit unit = PlotUnit.microseconds,
 }) {
   final nonEmptyLines = lines.where((l) => l.values.isNotEmpty).toList();
 
@@ -35,11 +37,16 @@ String buildLineSvg(
     }
   }
   if (nonEmptyLines.isEmpty) {
-    globalYMin = 0;
-    globalYMax = 0;
+    globalYMin = unit.baseline;
+    globalYMax = unit.baseline;
   }
 
-  final axis = YAxis.forRange(globalYMin, globalYMax, layout: layout);
+  final axis = YAxis.forRange(
+    globalYMin,
+    globalYMax,
+    layout: layout,
+    unit: unit,
+  );
   final ticks = axis.ticks;
   final axisMin = axis.min;
   final axisMax = axis.max;
@@ -82,7 +89,7 @@ String buildLineSvg(
       'stroke="${theme.gridLine}" stroke-width="0.8"/>',
     );
     // Label
-    final label = formatTick(tick);
+    final label = unit.formatValue(tick);
     buf.writeln(
       '<text x="${axisX - 10}" y="${ty + 4}" '
       'text-anchor="end" font-family="Arial,sans-serif" '
@@ -90,9 +97,9 @@ String buildLineSvg(
     );
   }
 
-  // --- X axis line (at y=0, not necessarily at the bottom of the plot) ---
-  if (axis.containsZero) {
-    final y0 = toSvgY(0);
+  // --- Baseline axis line (highlighted) ---
+  if (axis.containsBaseline) {
+    final y0 = toSvgY(unit.baseline);
     buf.writeln(
       '<line x1="$axisX" y1="$y0" x2="${axisX + layout.plotWidth}" y2="$y0" '
       'stroke="${theme.zeroLine}" stroke-width="1.5"/>',

@@ -1,3 +1,4 @@
+import 'package:benchmarkhor/src/plot/plot_unit.dart';
 import 'package:benchmarkhor/src/plot/svg.dart';
 import 'package:benchmarkhor/src/plot/y_axis.dart';
 import 'package:test/test.dart';
@@ -73,6 +74,38 @@ void main() {
 
       expect(axis.toSvgY(0), customLayout.plotBottom);
       expect(axis.toSvgY(500), greaterThan(customLayout.marginTop));
+    });
+
+    group('with PlotUnit.ratio', () {
+      test('all-greater-than-1.0 range sits flush on 1.0 baseline', () {
+        final axis = YAxis.forRange(1.02, 1.05, unit: PlotUnit.ratio);
+
+        expect(axis.min, closeTo(1.0, 1e-9));
+        expect(axis.max, greaterThan(1.05));
+        expect(axis.toSvgY(1.0), closeTo(plotBottom, 1e-9));
+        expect(axis.toSvgY(1.05), greaterThan(marginTop));
+        expect(axis.containsBaseline, isTrue);
+      });
+
+      test('all-less-than-1.0 range sits flush on 1.0 baseline', () {
+        final axis = YAxis.forRange(0.80, 0.95, unit: PlotUnit.ratio);
+
+        expect(axis.max, closeTo(1.0, 1e-9));
+        expect(axis.min, lessThan(0.80));
+        expect(axis.toSvgY(1.0), closeTo(marginTop, 1e-9));
+        expect(axis.toSvgY(0.80), lessThan(plotBottom));
+        expect(axis.containsBaseline, isTrue);
+      });
+
+      test('range straddling 1.0 is padded on both ends', () {
+        final axis = YAxis.forRange(0.95, 1.05, unit: PlotUnit.ratio);
+
+        expect(axis.min, lessThan(0.95));
+        expect(axis.max, greaterThan(1.05));
+        final y1 = axis.toSvgY(1.0);
+        expect(y1, greaterThan(marginTop));
+        expect(y1, lessThan(plotBottom));
+      });
     });
   });
 }
