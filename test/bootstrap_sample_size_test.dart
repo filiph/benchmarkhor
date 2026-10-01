@@ -722,6 +722,8 @@ void main() {
       test('handles zero-variance edge cases cleanly', () {
         final zeroDiffs = testSignificance(diffs: [0.0, 0.0, 0.0]);
         expect(zeroDiffs.isSignificant, isFalse);
+        expect(zeroDiffs.isImprovement, isFalse);
+        expect(zeroDiffs.isRegression, isFalse);
         expect(zeroDiffs.tStatistic, equals(0.0));
 
         // Negative diff is an improvement (lower is better)
@@ -731,15 +733,20 @@ void main() {
           sesoi: 0.05,
         );
         expect(constImprovement.isSignificant, isTrue);
+        expect(constImprovement.isImprovement, isTrue);
+        expect(constImprovement.isRegression, isFalse);
         expect(constImprovement.tStatistic, equals(double.infinity));
 
-        // Positive diff is a regression (not an improvement)
+        // Positive diff is a regression (higher is worse)
         final constRegression = testSignificance(
           diffs: [5.0, 5.0, 5.0],
           baseMean: 100.0,
           sesoi: 0.05,
         );
-        expect(constRegression.isSignificant, isFalse);
+        expect(constRegression.isSignificant, isTrue);
+        expect(constRegression.isImprovement, isFalse);
+        expect(constRegression.isRegression, isTrue);
+        expect(constRegression.tStatistic, equals(double.infinity));
       });
 
       test('rejects H0 for large clear improvement meeting SESOI', () {
@@ -751,6 +758,8 @@ void main() {
           alpha: 0.05,
         );
         expect(res.isSignificant, isTrue);
+        expect(res.isImprovement, isTrue);
+        expect(res.isRegression, isFalse);
         expect(res.tStatistic, greaterThan(res.tCritical));
       });
 
@@ -764,9 +773,11 @@ void main() {
           alpha: 0.05,
         );
         expect(res.isSignificant, isFalse);
+        expect(res.isImprovement, isFalse);
+        expect(res.isRegression, isFalse);
       });
 
-      test('does not reject H0 for regression (worsening times)', () {
+      test('rejects H0 for large clear regression meeting SESOI', () {
         final diffs = [10.0, 12.0, 11.0, 9.5, 10.5, 11.2, 10.8, 9.8];
         final res = testSignificance(
           diffs: diffs,
@@ -774,7 +785,10 @@ void main() {
           sesoi: 0.05,
           alpha: 0.05,
         );
-        expect(res.isSignificant, isFalse);
+        expect(res.isSignificant, isTrue);
+        expect(res.isImprovement, isFalse);
+        expect(res.isRegression, isTrue);
+        expect(res.tStatistic, greaterThan(res.tCritical));
       });
 
       test('does not reject H0 for centered random noise', () {

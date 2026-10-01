@@ -370,9 +370,15 @@ int calculateBootstrapSampleSize({
 
 /// Result of a statistical significance test on paired differences.
 final class SignificanceResult {
-  /// Whether there is statistically significant evidence of improvement
-  /// of at least the SESOI (or rejection of H0).
+  /// Whether there is statistically significant evidence of an effect
+  /// (improvement or regression) of at least the SESOI (or rejection of H0).
   final bool isSignificant;
+
+  /// Whether the significant effect is an improvement.
+  final bool isImprovement;
+
+  /// Whether the significant effect is a regression.
+  final bool isRegression;
 
   /// The observed absolute t-statistic of the sample.
   final double tStatistic;
@@ -389,6 +395,8 @@ final class SignificanceResult {
 
   const SignificanceResult({
     required this.isSignificant,
+    this.isImprovement = false,
+    this.isRegression = false,
     required this.tStatistic,
     required this.tCritical,
     required this.isCalibrated,
@@ -397,7 +405,7 @@ final class SignificanceResult {
 
   @override
   String toString() =>
-      'SignificanceResult(isSignificant: $isSignificant, meanDiff: $meanDiff, |t|: $tStatistic, tCrit: $tCritical, calibrated: $isCalibrated)';
+      'SignificanceResult(isSignificant: $isSignificant, isImprovement: $isImprovement, isRegression: $isRegression, meanDiff: $meanDiff, |t|: $tStatistic, tCrit: $tCritical, calibrated: $isCalibrated)';
 }
 
 /// Computes the win rate (proportion of paired measurements where the variant
@@ -421,13 +429,13 @@ double? calculateWinRate(List<double> diffs, {bool lowerIsBetter = true}) {
   return wins / diffs.length;
 }
 
-/// Tests whether there is statistically significant evidence of improvement
-/// of at least [sesoi] (as a fraction of [baseMean]) in the paired differences [diffs]
-/// at significance level [alpha].
+/// Tests whether there is statistically significant evidence of an effect
+/// (improvement or regression) of at least [sesoi] (as a fraction of [baseMean])
+/// in the paired differences [diffs] at significance level [alpha].
 ///
 /// For frame timings where lower is better ([lowerIsBetter] is true), an improvement
-/// requires a negative mean difference ([meanDiff] <= -sesoi * baseMean) and a
-/// one-tailed rejection of the null hypothesis at level [alpha].
+/// is a negative difference ([meanDiff] <= -sesoi * baseMean) and a regression is
+/// a positive difference ([meanDiff] >= sesoi * baseMean).
 ///
 /// Uses [calibratedCriticalValue] when [diffs] has at least [kMinPilotForCalibration]
 /// observations and [calibrated] is true, otherwise falling back to [studentTCriticalValue].
@@ -458,15 +466,22 @@ SignificanceResult testSignificance({
   // For one-tailed test at alpha, we use two-tailed alpha of min(1.0, 2 * alpha).
   final twoTailedAlpha = min(1.0 - 1e-9, alpha * 2.0);
 
+  final isImprovementDirection =
+      lowerIsBetter ? meanDiff < 0.0 : meanDiff > 0.0;
+  final isRegressionDirection =
+      lowerIsBetter ? meanDiff > 0.0 : meanDiff < 0.0;
+
+  final meetsSesoi = baseMean == null ||
+      sesoi == null ||
+      meanDiff.abs() >= baseMean.abs() * sesoi.abs();
+
   if (noise.every((d) => d == 0.0)) {
-    final isImprovement = lowerIsBetter ? meanDiff < 0.0 : meanDiff > 0.0;
-    final meetsSesoi = baseMean == null ||
-        sesoi == null ||
-        (lowerIsBetter
-            ? meanDiff <= -baseMean.abs() * sesoi.abs()
-            : meanDiff >= baseMean.abs() * sesoi.abs());
+    final hasDirection = isImprovementDirection || isRegressionDirection;
+    final isSignificant = hasDirection && meetsSesoi;
     return SignificanceResult(
-      isSignificant: isImprovement && meetsSesoi,
+      isSignificant: isSignificant,
+      isImprovement: isSignificant && isImprovementDirection,
+      isRegression: isSignificant && isRegressionDirection,
       tStatistic: meanDiff == 0.0 ? 0.0 : double.infinity,
       tCritical: double.infinity,
       isCalibrated: false,
@@ -487,17 +502,13 @@ SignificanceResult testSignificance({
         )
       : studentTCriticalValue(diffs.length - 1, twoTailedAlpha);
 
-  final isImprovement = lowerIsBetter ? meanDiff < 0.0 : meanDiff > 0.0;
-  final meetsSesoi = baseMean == null ||
-      sesoi == null ||
-      (lowerIsBetter
-          ? meanDiff <= -baseMean.abs() * sesoi.abs()
-          : meanDiff >= baseMean.abs() * sesoi.abs());
-
-  final isSignificant = isImprovement && meetsSesoi && tStat > tCrit;
+  final hasDirection = isImprovementDirection || isRegressionDirection;
+  final isSignificant = hasDirection && meetsSesoi && tStat > tCrit;
 
   return SignificanceResult(
     isSignificant: isSignificant,
+    isImprovement: isSignificant && isImprovementDirection,
+    isRegression: isSignificant && isRegressionDirection,
     tStatistic: tStat,
     tCritical: tCrit,
     isCalibrated: usedCalibration,

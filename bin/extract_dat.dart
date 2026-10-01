@@ -9,7 +9,7 @@
 /// a `phase` tag, the metrics are also written per phase. It also writes
 /// `duration_<variant>.dat` with the trial rendering duration in microseconds,
 /// and `temperature.dat` with the device temperature at the end of each round.
-/// It also writes change .dat files relative to the baseline variant (the first
+/// It also writes change and change ratio .dat files relative to the baseline variant (the first
 /// variant listed in session.json).
 library;
 
@@ -28,8 +28,7 @@ void main(List<String> arguments) async {
     ..addOption(
       'output',
       abbr: 'o',
-      help: 'Output directory',
-      defaultsTo: 'extracted_dat',
+      help: 'Output directory (defaults to <session_path>/dat_files)',
     )
     ..addOption(
       'bootstrap-sesoi',
@@ -80,7 +79,9 @@ void main(List<String> arguments) async {
   }
 
   final sessionPath = argResults.rest.first;
-  final outputDir = Directory(argResults['output'] as String);
+  final outputDir = Directory(
+    argResults['output'] as String? ?? p.join(sessionPath, 'dat_files'),
+  );
 
   final bootstrapSesoi =
       double.tryParse(argResults['bootstrap-sesoi'] as String? ?? '0.05') ??
@@ -799,6 +800,9 @@ final class Metrics {
 
 enum MetricType { n, first, mean, median, min, max, p95, p99, p95superquantile }
 
+/// The metrics for which to calculate and log bootstrap suggested sample size.
+const bootstrapMetrics = [MetricType.mean];
+
 void _writeChangeAggregatesForTiming({
   required String outputDirPath,
   required String timing,
@@ -813,6 +817,7 @@ void _writeChangeAggregatesForTiming({
   required Logger log,
 }) {
   final changeLists = {for (final m in MetricType.values) m: <double>[]};
+  final changeRatioLists = {for (final m in MetricType.values) m: <double>[]};
   final baseMetricsList = <Metrics>[];
   final varMetricsList = <Metrics>[];
 
@@ -854,8 +859,13 @@ void _writeChangeAggregatesForTiming({
     varMetricsList.add(varMetrics);
 
     for (final m in MetricType.values) {
-      final change = varMetrics.getMetric(m) - baseMetrics.getMetric(m);
+      final baseVal = baseMetrics.getMetric(m);
+      final varVal = varMetrics.getMetric(m);
+      final change = varVal - baseVal;
       changeLists[m]!.add(change);
+      if (baseVal > 0) {
+        changeRatioLists[m]!.add(varVal / baseVal);
+      }
     }
   }
 
@@ -865,6 +875,12 @@ void _writeChangeAggregatesForTiming({
     final changes = changeLists[metric]!;
     if (changes.isNotEmpty) {
       _writeDat(p.join(outputDirPath, '$designation.dat'), changes);
+    }
+
+    final ratioDesignation = '${timing}_${metric.name}_change_ratio_$suffix';
+    final changeRatios = changeRatioLists[metric]!;
+    if (changeRatios.isNotEmpty) {
+      _writeDat(p.join(outputDirPath, '$ratioDesignation.dat'), changeRatios);
     }
 
     final baseData = baseMetricsList.map((m) => m.getMetric(metric)).toList();
@@ -878,6 +894,7 @@ void _writeChangeAggregatesForTiming({
       bootstrapAlpha: bootstrapAlpha,
       bootstrapPower: bootstrapPower,
       log: log,
+      generateBootstrap: bootstrapMetrics.contains(metric),
     );
   }
 }
@@ -894,6 +911,7 @@ void _writeChangeAggregatesForIterationDuration({
   required Logger log,
 }) {
   final changes = <double>[];
+  final changeRatios = <double>[];
   final baseMeans = <double>[];
   final varMeans = <double>[];
 
@@ -908,6 +926,9 @@ void _writeChangeAggregatesForIterationDuration({
 
     final change = varMean - baseMean;
     changes.add(change);
+    if (baseMean > 0) {
+      changeRatios.add(varMean / baseMean);
+    }
     baseMeans.add(baseMean);
     varMeans.add(varMean);
   }
@@ -915,6 +936,10 @@ void _writeChangeAggregatesForIterationDuration({
   final designation = 'iteration_duration_change_$variantName';
   if (changes.isNotEmpty) {
     _writeDat(p.join(outputDirPath, '$designation.dat'), changes);
+  }
+  final ratioDesignation = 'iteration_duration_change_ratio_$variantName';
+  if (changeRatios.isNotEmpty) {
+    _writeDat(p.join(outputDirPath, '$ratioDesignation.dat'), changeRatios);
   }
 
   _logStatsAndSampleSize(
@@ -926,6 +951,7 @@ void _writeChangeAggregatesForIterationDuration({
     bootstrapAlpha: bootstrapAlpha,
     bootstrapPower: bootstrapPower,
     log: log,
+    generateBootstrap: false,
   );
 }
 
@@ -941,6 +967,7 @@ void _writeChangeAggregatesForDuration({
   required Logger log,
 }) {
   final changes = <double>[];
+  final changeRatios = <double>[];
   final baseDurations = <double>[];
   final varDurations = <double>[];
 
@@ -950,15 +977,24 @@ void _writeChangeAggregatesForDuration({
     if (baseTrial == null || varTrial == null) continue;
     if (baseTrial.durationUs == null || varTrial.durationUs == null) continue;
 
-    final change = (varTrial.durationUs! - baseTrial.durationUs!).toDouble();
+    final baseDur = baseTrial.durationUs!.toDouble();
+    final varDur = varTrial.durationUs!.toDouble();
+    final change = varDur - baseDur;
     changes.add(change);
-    baseDurations.add(baseTrial.durationUs!.toDouble());
-    varDurations.add(varTrial.durationUs!.toDouble());
+    if (baseDur > 0) {
+      changeRatios.add(varDur / baseDur);
+    }
+    baseDurations.add(baseDur);
+    varDurations.add(varDur);
   }
 
   final designation = 'duration_change_$variantName';
   if (changes.isNotEmpty) {
     _writeDat(p.join(outputDirPath, '$designation.dat'), changes);
+  }
+  final ratioDesignation = 'duration_change_ratio_$variantName';
+  if (changeRatios.isNotEmpty) {
+    _writeDat(p.join(outputDirPath, '$ratioDesignation.dat'), changeRatios);
   }
 
   _logStatsAndSampleSize(
@@ -970,6 +1006,7 @@ void _writeChangeAggregatesForDuration({
     bootstrapAlpha: bootstrapAlpha,
     bootstrapPower: bootstrapPower,
     log: log,
+    generateBootstrap: false,
   );
 }
 
@@ -982,6 +1019,7 @@ void _logStatsAndSampleSize({
   required double bootstrapAlpha,
   required double bootstrapPower,
   required Logger log,
+  bool generateBootstrap = false,
 }) {
   if (baseData.length < 2 || varData.length < 2) {
     log.fine('$designation data length is less than 2, cannot create stats');
@@ -1004,15 +1042,33 @@ void _logStatsAndSampleSize({
     sigResult = null;
   }
 
+  final isRegression = changeStats.mean.toDouble() > 0.0;
   final winRate = calculateWinRate(changes);
+  final rate = winRate != null
+      ? (isRegression ? (1.0 - winRate) : winRate)
+      : null;
+  final label = isRegression ? 'lose' : 'win';
 
   final sigChar = (sigResult?.isSignificant ?? false) ? '*' : ' ';
-  final winRateStr = winRate != null
-      ? '${(winRate * 100).round().toString().padLeft(3)}%'
+  final rateStr = rate != null
+      ? '${(rate * 100).round().toString().padLeft(3)}%'
       : ' --%';
-  final prefix = '[$sigChar win:$winRateStr]';
+  final prefix = '[$sigChar $label:$rateStr]';
 
   log.info('$prefix ${changeStats.toString()}');
+
+  if (!generateBootstrap) return;
+
+  if (sigResult?.isSignificant ?? false) {
+    log.info(
+      'Bootstrap suggested minimum sample size for $designation: '
+      'already sufficient (significant effect detected with N=${changes.length})',
+    );
+    return;
+  }
+
+  final sesoiPct = (bootstrapSesoi * 100).toStringAsFixed(1);
+  final targetSuffix = ' (to detect $sesoiPct% SESOI)';
 
   int? sampleSize;
   String? unavailableBecause;
@@ -1039,17 +1095,17 @@ void _logStatsAndSampleSize({
 
   if (sampleSize == null) {
     log.info(
-      'Bootstrap suggested minimum sample size for $designation: '
+      'Bootstrap suggested minimum sample size for $designation$targetSuffix: '
       'unavailable ($unavailableBecause)',
     );
   } else if (sampleSize >= kDefaultMaxN) {
     log.info(
-      'Bootstrap suggested minimum sample size for $designation: '
+      'Bootstrap suggested minimum sample size for $designation$targetSuffix: '
       '>10000 (effect too small to detect within budget)$calibrationSuffix',
     );
   } else {
     log.info(
-      'Bootstrap suggested minimum sample size for $designation: '
+      'Bootstrap suggested minimum sample size for $designation$targetSuffix: '
       '$sampleSize$calibrationSuffix',
     );
   }

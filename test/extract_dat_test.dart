@@ -126,6 +126,20 @@ void main() {
             .toList();
 
         expect(changeValues, equals([-2.0, -5.0]));
+
+        // Change ratio mean file
+        final changeRatioMeanFile = File(
+          p.join(outDir.path, 'build_mean_change_ratio_refactor.dat'),
+        );
+        expect(changeRatioMeanFile.existsSync(), isTrue);
+
+        final changeRatioValues = (await changeRatioMeanFile.readAsLines())
+            .where((l) => l.trim().isNotEmpty)
+            .map(double.parse)
+            .toList();
+
+        expect(changeRatioValues[0], closeTo(40.0 / 42.0, 1e-6));
+        expect(changeRatioValues[1], closeTo(45.0 / 50.0, 1e-6));
       },
     );
 
@@ -312,7 +326,23 @@ void main() {
       expect(
         result.stdout,
         contains(
-          'Bootstrap suggested minimum sample size for build_mean_change_alt:',
+          'Bootstrap suggested minimum sample size for build_mean_change_alt (to detect 7.0% SESOI):',
+        ),
+      );
+      expect(
+        result.stdout,
+        isNot(
+          contains(
+            'Bootstrap suggested minimum sample size for build_p95_change_alt:',
+          ),
+        ),
+      );
+      expect(
+        result.stdout,
+        isNot(
+          contains(
+            'Bootstrap suggested minimum sample size for build_median_change_alt:',
+          ),
         ),
       );
       expect(
@@ -387,6 +417,12 @@ void main() {
       expect(
         result.stdout,
         matches(RegExp(r'\[\* win:100%\]\s+.*\bbuild_mean_change_alt\b')),
+      );
+      expect(
+        result.stdout,
+        contains(
+          'Bootstrap suggested minimum sample size for build_mean_change_alt: already sufficient (significant effect detected with N=2)',
+        ),
       );
     });
 
@@ -697,8 +733,10 @@ void main() {
 
         expect(
           result.stdout,
-          contains(
-            'Bootstrap suggested minimum sample size for duration_change_alt:',
+          isNot(
+            contains(
+              'Bootstrap suggested minimum sample size for duration_change_alt:',
+            ),
           ),
         );
       },
@@ -967,15 +1005,62 @@ void main() {
             .toList();
         expect(changeIterDurs, equals([-250.0, -250.0]));
 
+        final changeRatioIterDur = File(
+          p.join(outDir.path, 'iteration_duration_change_ratio_optimized.dat'),
+        );
+        expect(changeRatioIterDur.existsSync(), isTrue);
+        final changeRatioIterDurs = (await changeRatioIterDur.readAsLines())
+            .where((l) => l.isNotEmpty)
+            .map(double.parse)
+            .toList();
+        expect(changeRatioIterDurs[0], closeTo(850.0 / 1100.0, 1e-6));
+        expect(changeRatioIterDurs[1], closeTo(850.0 / 1100.0, 1e-6));
+
         // Total trial duration files
         final durBase = File(p.join(outDir.path, 'duration_baseline.dat'));
         final durOpt = File(p.join(outDir.path, 'duration_optimized.dat'));
         final durChange = File(
           p.join(outDir.path, 'duration_change_optimized.dat'),
         );
+        final durChangeRatio = File(
+          p.join(outDir.path, 'duration_change_ratio_optimized.dat'),
+        );
         expect(durBase.existsSync(), isTrue);
         expect(durOpt.existsSync(), isTrue);
         expect(durChange.existsSync(), isTrue);
+        expect(durChangeRatio.existsSync(), isTrue);
+
+        // Verify bootstrap suggested sample size is logged for mean and not others
+        expect(
+          result.stdout,
+          contains(
+            'Bootstrap suggested minimum sample size for iteration_duration_mean_change_optimized: already sufficient (significant effect detected with N=2)',
+          ),
+        );
+        expect(
+          result.stdout,
+          isNot(
+            contains(
+              'Bootstrap suggested minimum sample size for iteration_duration_change_optimized:',
+            ),
+          ),
+        );
+        expect(
+          result.stdout,
+          isNot(
+            contains(
+              'Bootstrap suggested minimum sample size for iteration_duration_median_change_optimized:',
+            ),
+          ),
+        );
+        expect(
+          result.stdout,
+          isNot(
+            contains(
+              'Bootstrap suggested minimum sample size for duration_change_optimized:',
+            ),
+          ),
+        );
       },
     );
 
@@ -1016,6 +1101,233 @@ void main() {
 
       expect(result.exitCode, equals(0));
       expect(result.stderr, contains('No data found in'));
+    });
+
+    test(
+      'defaults to <session_path>/dat_files when --output option is omitted',
+      () async {
+        final sessionDir =
+            Directory(p.join(tempDir.path, 'session_default_out'));
+        final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
+        await trialsDir.create(recursive: true);
+
+        final sessionJson = File(p.join(sessionDir.path, 'session.json'));
+        await sessionJson.writeAsString(
+          jsonEncode({
+            'schema_version': 1,
+            'name': 'test-session',
+            'variants': {
+              'base': {'apk': 'base.apk'},
+              'alt': {'apk': 'alt.apk'},
+            },
+            'rounds': 1,
+          }),
+        );
+
+        await _createTrial(
+          trialsDir: trialsDir,
+          trialId: 'trial-001',
+          variantName: 'base',
+          round: 1,
+          buildTimes: [20.0, 20.0],
+          rasterTimes: [10.0, 10.0],
+        );
+        await _createTrial(
+          trialsDir: trialsDir,
+          trialId: 'trial-002',
+          variantName: 'alt',
+          round: 1,
+          buildTimes: [22.0, 22.0],
+          rasterTimes: [11.0, 11.0],
+        );
+
+        final result = await Process.run('dart', [
+          'run',
+          'bin/extract_dat.dart',
+          sessionDir.path,
+        ]);
+
+        expect(result.exitCode, equals(0));
+
+        final defaultOutDir = Directory(p.join(sessionDir.path, 'dat_files'));
+        expect(defaultOutDir.existsSync(), isTrue);
+        expect(
+          File(p.join(defaultOutDir.path, 'build_mean_base.dat')).existsSync(),
+          isTrue,
+        );
+        expect(
+          File(
+            p.join(defaultOutDir.path, 'build_mean_change_alt.dat'),
+          ).existsSync(),
+          isTrue,
+        );
+        expect(
+          File(
+            p.join(defaultOutDir.path, 'build_mean_change_ratio_alt.dat'),
+          ).existsSync(),
+          isTrue,
+        );
+      },
+    );
+
+    test('logs asterisk marker and lose rate for significant regressions', () async {
+      final sessionDir = Directory(p.join(tempDir.path, 'session_regression'));
+      final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
+      await trialsDir.create(recursive: true);
+
+      final sessionJson = File(p.join(sessionDir.path, 'session.json'));
+      await sessionJson.writeAsString(
+        jsonEncode({
+          'schema_version': 1,
+          'variants': {
+            'base': {'apk': 'base.apk'},
+            'alt': {'apk': 'alt.apk'},
+          },
+        }),
+      );
+
+      // Alt is significantly worse (regressed)
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-001',
+        variantName: 'base',
+        round: 1,
+        buildTimes: [10.0, 12.0],
+        rasterTimes: [20.0, 20.0],
+      );
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-002',
+        variantName: 'alt',
+        round: 1,
+        buildTimes: [100.0, 102.0],
+        rasterTimes: [20.0, 20.0],
+      );
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-003',
+        variantName: 'base',
+        round: 2,
+        buildTimes: [11.0, 13.0],
+        rasterTimes: [20.0, 20.0],
+      );
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-004',
+        variantName: 'alt',
+        round: 2,
+        buildTimes: [101.0, 103.0],
+        rasterTimes: [20.0, 20.0],
+      );
+
+      final outDir = Directory(p.join(tempDir.path, 'out_reg'));
+
+      final result = await Process.run('dart', [
+        'run',
+        'bin/extract_dat.dart',
+        sessionDir.path,
+        '-o',
+        outDir.path,
+      ]);
+
+      expect(result.exitCode, equals(0));
+      expect(
+        result.stdout,
+        matches(RegExp(r'\[\* lose:100%\]\s+.*\bbuild_mean_change_alt\b')),
+      );
+      expect(
+        result.stdout,
+        contains(
+          'Bootstrap suggested minimum sample size for build_mean_change_alt: already sufficient (significant effect detected with N=2)',
+        ),
+      );
+    });
+
+    test('omits zero-baseline rounds from change_ratio files', () async {
+      final sessionDir = Directory(p.join(tempDir.path, 'session_zero_base'));
+      final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
+      await trialsDir.create(recursive: true);
+
+      final sessionJson = File(p.join(sessionDir.path, 'session.json'));
+      await sessionJson.writeAsString(
+        jsonEncode({
+          'schema_version': 1,
+          'variants': {
+            'base': {'apk': 'base.apk'},
+            'alt': {'apk': 'alt.apk'},
+          },
+          'rounds': 2,
+        }),
+      );
+
+      // Round 1: baseline has duration 0 (edge case), alt has duration 50
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-001',
+        variantName: 'base',
+        round: 1,
+        buildTimes: [0.0, 0.0],
+        rasterTimes: [0.0, 0.0],
+        vsyncStarts: [100, 100],
+        rasterFinishes: [100, 100],
+      );
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-002',
+        variantName: 'alt',
+        round: 1,
+        buildTimes: [10.0, 10.0],
+        rasterTimes: [5.0, 5.0],
+        vsyncStarts: [100, 110],
+        rasterFinishes: [120, 150],
+      );
+
+      // Round 2: baseline has valid duration 100, alt has duration 120
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-003',
+        variantName: 'base',
+        round: 2,
+        buildTimes: [10.0, 10.0],
+        rasterTimes: [5.0, 5.0],
+        vsyncStarts: [100, 110],
+        rasterFinishes: [150, 200],
+      );
+      await _createTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-004',
+        variantName: 'alt',
+        round: 2,
+        buildTimes: [12.0, 12.0],
+        rasterTimes: [6.0, 6.0],
+        vsyncStarts: [100, 110],
+        rasterFinishes: [160, 220],
+      );
+
+      final outDir = Directory(p.join(tempDir.path, 'out_zero'));
+
+      final result = await Process.run('dart', [
+        'run',
+        'bin/extract_dat.dart',
+        sessionDir.path,
+        '-o',
+        outDir.path,
+      ]);
+
+      expect(result.exitCode, equals(0));
+
+      final ratioFile =
+          File(p.join(outDir.path, 'duration_change_ratio_alt.dat'));
+      expect(ratioFile.existsSync(), isTrue);
+
+      final ratioLines = (await ratioFile.readAsLines())
+          .where((l) => l.trim().isNotEmpty)
+          .map(double.parse)
+          .toList();
+
+      // Only round 2 should be included (round 1 had base duration 0)
+      expect(ratioLines.length, equals(1));
+      expect(ratioLines.single, closeTo(120.0 / 100.0, 1e-6));
     });
   });
 }

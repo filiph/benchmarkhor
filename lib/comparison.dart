@@ -423,12 +423,6 @@ class RiskRatio {
   final double upper;
   final double ratio;
 
-  /// If `true`, the risk change is statistically significant.
-  ///
-  /// The "null value" (statistically speaking) is 1. If the confidence
-  /// interval doesn't include 1, then the change is statistically significant.
-  bool get isSignificant => lower > 1 || upper < 1;
-
   const RiskRatio(this.ratio, this.lower, this.upper);
 
   /// Standard computation according to:
@@ -469,6 +463,12 @@ class RiskRatio {
 
     return RiskRatio(rr, lower, upper);
   }
+
+  /// If `true`, the risk change is statistically significant.
+  ///
+  /// The "null value" (statistically speaking) is 1. If the confidence
+  /// interval doesn't include 1, then the change is statistically significant.
+  bool get isSignificant => lower > 1 || upper < 1;
 }
 
 class _FlutterProfileBenchmarkResult {

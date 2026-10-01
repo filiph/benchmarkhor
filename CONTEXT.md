@@ -70,7 +70,8 @@ A straight line drawn between two consecutive points of a Line Plot. No smoothin
 The minimal magnitude of change (expressed as a percentage or fraction of baseline) that is engineering-relevant or meaningful to detect.
 
 ### Bootstrap Sample Size
-The estimated minimum number of trials or rounds required per variant to achieve a target statistical power and significance level ($\alpha$), determined via noise resampling and simulated 1-sample t-tests.
+The prospective minimum number of trials or rounds required per variant to achieve target statistical power (typically 80%) to detect the **SESOI** at significance level $\alpha$, determined via noise resampling and simulated 1-sample t-tests.
+When an observed effect has already reached statistical significance in the current experiment, the sample size is considered **already sufficient**, and further power simulation against the SESOI is skipped.
 
 ### Calibrated Bootstrap
 An empirical critical value calculation (studentized bootstrap-t resampling) that holds the false-positive rate at $\alpha$ under skewed noise distributions. It is enabled by default for sample size estimation, falling back to the parametric Student's t critical value when the pilot observation count is small ($n < 20$).
@@ -78,11 +79,17 @@ An empirical critical value calculation (studentized bootstrap-t resampling) tha
 ### Win Rate
 The proportion of paired rounds in which the variant outperforms the baseline (e.g., $\text{change} < 0$, with ties credited as $0.5$), measuring the non-parametric effect size of the comparison.
 
+### Loss Rate
+The proportion of paired rounds in which the baseline outperforms the variant ($1 - \text{Win Rate}$, with ties credited as $0.5$), measuring the non-parametric effect size when the variant regresses on average.
+
+### Change Ratio
+The relative multiplier of variant performance to baseline performance ($\text{variant} / \text{baseline}$), centered at 1.0 (where values $< 1.0$ represent improvements and values $> 1.0$ represent regressions for lower-is-better metrics). Written to `.dat` files with the `_change_ratio` suffix.
+
 ### Statistical Power
 The probability that an experiment will detect a true effect of at least the **SESOI** when one exists, given the observed noise distribution, sample size, and significance level ($\alpha$).
 
 ### Significance Test
-A hypothesis test evaluating whether there is statistically significant evidence of improvement of at least the **SESOI** ($\bar{d} \le -\text{SESOI} \times \text{baseMean}$ and one-tailed $p < \alpha$) using the **Calibrated Bootstrap**.
+A hypothesis test evaluating whether there is statistically significant evidence of an effect (improvement or regression) of at least the **SESOI** ($|\bar{d}| \ge \text{SESOI} \times |\text{baseMean}|$ and one-tailed $p < \alpha$ in the observed direction) using the **Calibrated Bootstrap**.
 
 ### Theme
 A visual presentation scheme for plots. Plot themes adjust the colors of structural elements (axes, grid lines, zero baseline, box plots, and typography) to ensure optimal legibility and contrast against expected background canvas colors while maintaining consistent data series palette colors.
