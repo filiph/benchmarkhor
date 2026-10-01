@@ -853,216 +853,213 @@ void main() {
       },
     );
 
-    test(
-      'extracts iteration metrics and change files from iterations.jsonl',
-      () async {
-        final sessionDir = Directory(p.join(tempDir.path, 'iteration_session'));
-        final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
-        await trialsDir.create(recursive: true);
+    test('extracts iteration metrics and change files from iterations.jsonl', () async {
+      final sessionDir = Directory(p.join(tempDir.path, 'iteration_session'));
+      final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
+      await trialsDir.create(recursive: true);
 
-        final sessionJson = File(p.join(sessionDir.path, 'session.json'));
-        await sessionJson.writeAsString(
-          jsonEncode({
-            'schema_version': 1,
-            'name': 'pure-dart-bench',
-            'variants': {
-              'baseline': {'apk': 'baseline.apk'},
-              'optimized': {'apk': 'optimized.apk'},
-            },
-            'rounds': 2,
-          }),
-        );
+      final sessionJson = File(p.join(sessionDir.path, 'session.json'));
+      await sessionJson.writeAsString(
+        jsonEncode({
+          'schema_version': 1,
+          'name': 'pure-dart-bench',
+          'variants': {
+            'baseline': {'apk': 'baseline.apk'},
+            'optimized': {'apk': 'optimized.apk'},
+          },
+          'rounds': 2,
+        }),
+      );
 
-        // Round 1:
-        // baseline: 1000, 1100, 1200 (mean: 1100, median: 1100, min: 1000, max: 1200, n: 3)
-        await _createIterationTrial(
-          trialsDir: trialsDir,
-          trialId: 'trial-001',
-          variantName: 'baseline',
-          round: 1,
-          durations: [1000, 1100, 1200],
-          timestamps: [10000, 11100, 12100],
-        );
+      // Round 1:
+      // baseline: 1000, 1100, 1200 (mean: 1100, median: 1100, min: 1000, max: 1200, n: 3)
+      await _createIterationTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-001',
+        variantName: 'baseline',
+        round: 1,
+        durations: [1000, 1100, 1200],
+        timestamps: [10000, 11100, 12100],
+      );
 
-        // optimized: 800, 850, 900 (mean: 850, median: 850, min: 800, max: 900, n: 3)
-        await _createIterationTrial(
-          trialsDir: trialsDir,
-          trialId: 'trial-002',
-          variantName: 'optimized',
-          round: 1,
-          durations: [800, 850, 900],
-          timestamps: [20000, 20900, 21700],
-        );
+      // optimized: 800, 850, 900 (mean: 850, median: 850, min: 800, max: 900, n: 3)
+      await _createIterationTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-002',
+        variantName: 'optimized',
+        round: 1,
+        durations: [800, 850, 900],
+        timestamps: [20000, 20900, 21700],
+      );
 
-        // Round 2:
-        // optimized: 820, 850, 880 (mean: 850, median: 850, min: 820, max: 880, n: 3)
-        await _createIterationTrial(
-          trialsDir: trialsDir,
-          trialId: 'trial-003',
-          variantName: 'optimized',
-          round: 2,
-          durations: [820, 850, 880],
-          timestamps: [30000, 30900, 31720],
-        );
+      // Round 2:
+      // optimized: 820, 850, 880 (mean: 850, median: 850, min: 820, max: 880, n: 3)
+      await _createIterationTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-003',
+        variantName: 'optimized',
+        round: 2,
+        durations: [820, 850, 880],
+        timestamps: [30000, 30900, 31720],
+      );
 
-        // baseline: 1050, 1100, 1150 (mean: 1100, median: 1100, min: 1050, max: 1150, n: 3)
-        await _createIterationTrial(
-          trialsDir: trialsDir,
-          trialId: 'trial-004',
-          variantName: 'baseline',
-          round: 2,
-          durations: [1050, 1100, 1150],
-          timestamps: [40000, 41100, 42150],
-        );
+      // baseline: 1050, 1100, 1150 (mean: 1100, median: 1100, min: 1050, max: 1150, n: 3)
+      await _createIterationTrial(
+        trialsDir: trialsDir,
+        trialId: 'trial-004',
+        variantName: 'baseline',
+        round: 2,
+        durations: [1050, 1100, 1150],
+        timestamps: [40000, 41100, 42150],
+      );
 
-        final outDir = Directory(p.join(tempDir.path, 'out_iteration'));
+      final outDir = Directory(p.join(tempDir.path, 'out_iteration'));
 
-        final result = await Process.run('dart', [
-          'run',
-          'bin/extract_dat.dart',
-          sessionDir.path,
-          '-o',
-          outDir.path,
-        ]);
+      final result = await Process.run('dart', [
+        'run',
+        'bin/extract_dat.dart',
+        sessionDir.path,
+        '-o',
+        outDir.path,
+      ]);
 
-        expect(
-          result.exitCode,
-          equals(0),
-          reason: 'stdout:\n${result.stdout}\n\nstderr:\n${result.stderr}',
-        );
+      expect(
+        result.exitCode,
+        equals(0),
+        reason: 'stdout:\n${result.stdout}\n\nstderr:\n${result.stderr}',
+      );
 
-        // Absolute metric files
-        final meanBase = File(
-          p.join(outDir.path, 'iteration_duration_mean_baseline.dat'),
-        );
-        final meanOpt = File(
-          p.join(outDir.path, 'iteration_duration_mean_optimized.dat'),
-        );
-        expect(meanBase.existsSync(), isTrue);
-        expect(meanOpt.existsSync(), isTrue);
+      // Absolute metric files
+      final meanBase = File(
+        p.join(outDir.path, 'iteration_duration_mean_baseline.dat'),
+      );
+      final meanOpt = File(
+        p.join(outDir.path, 'iteration_duration_mean_optimized.dat'),
+      );
+      expect(meanBase.existsSync(), isTrue);
+      expect(meanOpt.existsSync(), isTrue);
 
-        final baseMeans = (await meanBase.readAsLines())
-            .where((l) => l.isNotEmpty)
-            .map(double.parse)
-            .toList();
-        final optMeans = (await meanOpt.readAsLines())
-            .where((l) => l.isNotEmpty)
-            .map(double.parse)
-            .toList();
-        expect(baseMeans, equals([1100.0, 1100.0]));
-        expect(optMeans, equals([850.0, 850.0]));
+      final baseMeans = (await meanBase.readAsLines())
+          .where((l) => l.isNotEmpty)
+          .map(double.parse)
+          .toList();
+      final optMeans = (await meanOpt.readAsLines())
+          .where((l) => l.isNotEmpty)
+          .map(double.parse)
+          .toList();
+      expect(baseMeans, equals([1100.0, 1100.0]));
+      expect(optMeans, equals([850.0, 850.0]));
 
-        // Single-name iteration_duration_<variant>.dat
-        final iterDurBase = File(
-          p.join(outDir.path, 'iteration_duration_baseline.dat'),
-        );
-        final iterDurOpt = File(
-          p.join(outDir.path, 'iteration_duration_optimized.dat'),
-        );
-        expect(iterDurBase.existsSync(), isTrue);
-        expect(iterDurOpt.existsSync(), isTrue);
+      // Single-name iteration_duration_<variant>.dat
+      final iterDurBase = File(
+        p.join(outDir.path, 'iteration_duration_baseline.dat'),
+      );
+      final iterDurOpt = File(
+        p.join(outDir.path, 'iteration_duration_optimized.dat'),
+      );
+      expect(iterDurBase.existsSync(), isTrue);
+      expect(iterDurOpt.existsSync(), isTrue);
 
-        // Median files
-        final medBase = File(
-          p.join(outDir.path, 'iteration_duration_median_baseline.dat'),
-        );
-        expect(medBase.existsSync(), isTrue);
-        final baseMedians = (await medBase.readAsLines())
-            .where((l) => l.isNotEmpty)
-            .map(double.parse)
-            .toList();
-        expect(baseMedians, equals([1100.0, 1100.0]));
+      // Median files
+      final medBase = File(
+        p.join(outDir.path, 'iteration_duration_median_baseline.dat'),
+      );
+      expect(medBase.existsSync(), isTrue);
+      final baseMedians = (await medBase.readAsLines())
+          .where((l) => l.isNotEmpty)
+          .map(double.parse)
+          .toList();
+      expect(baseMedians, equals([1100.0, 1100.0]));
 
-        // N files
-        final nBase = File(
-          p.join(outDir.path, 'iteration_duration_n_baseline.dat'),
-        );
-        expect(nBase.existsSync(), isTrue);
-        final baseNs = (await nBase.readAsLines())
-            .where((l) => l.isNotEmpty)
-            .map(double.parse)
-            .toList();
-        expect(baseNs, equals([3.0, 3.0]));
+      // N files
+      final nBase = File(
+        p.join(outDir.path, 'iteration_duration_n_baseline.dat'),
+      );
+      expect(nBase.existsSync(), isTrue);
+      final baseNs = (await nBase.readAsLines())
+          .where((l) => l.isNotEmpty)
+          .map(double.parse)
+          .toList();
+      expect(baseNs, equals([3.0, 3.0]));
 
-        // Change files
-        final changeMean = File(
-          p.join(outDir.path, 'iteration_duration_mean_change_optimized.dat'),
-        );
-        expect(changeMean.existsSync(), isTrue);
-        final changeMeans = (await changeMean.readAsLines())
-            .where((l) => l.isNotEmpty)
-            .map(double.parse)
-            .toList();
-        expect(changeMeans, equals([-250.0, -250.0]));
+      // Change files
+      final changeMean = File(
+        p.join(outDir.path, 'iteration_duration_mean_change_optimized.dat'),
+      );
+      expect(changeMean.existsSync(), isTrue);
+      final changeMeans = (await changeMean.readAsLines())
+          .where((l) => l.isNotEmpty)
+          .map(double.parse)
+          .toList();
+      expect(changeMeans, equals([-250.0, -250.0]));
 
-        final changeIterDur = File(
-          p.join(outDir.path, 'iteration_duration_change_optimized.dat'),
-        );
-        expect(changeIterDur.existsSync(), isTrue);
-        final changeIterDurs = (await changeIterDur.readAsLines())
-            .where((l) => l.isNotEmpty)
-            .map(double.parse)
-            .toList();
-        expect(changeIterDurs, equals([-250.0, -250.0]));
+      final changeIterDur = File(
+        p.join(outDir.path, 'iteration_duration_change_optimized.dat'),
+      );
+      expect(changeIterDur.existsSync(), isTrue);
+      final changeIterDurs = (await changeIterDur.readAsLines())
+          .where((l) => l.isNotEmpty)
+          .map(double.parse)
+          .toList();
+      expect(changeIterDurs, equals([-250.0, -250.0]));
 
-        final changeRatioIterDur = File(
-          p.join(outDir.path, 'iteration_duration_change_ratio_optimized.dat'),
-        );
-        expect(changeRatioIterDur.existsSync(), isTrue);
-        final changeRatioIterDurs = (await changeRatioIterDur.readAsLines())
-            .where((l) => l.isNotEmpty)
-            .map(double.parse)
-            .toList();
-        expect(changeRatioIterDurs[0], closeTo(850.0 / 1100.0, 1e-6));
-        expect(changeRatioIterDurs[1], closeTo(850.0 / 1100.0, 1e-6));
+      final changeRatioIterDur = File(
+        p.join(outDir.path, 'iteration_duration_change_ratio_optimized.dat'),
+      );
+      expect(changeRatioIterDur.existsSync(), isTrue);
+      final changeRatioIterDurs = (await changeRatioIterDur.readAsLines())
+          .where((l) => l.isNotEmpty)
+          .map(double.parse)
+          .toList();
+      expect(changeRatioIterDurs[0], closeTo(850.0 / 1100.0, 1e-6));
+      expect(changeRatioIterDurs[1], closeTo(850.0 / 1100.0, 1e-6));
 
-        // Total trial duration files
-        final durBase = File(p.join(outDir.path, 'duration_baseline.dat'));
-        final durOpt = File(p.join(outDir.path, 'duration_optimized.dat'));
-        final durChange = File(
-          p.join(outDir.path, 'duration_change_optimized.dat'),
-        );
-        final durChangeRatio = File(
-          p.join(outDir.path, 'duration_change_ratio_optimized.dat'),
-        );
-        expect(durBase.existsSync(), isTrue);
-        expect(durOpt.existsSync(), isTrue);
-        expect(durChange.existsSync(), isTrue);
-        expect(durChangeRatio.existsSync(), isTrue);
+      // Total trial duration files
+      final durBase = File(p.join(outDir.path, 'duration_baseline.dat'));
+      final durOpt = File(p.join(outDir.path, 'duration_optimized.dat'));
+      final durChange = File(
+        p.join(outDir.path, 'duration_change_optimized.dat'),
+      );
+      final durChangeRatio = File(
+        p.join(outDir.path, 'duration_change_ratio_optimized.dat'),
+      );
+      expect(durBase.existsSync(), isTrue);
+      expect(durOpt.existsSync(), isTrue);
+      expect(durChange.existsSync(), isTrue);
+      expect(durChangeRatio.existsSync(), isTrue);
 
-        // Verify bootstrap suggested sample size is logged for mean and not others
-        expect(
-          result.stdout,
+      // Verify bootstrap suggested sample size is logged for mean and not others
+      expect(
+        result.stdout,
+        contains(
+          'Bootstrap suggested minimum sample size for iteration_duration_mean_change_optimized: already sufficient (significant effect detected with N=2)',
+        ),
+      );
+      expect(
+        result.stdout,
+        isNot(
           contains(
-            'Bootstrap suggested minimum sample size for iteration_duration_mean_change_optimized: already sufficient (significant effect detected with N=2)',
+            'Bootstrap suggested minimum sample size for iteration_duration_change_optimized:',
           ),
-        );
-        expect(
-          result.stdout,
-          isNot(
-            contains(
-              'Bootstrap suggested minimum sample size for iteration_duration_change_optimized:',
-            ),
+        ),
+      );
+      expect(
+        result.stdout,
+        isNot(
+          contains(
+            'Bootstrap suggested minimum sample size for iteration_duration_median_change_optimized:',
           ),
-        );
-        expect(
-          result.stdout,
-          isNot(
-            contains(
-              'Bootstrap suggested minimum sample size for iteration_duration_median_change_optimized:',
-            ),
+        ),
+      );
+      expect(
+        result.stdout,
+        isNot(
+          contains(
+            'Bootstrap suggested minimum sample size for duration_change_optimized:',
           ),
-        );
-        expect(
-          result.stdout,
-          isNot(
-            contains(
-              'Bootstrap suggested minimum sample size for duration_change_optimized:',
-            ),
-          ),
-        );
-      },
-    );
+        ),
+      );
+    });
 
     test('handles empty iterations.jsonl gracefully with warning', () async {
       final sessionDir = Directory(p.join(tempDir.path, 'empty_session'));
@@ -1106,8 +1103,9 @@ void main() {
     test(
       'defaults to <session_path>/dat_files when --output option is omitted',
       () async {
-        final sessionDir =
-            Directory(p.join(tempDir.path, 'session_default_out'));
+        final sessionDir = Directory(
+          p.join(tempDir.path, 'session_default_out'),
+        );
         final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
         await trialsDir.create(recursive: true);
 
@@ -1170,78 +1168,83 @@ void main() {
       },
     );
 
-    test('logs asterisk marker and lose rate for significant regressions', () async {
-      final sessionDir = Directory(p.join(tempDir.path, 'session_regression'));
-      final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
-      await trialsDir.create(recursive: true);
+    test(
+      'logs asterisk marker and lose rate for significant regressions',
+      () async {
+        final sessionDir = Directory(
+          p.join(tempDir.path, 'session_regression'),
+        );
+        final trialsDir = Directory(p.join(sessionDir.path, 'trials'));
+        await trialsDir.create(recursive: true);
 
-      final sessionJson = File(p.join(sessionDir.path, 'session.json'));
-      await sessionJson.writeAsString(
-        jsonEncode({
-          'schema_version': 1,
-          'variants': {
-            'base': {'apk': 'base.apk'},
-            'alt': {'apk': 'alt.apk'},
-          },
-        }),
-      );
+        final sessionJson = File(p.join(sessionDir.path, 'session.json'));
+        await sessionJson.writeAsString(
+          jsonEncode({
+            'schema_version': 1,
+            'variants': {
+              'base': {'apk': 'base.apk'},
+              'alt': {'apk': 'alt.apk'},
+            },
+          }),
+        );
 
-      // Alt is significantly worse (regressed)
-      await _createTrial(
-        trialsDir: trialsDir,
-        trialId: 'trial-001',
-        variantName: 'base',
-        round: 1,
-        buildTimes: [10.0, 12.0],
-        rasterTimes: [20.0, 20.0],
-      );
-      await _createTrial(
-        trialsDir: trialsDir,
-        trialId: 'trial-002',
-        variantName: 'alt',
-        round: 1,
-        buildTimes: [100.0, 102.0],
-        rasterTimes: [20.0, 20.0],
-      );
-      await _createTrial(
-        trialsDir: trialsDir,
-        trialId: 'trial-003',
-        variantName: 'base',
-        round: 2,
-        buildTimes: [11.0, 13.0],
-        rasterTimes: [20.0, 20.0],
-      );
-      await _createTrial(
-        trialsDir: trialsDir,
-        trialId: 'trial-004',
-        variantName: 'alt',
-        round: 2,
-        buildTimes: [101.0, 103.0],
-        rasterTimes: [20.0, 20.0],
-      );
+        // Alt is significantly worse (regressed)
+        await _createTrial(
+          trialsDir: trialsDir,
+          trialId: 'trial-001',
+          variantName: 'base',
+          round: 1,
+          buildTimes: [10.0, 12.0],
+          rasterTimes: [20.0, 20.0],
+        );
+        await _createTrial(
+          trialsDir: trialsDir,
+          trialId: 'trial-002',
+          variantName: 'alt',
+          round: 1,
+          buildTimes: [100.0, 102.0],
+          rasterTimes: [20.0, 20.0],
+        );
+        await _createTrial(
+          trialsDir: trialsDir,
+          trialId: 'trial-003',
+          variantName: 'base',
+          round: 2,
+          buildTimes: [11.0, 13.0],
+          rasterTimes: [20.0, 20.0],
+        );
+        await _createTrial(
+          trialsDir: trialsDir,
+          trialId: 'trial-004',
+          variantName: 'alt',
+          round: 2,
+          buildTimes: [101.0, 103.0],
+          rasterTimes: [20.0, 20.0],
+        );
 
-      final outDir = Directory(p.join(tempDir.path, 'out_reg'));
+        final outDir = Directory(p.join(tempDir.path, 'out_reg'));
 
-      final result = await Process.run('dart', [
-        'run',
-        'bin/extract_dat.dart',
-        sessionDir.path,
-        '-o',
-        outDir.path,
-      ]);
+        final result = await Process.run('dart', [
+          'run',
+          'bin/extract_dat.dart',
+          sessionDir.path,
+          '-o',
+          outDir.path,
+        ]);
 
-      expect(result.exitCode, equals(0));
-      expect(
-        result.stdout,
-        matches(RegExp(r'\[\* lose:100%\]\s+.*\bbuild_mean_change_alt\b')),
-      );
-      expect(
-        result.stdout,
-        contains(
-          'Bootstrap suggested minimum sample size for build_mean_change_alt: already sufficient (significant effect detected with N=2)',
-        ),
-      );
-    });
+        expect(result.exitCode, equals(0));
+        expect(
+          result.stdout,
+          matches(RegExp(r'\[\* lose:100%\]\s+.*\bbuild_mean_change_alt\b')),
+        );
+        expect(
+          result.stdout,
+          contains(
+            'Bootstrap suggested minimum sample size for build_mean_change_alt: already sufficient (significant effect detected with N=2)',
+          ),
+        );
+      },
+    );
 
     test('omits zero-baseline rounds from change_ratio files', () async {
       final sessionDir = Directory(p.join(tempDir.path, 'session_zero_base'));
@@ -1316,8 +1319,9 @@ void main() {
 
       expect(result.exitCode, equals(0));
 
-      final ratioFile =
-          File(p.join(outDir.path, 'duration_change_ratio_alt.dat'));
+      final ratioFile = File(
+        p.join(outDir.path, 'duration_change_ratio_alt.dat'),
+      );
       expect(ratioFile.existsSync(), isTrue);
 
       final ratioLines = (await ratioFile.readAsLines())

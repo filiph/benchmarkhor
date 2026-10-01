@@ -466,12 +466,13 @@ SignificanceResult testSignificance({
   // For one-tailed test at alpha, we use two-tailed alpha of min(1.0, 2 * alpha).
   final twoTailedAlpha = min(1.0 - 1e-9, alpha * 2.0);
 
-  final isImprovementDirection =
-      lowerIsBetter ? meanDiff < 0.0 : meanDiff > 0.0;
-  final isRegressionDirection =
-      lowerIsBetter ? meanDiff > 0.0 : meanDiff < 0.0;
+  final isImprovementDirection = lowerIsBetter
+      ? meanDiff < 0.0
+      : meanDiff > 0.0;
+  final isRegressionDirection = lowerIsBetter ? meanDiff > 0.0 : meanDiff < 0.0;
 
-  final meetsSesoi = baseMean == null ||
+  final meetsSesoi =
+      baseMean == null ||
       sesoi == null ||
       meanDiff.abs() >= baseMean.abs() * sesoi.abs();
 

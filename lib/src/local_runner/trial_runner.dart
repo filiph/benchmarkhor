@@ -22,9 +22,9 @@ class ProcessTrialRunner {
     MacHostProbe? probe,
     BenchmarkOutputParser? parser,
     Logger? logger,
-  })  : probe = probe ?? MacHostProbe(),
-        parser = parser ?? BenchmarkOutputParser(logger: logger),
-        _log = logger ?? Logger('ProcessTrialRunner');
+  }) : probe = probe ?? MacHostProbe(),
+       parser = parser ?? BenchmarkOutputParser(logger: logger),
+       _log = logger ?? Logger('ProcessTrialRunner');
 
   /// Resolves the executable path against [sessionDirPath] if relative.
   static String resolveExecutable(String executable, String sessionDirPath) {
@@ -95,10 +95,10 @@ class ProcessTrialRunner {
         },
       );
 
-      await Future.wait([stdoutDone, stderrDone]).timeout(
-        const Duration(seconds: 2),
-        onTimeout: () => const [],
-      );
+      await Future.wait([
+        stdoutDone,
+        stderrDone,
+      ]).timeout(const Duration(seconds: 2), onTimeout: () => const []);
 
       exitCode = exitCodeOrTimeout;
       stdoutStr = stdoutBuffer.toString();
@@ -168,7 +168,7 @@ class ProcessTrialRunner {
           'bytes': iterationsBytes.length,
           'sha256': hash,
           'line_count': 1,
-        }
+        },
       ];
       await store.writeResultsIndex(trialId, indexEntries);
     }
@@ -189,9 +189,11 @@ class ProcessTrialRunner {
       error: timedOut
           ? 'Process timed out'
           : (exitCode != 0
-              ? 'Exit code $exitCode'
-              : (executionError ??
-                  (!parseResult.hasDuration ? 'No runtime in stdout' : null))),
+                ? 'Exit code $exitCode'
+                : (executionError ??
+                      (!parseResult.hasDuration
+                          ? 'No runtime in stdout'
+                          : null))),
     );
 
     await store.writeTrialMetadata(trialMetadata);

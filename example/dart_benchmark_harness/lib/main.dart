@@ -52,7 +52,9 @@ void main() async {
     }
 
     await updateStatus('Completed. Writing DONE sentinel...');
-    debugPrint('Harness: completed $iterations iterations. Writing DONE sentinel.');
+    debugPrint(
+      'Harness: completed $iterations iterations. Writing DONE sentinel.',
+    );
     await recorder.complete();
     await updateStatus('Done.');
   } catch (e, stack) {
@@ -97,12 +99,18 @@ class BenchmarkHarnessApp extends StatelessWidget {
                   children: [
                     const Text(
                       'Pure-Dart Benchmark Harness',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       status,
-                      style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.blueGrey,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ],

@@ -490,7 +490,9 @@ void main() {
         .readAsString();
     expect(
       adbLog,
-      contains('am start -n com.example.bench/com.example.bench.CustomActivity'),
+      contains(
+        'am start -n com.example.bench/com.example.bench.CustomActivity',
+      ),
     );
     expect(adbLog, isNot(contains('am instrument')));
     expect(adbLog, contains('pm clear com.example.bench'));
@@ -575,11 +577,12 @@ void main() {
       final sessionLog = await store.sessionLogFile(sessionId).readAsString();
       expect(
         sessionLog,
-        contains(
-          'Variant v1 is already installed; skipping APK installation.',
-        ),
+        contains('Variant v1 is already installed; skipping APK installation.'),
       );
-      expect(sessionLog, contains('Session teardown: uninstalling packages...'));
+      expect(
+        sessionLog,
+        contains('Session teardown: uninstalling packages...'),
+      );
     },
   );
 
@@ -671,7 +674,9 @@ void main() {
       );
       expect(
         sessionLog,
-        contains('Device boot completed. Restoring device operational state...'),
+        contains(
+          'Device boot completed. Restoring device operational state...',
+        ),
       );
       expect(sessionLog, contains('Re-applying device profile'));
       expect(

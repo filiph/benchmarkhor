@@ -1,9 +1,7 @@
 import 'dart:io';
 
-typedef CommandExecutor = Future<ProcessResult> Function(
-  String executable,
-  List<String> arguments,
-);
+typedef CommandExecutor =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
 
 /// Collects macOS host environment telemetry including thermal pressure.
 class MacHostProbe {
@@ -11,7 +9,7 @@ class MacHostProbe {
   Map<String, String>? _cachedStaticInfo;
 
   MacHostProbe({CommandExecutor? commandExecutor})
-      : _runCommand = commandExecutor ?? Process.run;
+    : _runCommand = commandExecutor ?? Process.run;
 
   /// Extracts numeric thermal pressure level from notifyutil output.
   static String parseThermalPressure(String output) {
@@ -42,7 +40,10 @@ class MacHostProbe {
       }
     }
     if (name != null || version != null) {
-      final ver = [name ?? 'macOS', version].where((s) => s != null && s.isNotEmpty).join(' ');
+      final ver = [
+        name ?? 'macOS',
+        version,
+      ].where((s) => s != null && s.isNotEmpty).join(' ');
       if (build != null && build.isNotEmpty) {
         return '$ver ($build)';
       }
@@ -83,7 +84,10 @@ class MacHostProbe {
 
     String cpuBrand = 'unknown';
     try {
-      final res = await _runCommand('sysctl', ['-n', 'machdep.cpu.brand_string']);
+      final res = await _runCommand('sysctl', [
+        '-n',
+        'machdep.cpu.brand_string',
+      ]);
       if (res.exitCode == 0) {
         cpuBrand = (res.stdout as String).trim();
       }

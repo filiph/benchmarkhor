@@ -157,7 +157,9 @@ void main() {
     late LocalSessionStore store;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('local_session_store_test_');
+      tempDir = await Directory.systemTemp.createTemp(
+        'local_session_store_test_',
+      );
       store = LocalSessionStore(tempDir.path);
     });
 
@@ -190,49 +192,55 @@ void main() {
       expect(logContent, contains('[20'));
     });
 
-    test('initOrResumeStatus creates initial status and resumes on subsequent calls', () async {
-      // Write session.json
-      final sessionSpec = LocalSessionSpec(
-        name: 'test-session',
-        rounds: 3,
-        variants: {
-          'v1': const ExecutableVariantSpec(name: 'v1', executable: 'echo'),
-        },
-      );
-      await store.writeAtomic(
-        store.sessionSpecFile,
-        jsonEncode(sessionSpec.toJson()),
-      );
+    test(
+      'initOrResumeStatus creates initial status and resumes on subsequent calls',
+      () async {
+        // Write session.json
+        final sessionSpec = LocalSessionSpec(
+          name: 'test-session',
+          rounds: 3,
+          variants: {
+            'v1': const ExecutableVariantSpec(name: 'v1', executable: 'echo'),
+          },
+        );
+        await store.writeAtomic(
+          store.sessionSpecFile,
+          jsonEncode(sessionSpec.toJson()),
+        );
 
-      // First run: initializes
-      final status1 = await store.initOrResumeStatus();
-      expect(status1.sessionId, equals('test-session'));
-      expect(status1.roundsPlanned, equals(3));
-      expect(status1.roundsCompleted, equals(0));
-      expect(status1.state, equals(LocalSessionState.queued));
-      expect(await store.statusFile.exists(), isTrue);
+        // First run: initializes
+        final status1 = await store.initOrResumeStatus();
+        expect(status1.sessionId, equals('test-session'));
+        expect(status1.roundsPlanned, equals(3));
+        expect(status1.roundsCompleted, equals(0));
+        expect(status1.state, equals(LocalSessionState.queued));
+        expect(await store.statusFile.exists(), isTrue);
 
-      // Update status to round 1 completed
-      final updated = status1.transitionTo(
-        LocalSessionState.running,
-        roundsCompleted: 1,
-        reason: 'Finished round 1',
-      );
-      await store.writeStatus(updated);
+        // Update status to round 1 completed
+        final updated = status1.transitionTo(
+          LocalSessionState.running,
+          roundsCompleted: 1,
+          reason: 'Finished round 1',
+        );
+        await store.writeStatus(updated);
 
-      // Second run: resumes
-      final status2 = await store.initOrResumeStatus();
-      expect(status2.roundsCompleted, equals(1));
-      expect(status2.state, equals(LocalSessionState.running));
+        // Second run: resumes
+        final status2 = await store.initOrResumeStatus();
+        expect(status2.roundsCompleted, equals(1));
+        expect(status2.state, equals(LocalSessionState.running));
 
-      final log = await store.sessionLogFile.readAsString();
-      expect(log, contains('Resuming session "test-session" from round 2 of 3'));
+        final log = await store.sessionLogFile.readAsString();
+        expect(
+          log,
+          contains('Resuming session "test-session" from round 2 of 3'),
+        );
 
-      // Run with clean: wipes and restarts
-      final status3 = await store.initOrResumeStatus(clean: true);
-      expect(status3.roundsCompleted, equals(0));
-      expect(status3.state, equals(LocalSessionState.queued));
-    });
+        // Run with clean: wipes and restarts
+        final status3 = await store.initOrResumeStatus(clean: true);
+        expect(status3.roundsCompleted, equals(0));
+        expect(status3.state, equals(LocalSessionState.queued));
+      },
+    );
 
     test('listExistingTrialIds finds and sorts trial dirs', () async {
       await store.trialDir('trial-002').create(recursive: true);
@@ -263,7 +271,7 @@ void main() {
           'bytes': 100,
           'sha256': 'abc123',
           'line_count': 1,
-        }
+        },
       ];
       await store.writeResultsIndex('trial-001', resultsEntries);
       expect(await store.trialResultsIndexFile('trial-001').exists(), isTrue);

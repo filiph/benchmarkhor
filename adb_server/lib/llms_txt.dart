@@ -408,8 +408,7 @@ String _fieldReferenceSection() {
 
   final pureDartExample = SessionSpec.fromJson({
     'name': 'hash-map-lookup-perf',
-    'description':
-        'Comparing standard Map vs optimized hashing implementation',
+    'description': 'Comparing standard Map vs optimized hashing implementation',
     'package': 'com.example.dart_benchmark_harness',
     'launch_activity': 'com.example.dart_benchmark_harness.MainActivity',
     'device_result_dir':
@@ -417,10 +416,7 @@ String _fieldReferenceSection() {
     'rounds': 30,
     'expected_result_files': const ['iterations.jsonl'],
     'variants': const {
-      'baseline': {
-        'apk': 'baseline.apk',
-        'source': 'git 4f2a1c9',
-      },
+      'baseline': {'apk': 'baseline.apk', 'source': 'git 4f2a1c9'},
       'optimized': {
         'apk': 'optimized.apk',
         'source': 'git 4f2a1c9 + branch-opt',
@@ -441,11 +437,9 @@ String _fieldReferenceSection() {
     )
     ..writeln()
     ..writeln(
-      const JsonEncoder.withIndent('  ').convert(
-        jsonDecode(
-          _encodeJson(example.toJson()),
-        ),
-      ),
+      const JsonEncoder.withIndent(
+        '  ',
+      ).convert(jsonDecode(_encodeJson(example.toJson()))),
     )
     ..writeln()
     ..writeln('## Example session.json for Pathway B (Pure Dart Single APK)')
@@ -456,11 +450,9 @@ String _fieldReferenceSection() {
     )
     ..writeln()
     ..writeln(
-      const JsonEncoder.withIndent('  ').convert(
-        jsonDecode(
-          _encodeJson(pureDartJson),
-        ),
-      ),
+      const JsonEncoder.withIndent(
+        '  ',
+      ).convert(jsonDecode(_encodeJson(pureDartJson))),
     );
 
   return buf.toString();

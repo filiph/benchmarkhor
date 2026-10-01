@@ -26,16 +26,17 @@ class LocalSessionRunner {
     this.timeoutOverride,
     Random? random,
     Logger? logger,
-  })  : probe = probe ?? MacHostProbe(),
-        trialRunner = trialRunner ??
-            ProcessTrialRunner(
-              store: store,
-              probe: probe,
-              parser: BenchmarkOutputParser(logger: logger),
-              logger: logger,
-            ),
-        _random = random ?? Random(),
-        _log = logger ?? Logger('LocalSessionRunner');
+  }) : probe = probe ?? MacHostProbe(),
+       trialRunner =
+           trialRunner ??
+           ProcessTrialRunner(
+             store: store,
+             probe: probe,
+             parser: BenchmarkOutputParser(logger: logger),
+             logger: logger,
+           ),
+       _random = random ?? Random(),
+       _log = logger ?? Logger('LocalSessionRunner');
 
   /// Cleans leftover partial trial directories beyond [expectedCompletedTrials].
   Future<void> _cleanPartialTrials(int expectedCompletedTrials) async {
@@ -86,8 +87,8 @@ class LocalSessionRunner {
     await store.writeStatus(status);
 
     var trialNumber = expectedCompletedTrials + 1;
-    final timeout = timeoutOverride ??
-        Duration(seconds: spec.trialTimeoutSeconds ?? 300);
+    final timeout =
+        timeoutOverride ?? Duration(seconds: spec.trialTimeoutSeconds ?? 300);
 
     try {
       final variantKeys = spec.variants.keys.toList();

@@ -253,8 +253,7 @@ class Runner {
           } catch (e) {
             log('Warning: Failed to uninstall ${spec.package}: $e');
           }
-          final hasTestApk =
-              spec.variants.values.any((v) => v.testApk != null);
+          final hasTestApk = spec.variants.values.any((v) => v.testApk != null);
           if (hasTestApk && spec.testPackage.isNotEmpty) {
             try {
               await teardownAdb.uninstall(

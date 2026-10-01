@@ -42,7 +42,10 @@ class ExecutableVariantSpec {
     this.source,
   });
 
-  factory ExecutableVariantSpec.fromJson(String name, Map<String, dynamic> json) {
+  factory ExecutableVariantSpec.fromJson(
+    String name,
+    Map<String, dynamic> json,
+  ) {
     final exec = json['executable'];
     if (exec is! String || exec.trim().isEmpty) {
       throw FormatException(
@@ -57,7 +60,9 @@ class ExecutableVariantSpec {
     } else if (rawArgs is List) {
       args = rawArgs.map((e) => e.toString()).toList();
     } else {
-      throw FormatException('Variant "$name": "args" must be a list of strings');
+      throw FormatException(
+        'Variant "$name": "args" must be a list of strings',
+      );
     }
 
     final source = json['source'] as String?;
@@ -71,10 +76,7 @@ class ExecutableVariantSpec {
   }
 
   Map<String, dynamic> toJson() {
-    final map = <String, dynamic>{
-      'executable': executable,
-      'args': args,
-    };
+    final map = <String, dynamic>{'executable': executable, 'args': args};
     if (source != null) {
       map['source'] = source;
     }
@@ -130,7 +132,9 @@ class LocalSessionSpec {
   factory LocalSessionSpec.fromJson(Map<String, dynamic> json) {
     final name = json['name'];
     if (name is! String || name.trim().isEmpty) {
-      throw const FormatException('session.json: "name" must be a non-empty string');
+      throw const FormatException(
+        'session.json: "name" must be a non-empty string',
+      );
     }
 
     final rawRounds = json['rounds'] ?? json['repetitions'];
@@ -168,9 +172,11 @@ class LocalSessionSpec {
       }
     }
 
-    final schemaVersion = (json['schema_version'] as int?) ?? currentSchemaVersion;
+    final schemaVersion =
+        (json['schema_version'] as int?) ?? currentSchemaVersion;
     final description = json['description'] as String?;
-    final timeout = (json['trial_timeout_seconds'] ?? json['timeout_seconds']) as int?;
+    final timeout =
+        (json['trial_timeout_seconds'] ?? json['timeout_seconds']) as int?;
 
     return LocalSessionSpec(
       schemaVersion: schemaVersion,
@@ -296,14 +302,17 @@ class LocalSessionStatus {
         (json['rounds_completed'] ?? json['runs_completed'] ?? 0) as int;
     final roundsPlanned =
         (json['rounds_planned'] ?? json['runs_planned'] ?? 1) as int;
-    final currentTrial = (json['current_trial'] ?? json['current_run']) as String?;
+    final currentTrial =
+        (json['current_trial'] ?? json['current_run']) as String?;
     final error = json['error'] as String?;
 
     final rawHistory = json['history'] as List?;
     final history = rawHistory != null
         ? rawHistory
-            .map((e) => SessionHistoryEntry.fromJson(e as Map<String, dynamic>))
-            .toList()
+              .map(
+                (e) => SessionHistoryEntry.fromJson(e as Map<String, dynamic>),
+              )
+              .toList()
         : <SessionHistoryEntry>[];
 
     final schemaVersion =
@@ -421,9 +430,13 @@ class TrialMetadata {
       finishedAt: DateTime.parse(json['finished_at'] as String),
       exitCode: (json['exit_code'] as int?) ?? 0,
       durationUs: json['duration_us'] as num?,
-      deviceBefore: (json['device_before'] as Map?)?.cast<String, dynamic>() ?? const {},
-      deviceAfter: (json['device_after'] as Map?)?.cast<String, dynamic>() ?? const {},
-      warnings: (json['warnings'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      deviceBefore:
+          (json['device_before'] as Map?)?.cast<String, dynamic>() ?? const {},
+      deviceAfter:
+          (json['device_after'] as Map?)?.cast<String, dynamic>() ?? const {},
+      warnings:
+          (json['warnings'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
       error: json['error'] as String?,
     );
   }

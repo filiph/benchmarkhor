@@ -53,7 +53,9 @@ class BenchmarkRecorder {
     int? timestampUs,
   }) {
     if (_isClosed) {
-      throw StateError('Cannot record iteration on a closed BenchmarkRecorder.');
+      throw StateError(
+        'Cannot record iteration on a closed BenchmarkRecorder.',
+      );
     }
     _iterationCount++;
     final iter = iteration ?? _iterationCount;

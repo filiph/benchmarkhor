@@ -66,7 +66,9 @@ void main(List<String> arguments) async {
   final sessionDirPath = argResults.rest.first;
   final sessionDir = Directory(sessionDirPath);
   if (!sessionDir.existsSync()) {
-    stderr.writeln('Error: session directory "$sessionDirPath" does not exist.');
+    stderr.writeln(
+      'Error: session directory "$sessionDirPath" does not exist.',
+    );
     exit(1);
   }
 

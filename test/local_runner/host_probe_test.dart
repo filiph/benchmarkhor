@@ -7,11 +7,15 @@ void main() {
   group('MacHostProbe helpers', () {
     test('parseThermalPressure parses notifyutil output', () {
       expect(
-        MacHostProbe.parseThermalPressure('com.apple.system.thermalpressurelevel 0'),
+        MacHostProbe.parseThermalPressure(
+          'com.apple.system.thermalpressurelevel 0',
+        ),
         equals('0'),
       );
       expect(
-        MacHostProbe.parseThermalPressure('com.apple.system.thermalpressurelevel 2\n'),
+        MacHostProbe.parseThermalPressure(
+          'com.apple.system.thermalpressurelevel 2\n',
+        ),
         equals('2'),
       );
       expect(MacHostProbe.parseThermalPressure('3'), equals('3'));
@@ -24,14 +28,12 @@ ProductName:		macOS
 ProductVersion:		15.1
 BuildVersion:		24B83
 ''';
-      expect(
-        MacHostProbe.parseSwVers(swVersOut),
-        equals('macOS 15.1 (24B83)'),
-      );
+      expect(MacHostProbe.parseSwVers(swVersOut), equals('macOS 15.1 (24B83)'));
     });
 
     test('parseLoadAvg parses uptime output', () {
-      const uptime = '20:42  up 11 days,  8:43, 1 user, load averages: 2.80 2.88 2.85';
+      const uptime =
+          '20:42  up 11 days,  8:43, 1 user, load averages: 2.80 2.88 2.85';
       expect(MacHostProbe.parseLoadAvg(uptime), equals('2.80 2.88 2.85'));
     });
 
@@ -39,12 +41,18 @@ BuildVersion:		24B83
       final probe = MacHostProbe(
         commandExecutor: (executable, args) async {
           if (executable == 'notifyutil') {
-            return ProcessResult(1, 0, 'com.apple.system.thermalpressurelevel 0\n', '');
+            return ProcessResult(
+              1,
+              0,
+              'com.apple.system.thermalpressurelevel 0\n',
+              '',
+            );
           }
           if (executable == 'sysctl' && args.contains('hw.model')) {
             return ProcessResult(2, 0, 'MacBookPro18,1\n', '');
           }
-          if (executable == 'sysctl' && args.contains('machdep.cpu.brand_string')) {
+          if (executable == 'sysctl' &&
+              args.contains('machdep.cpu.brand_string')) {
             return ProcessResult(3, 0, 'Apple M1 Pro\n', '');
           }
           if (executable == 'sw_vers') {

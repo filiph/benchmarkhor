@@ -166,7 +166,9 @@ void main(List<String> arguments) {
           Platform.environment['FAKE_ADB_UID_FAIL_COUNT_FILE'];
       if (uidFailCountFile != null) {
         final file = File(uidFailCountFile);
-        int count = file.existsSync() ? int.parse(file.readAsStringSync().trim()) : 0;
+        int count = file.existsSync()
+            ? int.parse(file.readAsStringSync().trim())
+            : 0;
         if (count == 0) {
           file.writeAsStringSync('1');
           stderr.writeln(

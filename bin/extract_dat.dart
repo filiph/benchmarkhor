@@ -311,8 +311,7 @@ void main(List<String> arguments) async {
         trialDurationUs =
             (maxTimestampUs - minTimestampUs) + (lastDurationUs ?? 0);
       }
-      trialDurationUs ??=
-          iterationTimes.fold<num>(0, (a, b) => a + b).toInt();
+      trialDurationUs ??= iterationTimes.fold<num>(0, (a, b) => a + b).toInt();
 
       final trialData = TrialData(
         trialId,
@@ -384,15 +383,9 @@ void main(List<String> arguments) async {
       }
     }
 
-    final durations = trials
-        .map((t) => t.durationUs)
-        .whereType<int>()
-        .toList();
+    final durations = trials.map((t) => t.durationUs).whereType<int>().toList();
     if (durations.isNotEmpty) {
-      _writeDat(
-        p.join(outputDir.path, 'duration_$variantName.dat'),
-        durations,
-      );
+      _writeDat(p.join(outputDir.path, 'duration_$variantName.dat'), durations);
     }
 
     // Phases are optional. Frames/iterations without a phase tag are only part of the
@@ -704,7 +697,10 @@ void _writeAggregates(
   _writeDat(p.join(outputDirPath, '${timing}_n_$variantName.dat'), ns);
   _writeDat(p.join(outputDirPath, '${timing}_first_$variantName.dat'), firsts);
   _writeDat(p.join(outputDirPath, '${timing}_mean_$variantName.dat'), means);
-  _writeDat(p.join(outputDirPath, '${timing}_median_$variantName.dat'), medians);
+  _writeDat(
+    p.join(outputDirPath, '${timing}_median_$variantName.dat'),
+    medians,
+  );
   _writeDat(p.join(outputDirPath, '${timing}_min_$variantName.dat'), mins);
   _writeDat(p.join(outputDirPath, '${timing}_max_$variantName.dat'), maxs);
   _writeDat(p.join(outputDirPath, '${timing}_p95_$variantName.dat'), p95s);

@@ -822,9 +822,18 @@ void main() {
 
     group('estimatePower', () {
       test('returns null for invalid / degenerate parameters', () {
-        expect(estimatePower(diffs: [1.0], baseMean: 100.0, sesoi: 0.05), isNull);
-        expect(estimatePower(diffs: [1.0, 2.0], baseMean: 0.0, sesoi: 0.05), isNull);
-        expect(estimatePower(diffs: [1.0, 2.0], baseMean: 100.0, sesoi: 0.0), isNull);
+        expect(
+          estimatePower(diffs: [1.0], baseMean: 100.0, sesoi: 0.05),
+          isNull,
+        );
+        expect(
+          estimatePower(diffs: [1.0, 2.0], baseMean: 0.0, sesoi: 0.05),
+          isNull,
+        );
+        expect(
+          estimatePower(diffs: [1.0, 2.0], baseMean: 100.0, sesoi: 0.0),
+          isNull,
+        );
       });
 
       test('returns 1.0 on zero variance with non-zero effect', () {

@@ -34,7 +34,7 @@ class BenchmarkOutputParser {
   final Logger _log;
 
   BenchmarkOutputParser({Logger? logger})
-      : _log = logger ?? Logger('BenchmarkOutputParser');
+    : _log = logger ?? Logger('BenchmarkOutputParser');
 
   BenchmarkParseResult parse(String stdoutText) {
     final lines = stdoutText.split('\n');
@@ -55,7 +55,8 @@ class BenchmarkOutputParser {
     final warnings = <String>[];
 
     if (matches.isEmpty) {
-      const msg = 'No line matching "(RunTime): ??? us" found in process stdout.';
+      const msg =
+          'No line matching "(RunTime): ??? us" found in process stdout.';
       _log.severe(msg);
       warnings.add(msg);
       return const BenchmarkParseResult(

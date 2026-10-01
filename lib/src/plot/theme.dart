@@ -41,7 +41,11 @@ enum PlotTheme {
     return switch (name.toLowerCase()) {
       'light' => PlotTheme.light,
       'dark' => PlotTheme.dark,
-      _ => throw ArgumentError.value(name, 'theme', 'Unknown plot theme: $name'),
+      _ => throw ArgumentError.value(
+        name,
+        'theme',
+        'Unknown plot theme: $name',
+      ),
     };
   }
 }

@@ -37,28 +37,31 @@ Completed run.
       expect(res3.durationUs, equals(25000));
     });
 
-    test('handles multiple matches by selecting last and emitting SEVERE log', () {
-      final records = <LogRecord>[];
-      final logger = Logger('test_parser')..onRecord.listen(records.add);
-      final parser = BenchmarkOutputParser(logger: logger);
+    test(
+      'handles multiple matches by selecting last and emitting SEVERE log',
+      () {
+        final records = <LogRecord>[];
+        final logger = Logger('test_parser')..onRecord.listen(records.add);
+        final parser = BenchmarkOutputParser(logger: logger);
 
-      const stdout = '''
+        const stdout = '''
 Iteration 1 (RunTime): 100 us
 Iteration 2 (RunTime): 50 us
 Iteration 3 (RunTime): 25.5 us
 ''';
 
-      final result = parser.parse(stdout);
-      expect(result.hasDuration, isTrue);
-      expect(result.durationUs, equals(25.5));
-      expect(result.matchCount, equals(3));
-      expect(result.warnings, isNotEmpty);
-      expect(result.warnings.first, contains('Found 3 matches'));
+        final result = parser.parse(stdout);
+        expect(result.hasDuration, isTrue);
+        expect(result.durationUs, equals(25.5));
+        expect(result.matchCount, equals(3));
+        expect(result.warnings, isNotEmpty);
+        expect(result.warnings.first, contains('Found 3 matches'));
 
-      expect(records.length, equals(1));
-      expect(records.first.level, equals(Level.SEVERE));
-      expect(records.first.message, contains('Found 3 matches'));
-    });
+        expect(records.length, equals(1));
+        expect(records.first.level, equals(Level.SEVERE));
+        expect(records.first.message, contains('Found 3 matches'));
+      },
+    );
 
     test('handles zero matches by returning null and emitting SEVERE log', () {
       final records = <LogRecord>[];
