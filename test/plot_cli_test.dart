@@ -175,5 +175,85 @@ void main() {
       expect(invalidResult.exitCode, 64);
       expect(invalidResult.stderr, contains('"blue" is not an allowed value'));
     });
+
+    test('line supports --width and --height flags', () async {
+      final result = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'line',
+        '--width',
+        '1200',
+        '--height',
+        '800',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(result.exitCode, 0);
+      expect(result.stdout, contains('width="1200.0" height="800.0"'));
+      expect(result.stdout, contains('viewBox="0 0 1200.0 800.0"'));
+    });
+
+    test('violin supports --width and --height flags', () async {
+      final result = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'violin',
+        '--width',
+        '1400',
+        '--height',
+        '900',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(result.exitCode, 0);
+      expect(result.stdout, contains('width="1400.0" height="900.0"'));
+      expect(result.stdout, contains('viewBox="0 0 1400.0 900.0"'));
+    });
+
+    test('line with invalid width or height exits with usage error', () async {
+      final nonNumeric = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'line',
+        '--width',
+        'invalid',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(nonNumeric.exitCode, 64);
+      expect(nonNumeric.stderr, contains('--width must be a positive number'));
+
+      final nonPositive = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'line',
+        '--height',
+        '-100',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(nonPositive.exitCode, 64);
+      expect(nonPositive.stderr, contains('--height must be a positive number'));
+    });
+
+    test('violin with invalid width or height exits with usage error', () async {
+      final nonNumeric = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'violin',
+        '--width',
+        '0',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(nonNumeric.exitCode, 64);
+      expect(nonNumeric.stderr, contains('--width must be a positive number'));
+
+      final nonPositive = await Process.run('dart', [
+        'run',
+        'bin/plot.dart',
+        'violin',
+        '--height',
+        'bad',
+        'test/fixtures/sample_a.dat',
+      ]);
+      expect(nonPositive.exitCode, 64);
+      expect(nonPositive.stderr, contains('--height must be a positive number'));
+    });
   });
 }

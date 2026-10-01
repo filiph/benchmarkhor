@@ -2,7 +2,9 @@ import 'package:benchmarkhor/src/plot/svg.dart';
 import 'package:benchmarkhor/src/plot/y_axis.dart';
 import 'package:test/test.dart';
 
-const plotBottom = marginTop + plotHeight;
+const defaultLayout = PlotLayout();
+final plotBottom = defaultLayout.plotBottom;
+final marginTop = defaultLayout.marginTop;
 
 void main() {
   group('YAxis', () {
@@ -63,6 +65,14 @@ void main() {
       expect(axis.ticks, contains(0.0));
       expect(axis.ticks.first, greaterThanOrEqualTo(axis.min));
       expect(axis.ticks.last, lessThanOrEqualTo(axis.max));
+    });
+
+    test('adapts to custom layout height and margins', () {
+      const customLayout = PlotLayout(height: 1000);
+      final axis = YAxis.forRange(400, 500, layout: customLayout);
+
+      expect(axis.toSvgY(0), customLayout.plotBottom);
+      expect(axis.toSvgY(500), greaterThan(customLayout.marginTop));
     });
   });
 }

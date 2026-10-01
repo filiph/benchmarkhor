@@ -87,6 +87,10 @@ A hypothesis test evaluating whether there is statistically significant evidence
 ### Theme
 A visual presentation scheme for plots. Plot themes adjust the colors of structural elements (axes, grid lines, zero baseline, box plots, and typography) to ensure optimal legibility and contrast against expected background canvas colors while maintaining consistent data series palette colors.
 
+### Plot Layout
+The spatial geometry and dimension specifications for rendering a plot. It defines the overall canvas dimensions (width and height), surrounding margins, and the resulting inner plotting area (`plotWidth` and `plotHeight`) where data and axes are drawn.
+_Avoid_: Canvas size, plot dimensions
+
 ### Dark Theme
 The default **Theme**, optimized for dark background canvases. Structural elements, labels, and box plots are drawn with white or light gray strokes and fills, leaving the SVG background transparent.
 

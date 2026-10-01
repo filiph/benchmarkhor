@@ -12,6 +12,7 @@ import 'package:benchmarkhor/src/plot/y_axis.dart';
 String buildViolinSvg(
   List<ViolinData> violins, {
   PlotTheme theme = PlotTheme.dark,
+  PlotLayout layout = const PlotLayout(),
 }) {
   // Plot range: the span of values the plot commits to showing. Values
   // outside of it are excluded (and summarised in a note instead).
@@ -23,7 +24,7 @@ String buildViolinSvg(
     plotMinimum = min(plotMinimum, v.inputMin);
   }
 
-  final axis = YAxis.forRange(plotMinimum, plotMaximum);
+  final axis = YAxis.forRange(plotMinimum, plotMaximum, layout: layout);
   final ticks = axis.ticks;
   final axisMin = axis.min;
   final axisMax = axis.max;
@@ -31,7 +32,7 @@ String buildViolinSvg(
 
   // Horizontal spacing for violins
   final count = violins.length;
-  final slotWidth = plotWidth / count;
+  final slotWidth = layout.plotWidth / count;
 
   // Global max density across all violins (for normalised width)
   double globalMaxDensity = 0.0;
@@ -48,15 +49,15 @@ String buildViolinSvg(
   buf.writeln('<?xml version="1.0" encoding="utf-8"?>');
   buf.writeln(
     '<svg xmlns="http://www.w3.org/2000/svg" '
-    'width="$svgWidth" height="$svgHeight" '
-    'viewBox="0 0 $svgWidth $svgHeight">',
+    'width="${layout.width}" height="${layout.height}" '
+    'viewBox="0 0 ${layout.width} ${layout.height}">',
   );
 
   // --- Y axis line ---
-  final axisX = marginLeft;
+  final axisX = layout.marginLeft;
   buf.writeln(
-    '<line x1="$axisX" y1="$marginTop" x2="$axisX" '
-    'y2="${marginTop + plotHeight}" stroke="${theme.axisLine}" stroke-width="1.5"/>',
+    '<line x1="$axisX" y1="${layout.marginTop}" x2="$axisX" '
+    'y2="${layout.plotBottom}" stroke="${theme.axisLine}" stroke-width="1.5"/>',
   );
 
   // --- Tick marks and labels ---
@@ -70,7 +71,7 @@ String buildViolinSvg(
     );
     // Light grid line
     buf.writeln(
-      '<line x1="$axisX" y1="$ty" x2="${axisX + plotWidth}" y2="$ty" '
+      '<line x1="$axisX" y1="$ty" x2="${axisX + layout.plotWidth}" y2="$ty" '
       'stroke="${theme.gridLine}" stroke-width="0.8"/>',
     );
     // Label
@@ -86,7 +87,7 @@ String buildViolinSvg(
   if (axisMin <= 0 && 0 <= axisMax) {
     final y0 = toSvgY(0);
     buf.writeln(
-      '<line x1="$axisX" y1="$y0" x2="${axisX + plotWidth}" y2="$y0" '
+      '<line x1="$axisX" y1="$y0" x2="${axisX + layout.plotWidth}" y2="$y0" '
       'stroke="${theme.zeroLine}" stroke-width="1.5"/>',
     );
   }
@@ -96,7 +97,7 @@ String buildViolinSvg(
     final v = violins[i];
     if (v.sorted.isEmpty) continue;
 
-    final slotCenterX = marginLeft + slotWidth * (i + 0.5);
+    final slotCenterX = layout.marginLeft + slotWidth * (i + 0.5);
     final colorHex = colors[i % colors.length];
     final (fillColor, fillOpacity) = parseColor(colorHex);
     final strokeColorHex = colorHex.replaceRange(0, 3, '#33');
@@ -136,7 +137,7 @@ String buildViolinSvg(
 
     // --- Label ---
     buf.writeln(
-      '<text x="$slotCenterX" y="${marginTop + plotHeight + 25}" '
+      '<text x="$slotCenterX" y="${layout.plotBottom + 25}" '
       'text-anchor="middle" font-family="Arial,sans-serif" '
       'font-size="14" font-weight="bold" fill="${theme.primaryText}">${v.label}</text>',
     );
@@ -241,7 +242,7 @@ String buildViolinSvg(
       final formattedMax = formatTick(excludedMax!);
       final note = '+$excludedAboveCount outliers (max $formattedMax)';
       buf.writeln(
-        '<text x="$slotCenterX" y="${marginTop - 10}" '
+        '<text x="$slotCenterX" y="${layout.marginTop - 10}" '
         'text-anchor="middle" font-family="Arial,sans-serif" '
         'font-size="11" fill="${theme.mutedText}">$note</text>',
       );
@@ -250,7 +251,7 @@ String buildViolinSvg(
       final formattedMin = formatTick(excludedMin!);
       final note = '+$excludedBelowCount outliers (min $formattedMin)';
       buf.writeln(
-        '<text x="$slotCenterX" y="${marginTop + plotHeight + 12}" '
+        '<text x="$slotCenterX" y="${layout.plotBottom + 12}" '
         'text-anchor="middle" font-family="Arial,sans-serif" '
         'font-size="11" fill="${theme.mutedText}">$note</text>',
       );

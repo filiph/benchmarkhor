@@ -7,7 +7,9 @@ import 'package:benchmarkhor/src/plot/violin/violin_data.dart';
 import 'package:benchmarkhor/src/plot/violin/violin_renderer.dart';
 import 'package:test/test.dart';
 
-const plotBottom = marginTop + plotHeight;
+const defaultLayout = PlotLayout();
+final plotBottom = defaultLayout.plotBottom;
+final marginTop = defaultLayout.marginTop;
 
 /// The y coordinate of the highlighted y=0 line, if drawn.
 double? zeroLineY(String svg) {
@@ -60,6 +62,18 @@ void main() {
       expect(svg, contains('fill="#444">0</text>')); // tick label
       expect(svg, contains('stroke="black"')); // box plot
       expect(svg, contains('fill="#777">+1 outliers')); // outlier summary
+    });
+
+    test('renders with custom layout dimensions', () {
+      final values = parseDat('test/fixtures/sample_a.dat');
+      final violin = ViolinData.compute('sample_a', values);
+      final svg = buildViolinSvg(
+        [violin],
+        layout: const PlotLayout(width: 1200, height: 800),
+      );
+
+      expect(svg, contains('width="1200.0" height="800.0"'));
+      expect(svg, contains('viewBox="0 0 1200.0 800.0"'));
     });
 
     test('renders the sample fixtures on shared axes', () {

@@ -24,13 +24,17 @@ class YAxis {
   /// The values at which ticks (and grid lines) are drawn.
   final List<double> ticks;
 
-  YAxis._(this.min, this.max, this.ticks);
+  /// The layout geometry used by this axis.
+  final PlotLayout layout;
+
+  YAxis._(this.min, this.max, this.ticks, {this.layout = const PlotLayout()});
 
   /// Builds an axis able to show everything between [rangeMin] and [rangeMax].
   factory YAxis.forRange(
     double rangeMin,
     double rangeMax, {
     int targetTickCount = 7,
+    PlotLayout layout = const PlotLayout(),
   }) {
     // Zero anchoring: the axis always contains 0.
     var lo = math.min(rangeMin, 0.0);
@@ -46,13 +50,18 @@ class YAxis {
 
     final ticks = niceTicks(lo, hi, targetCount: targetTickCount);
     // Extend the axis to encompass the outermost ticks.
-    return YAxis._(math.min(lo, ticks.first), math.max(hi, ticks.last), ticks);
+    return YAxis._(
+      math.min(lo, ticks.first),
+      math.max(hi, ticks.last),
+      ticks,
+      layout: layout,
+    );
   }
 
   /// Maps a data value to an SVG pixel y coordinate (inverted: larger values
   /// map to smaller pixel coordinates).
   double toSvgY(double y) {
-    return marginTop + plotHeight * (1 - (y - min) / (max - min));
+    return layout.marginTop + layout.plotHeight * (1 - (y - min) / (max - min));
   }
 
   /// Whether zero is visible on this axis. Always true in practice, but

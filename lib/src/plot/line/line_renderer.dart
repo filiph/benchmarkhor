@@ -12,6 +12,7 @@ import 'package:benchmarkhor/src/plot/y_axis.dart';
 String buildLineSvg(
   List<LineData> lines, {
   PlotTheme theme = PlotTheme.dark,
+  PlotLayout layout = const PlotLayout(),
 }) {
   final nonEmptyLines = lines.where((l) => l.values.isNotEmpty).toList();
 
@@ -38,7 +39,7 @@ String buildLineSvg(
     globalYMax = 0;
   }
 
-  final axis = YAxis.forRange(globalYMin, globalYMax);
+  final axis = YAxis.forRange(globalYMin, globalYMax, layout: layout);
   final ticks = axis.ticks;
   final axisMin = axis.min;
   final axisMax = axis.max;
@@ -46,8 +47,8 @@ String buildLineSvg(
 
   // Map a point index to SVG pixel x.
   double toSvgX(int index) {
-    if (maxIndex == 0) return marginLeft;
-    return marginLeft + plotWidth * (index / maxIndex);
+    if (maxIndex == 0) return layout.marginLeft;
+    return layout.marginLeft + layout.plotWidth * (index / maxIndex);
   }
 
   final buf = SvgBuffer();
@@ -55,15 +56,15 @@ String buildLineSvg(
   buf.writeln('<?xml version="1.0" encoding="utf-8"?>');
   buf.writeln(
     '<svg xmlns="http://www.w3.org/2000/svg" '
-    'width="$svgWidth" height="$svgHeight" '
-    'viewBox="0 0 $svgWidth $svgHeight">',
+    'width="${layout.width}" height="${layout.height}" '
+    'viewBox="0 0 ${layout.width} ${layout.height}">',
   );
 
   // --- Y axis line ---
-  final axisX = marginLeft;
+  final axisX = layout.marginLeft;
   buf.writeln(
-    '<line x1="$axisX" y1="$marginTop" x2="$axisX" '
-    'y2="${marginTop + plotHeight}" stroke="${theme.axisLine}" stroke-width="1.5"/>',
+    '<line x1="$axisX" y1="${layout.marginTop}" x2="$axisX" '
+    'y2="${layout.plotBottom}" stroke="${theme.axisLine}" stroke-width="1.5"/>',
   );
 
   // --- Tick marks and labels ---
@@ -77,7 +78,7 @@ String buildLineSvg(
     );
     // Light grid line
     buf.writeln(
-      '<line x1="$axisX" y1="$ty" x2="${axisX + plotWidth}" y2="$ty" '
+      '<line x1="$axisX" y1="$ty" x2="${axisX + layout.plotWidth}" y2="$ty" '
       'stroke="${theme.gridLine}" stroke-width="0.8"/>',
     );
     // Label
@@ -93,7 +94,7 @@ String buildLineSvg(
   if (axis.containsZero) {
     final y0 = toSvgY(0);
     buf.writeln(
-      '<line x1="$axisX" y1="$y0" x2="${axisX + plotWidth}" y2="$y0" '
+      '<line x1="$axisX" y1="$y0" x2="${axisX + layout.plotWidth}" y2="$y0" '
       'stroke="${theme.zeroLine}" stroke-width="1.5"/>',
     );
   }
@@ -130,8 +131,8 @@ String buildLineSvg(
     final (strokeColor, strokeOpacity) = parseColor(
       colorHex.replaceRange(0, 3, '#ff'),
     );
-    final legendY = marginTop + i * legendLineHeight;
-    final legendX = axisX + plotWidth - 150;
+    final legendY = layout.marginTop + i * legendLineHeight;
+    final legendX = axisX + layout.plotWidth - 150;
 
     buf.writeln(
       '<line x1="$legendX" y1="$legendY" x2="${legendX + 20}" y2="$legendY" '

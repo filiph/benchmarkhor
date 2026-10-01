@@ -1,5 +1,7 @@
 import 'dart:math';
 
+export 'package:benchmarkhor/src/plot/layout.dart';
+
 // ---------------------------------------------------------------------------
 // Nice tick generation
 // ---------------------------------------------------------------------------
@@ -50,19 +52,6 @@ class SvgBuffer {
   @override
   String toString() => _buf.toString();
 }
-
-// ---------------------------------------------------------------------------
-// Layout constants
-// ---------------------------------------------------------------------------
-
-const double svgWidth = 900; /* can be 1200 for wider layouts */
-const double svgHeight = 700;
-const double marginLeft = 80;
-const double marginRight = 40;
-const double marginTop = 40;
-const double marginBottom = 50;
-const double plotWidth = svgWidth - marginLeft - marginRight;
-const double plotHeight = svgHeight - marginTop - marginBottom;
 
 // ---------------------------------------------------------------------------
 // Shared color palette

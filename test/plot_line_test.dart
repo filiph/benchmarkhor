@@ -6,7 +6,9 @@ import 'package:benchmarkhor/src/plot/svg.dart';
 import 'package:benchmarkhor/src/plot/theme.dart';
 import 'package:test/test.dart';
 
-const plotBottom = marginTop + plotHeight;
+const defaultLayout = PlotLayout();
+final plotBottom = defaultLayout.plotBottom;
+final marginTop = defaultLayout.marginTop;
 
 /// The y coordinate of the x axis (the highlighted y=0 line), if drawn.
 double? xAxisY(String svg) {
@@ -64,6 +66,17 @@ void main() {
       expect(svg, contains('stroke="#111"')); // zero line
       expect(svg, contains('fill="#111">sample_a</text>')); // legend label
       expect(svg, contains('fill="#444">20</text>')); // tick label
+    });
+
+    test('renders with custom layout dimensions', () {
+      final line = LineData.compute('sample_a', [10, 20, 30]);
+      final svg = buildLineSvg(
+        [line],
+        layout: const PlotLayout(width: 1200, height: 800),
+      );
+
+      expect(svg, contains('width="1200.0" height="800.0"'));
+      expect(svg, contains('viewBox="0 0 1200.0 800.0"'));
     });
 
     test('two inputs of different lengths share axes and use two colors', () {
