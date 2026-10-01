@@ -73,24 +73,20 @@ class BenchmarkRecorder {
   /// records the iteration, and returns the result.
   T measure<T>(T Function() action) {
     final sw = Stopwatch()..start();
-    try {
-      return action();
-    } finally {
-      sw.stop();
-      recordIteration(durationUs: sw.elapsedMicroseconds);
-    }
+    final result = action();
+    sw.stop();
+    recordIteration(durationUs: sw.elapsedMicroseconds);
+    return result;
   }
 
   /// Asynchronously executes [action], measures its elapsed microseconds,
   /// records the iteration, and returns the result.
   Future<T> measureAsync<T>(Future<T> Function() action) async {
     final sw = Stopwatch()..start();
-    try {
-      return await action();
-    } finally {
-      sw.stop();
-      recordIteration(durationUs: sw.elapsedMicroseconds);
-    }
+    final result = await action();
+    sw.stop();
+    recordIteration(durationUs: sw.elapsedMicroseconds);
+    return result;
   }
 
   /// Flushes any buffered records to disk.
